@@ -749,3 +749,126 @@ Nguồn: §15.9 + VISUAL-REVIEW.md §9 (run 43027661716) và các vòng trước
   (f) số liệu tốc độ run (< 30 phút) + số vision call thực tế. Repo QA chưa
   có secret AI brain (NVIDIA_API_KEY / GEMINI_API_KEY / METEOR_API_KEY) nên
   preflight sẽ fail — KHÔNG dispatch trial trong vòng này.
+
+### 15.13. CI-T7 LIVE TRIAL — eye-review (run 43083708112, 2026-11-12)
+
+Trial trực tiếp đầu tiên của code CI-T7 (head d0c1c71 — đã sửa đường dẫn APK
+sau fail sớm của run 43082620123). Workflow SUCCESS, job `qa` 40m14s.
+Artifact `qa-report-realtime` 9 MB, 29 ảnh. Chi tiết mắt kiểm:
+`~/workspace/kenhlive-plan/qa-run-43083708112/VISUAL-REVIEW.md` (+ thư mục
+`eye/` chứa crop phóng to, khung tour, khung reel).
+**Verdict: NEEDS-CI-T8 — KHÔNG switch.**
+
+- **Số thật:** score **68**, QA **2057s (34m17s)**, **81 bước**, **10/17 PASS**,
+  verdict **NEEDS_FIX**. Vision **11 call** (stuck_assist 6, confirm_target 3,
+  check_visual 2), provider **OPENAI** qua integrate.api.nvidia.com,
+  **23 request, 0×429**, limit 30/phút, vision latency trung bình **57,9s**/call,
+  observe 721,8s, vision 637,2s, per-step p50 5,38s / p95 21,95s / mean 9,61s,
+  sync_retries 0. Video ghi **1691,0s** / 2057s = **82,2%**, tour 360,07s @ 4,7×,
+  graceful_stop true. Reel 12,17s, 2 entries, report tự tính covered 2/2.
+  Findings **2 HIGH**. Vision lỗi **3 call** (1 timeout + 2× HTTP 503).
+- **PASS (10):** COLD_START, ROOM_PICKER, DATA_ACCURACY, HOME_BILLBOARD_6_ROWS,
+  SCHEDULE_EPG, IPTV_CATEGORIES, PHIM_NGUONC, EPISODE_PICKER,
+  PLAYER_SETTINGS_DIALOG, SEARCH_AND_SETTINGS.
+  **FAIL (7):** SPORTS_MULTI_SOURCE (A-B-A-B), PLAYER_STREAMING (A-B-A-B),
+  SIDEBAR_RAIL (thiếu railPanel), IPTV_EPG (vision 2× deny), VOD_PLAYER (kẹt),
+  WEBPLAYER_DIRECTED (kẹt), STRESS (kẹt).
+- **Mắt kiểm PASS:** 8 PASS thật; **2 PASS mềm** — HOME_BILLBOARD (khung step_025
+  không có billboard, vision hero 503, PASS dựa dump text) và EPISODE_PICKER
+  (dialog có mở thật — dump tvEpisodeName + tour chớp dialog ở 292,55s — nhưng
+  khung bằng chứng step_051 KHÔNG thấy dialog).
+- **Mắt kiểm FAIL:** 6 FAIL thật về hành vi app; **STRESS FAIL là lỗi harness**
+  (bàn phím mở, highlight di chuyển a → z → ▶, app không crash — dump không đổi
+  nên detector "kẹt" nổ oan).
+- **Finding #1 (HIGH) "Mất focus trong player khi OSD đang hiện" — LỖI GIẢ.**
+  Crop phóng to 3× step_056/057: viền **vàng** bao nút tua lùi 10s (056) rồi
+  chuyển sang nút play (057) — focus CÓ trên ảnh và DI CHUYỂN được. Dump báo
+  NONE chỉ vì WebView không lộ focus ra uiautomator; session cũng ghi
+  `has_focus_ring=false, ring_color=UNKNOWN` ở bước 56–59/66–69 (detector vòng
+  focus của harness không thấy viền vàng). Harness tin dump hơn tin ảnh.
+  **Tiêu chí "0 lỗi HIGH giả": FAIL.**
+- **Finding #2 (HIGH) focus rò xuống thẻ nền khi Dialog mở — THẬT.** Crop
+  step_014: thẻ nền "JPN D2 · SOCO · ● LIVE · Albirex… vs Tokush… · VS" có
+  viền trắng rõ ở cạnh phải trong lúc MatchDetailPanel mở.
+
+**Kiểm chứng 6 mục live của §15.12:**
+- (a) Video phủ >95% + reel 2/2 — **KHÔNG ĐẠT.** Phủ 82,2%. Reel: report tự
+  tính 2/2, nhưng **theo nội dung là 0/2** — seg1 (tour 40,2–46,2s) chiếu màn
+  Lịch Thi Đấu (không phải cảnh panel rò focus), seg2 (tour 248,4–254,4s)
+  chiếu màn "Đang tải..." (không seekbar, không 00:00, không viền focus).
+  Nguyên nhân: `video_t = QA_t / 4,7` giả định tour đều 4,7×, nhưng timebase
+  tour **không đều** — ranh giới cảnh lệch sớm ~10–17 tour-giây so với mapping
+  naive (đo bằng 3 neo: Lịch, WebPlayer, Search). Dialog chọn tập chớp đúng
+  1 lần ở tour 292,55s (<2s tour), lệch ~76 tour-giây so với vị trí session —
+  fragment lạc (có thể dialog chưa bao giờ đóng, chớp lại lúc chuyển activity
+  WebPlayer → Player ở bước 69→70).
+- (b) playback_readings từ ảnh + tăng đơn điệu — **CHƯA CHỨNG MINH ĐƯỢC.** OCR tốt
+  (tesseract đọc "00:00 / 00:00" từ band dưới step_057; harness đọc đúng 0,0
+  ở bước 51/60) nhưng readings chỉ là singleton `[[1046.2, 0.0]]`,
+  `[[1246.1, 0.0]]` — đóng băng ở 0,0 vì video không bao giờ phát (placeholder
+  xám + "Đang tải..." loop; 5 khung WebPlayer 056/057/060/066/070 mean diff
+  0,05–0,10). Không phải harness đọc sai — tiền đề (phát thật) không xảy ra.
+- (c) Focus-trap không tố oan khi bàn phím mở — **ĐẠT HẸP, mong manh.** Không có
+  finding trap nào; `keyboard_open_image=True` ở đúng 5 bước [77–81]. Nhưng
+  dump `keyboard_open=False` ở **cả 81 bước** (dump mù với bàn phím), detector
+  ảnh trượt bước 76 (None), và detector "kẹt" vẫn không hiểu điều hướng bàn
+  phím (→ STRESS FAIL oan).
+- (d) IPTV_EPG vision-confirm EPG text thật — **CHƯA CHỨNG MINH ĐƯỢC.** 1 call
+  timeout (khung step_042 thiếu), 2 call deny; khung chỉ thấy lưới kênh.
+  FAIL trung thực; item không đạt vì điều hướng thất bại.
+- (e) Schedule detector tố hàng LIVE thiếu tỉ số — **KHÔNG KIỂM ĐƯỢC.**
+  `'schedule_live'` xuất hiện 0 lần trong qa_session.json; các khung Lịch chỉ
+  có hàng KẾT THÚC, không có hàng LIVE nào trong cả run.
+- (f) Tốc độ + vision call — **TỐC ĐỘ FAIL (2057s > 30 phút)**, budget PASS
+  (11 call, 23 request ≤ 40, 0×429).
+
+**Lỗi app mới / còn tồn tại (mắt thấy, ghi cho fix loop sau — không sửa ở đây):**
+- **A1 (cũ, HIGH) VẪN CÒN:** double title WebPlayer — 5 khung đều thấy "Hoàng
+  Hậu Tái Hôn / Tập 01" (trắng, trái) + "Hoàng Hậu Tái Hôn (2026) · Tập 01"
+  (xám, giữa). Vision player_title 503 nên harness bỏ lỡ.
+- **A8 (MỚI):** trận đã kết thúc không hiện tỉ số chung cuộc (Hong Kong vs
+  Cambodia, Albirex vs Tokushima, Fujieda vs Shonan — KẾT THÚC, chỉ có giờ đá).
+  A6 (LIVE hiện "VS" không tỉ số) cũng còn: China U23 vs Uzbekistan U.
+- **Ngày Lịch cũ (MỚI):** "Thứ Bảy, 03/10, 37 trận" trong khi run 12/11 (lệch
+  ~40 ngày); đồng hồ launcher trong video đọc 7:10 — chưa rõ do đồng hồ
+  emulator hay dữ liệu API cũ, cần kiểm riêng.
+- **A7 (cũ):** "ÂM THANH & PHỤ ĐỀ" bị cắt ở mép phải khi focus (071/074, crop
+  phóng to xác nhận). **A5 (cũ):** rail không mở. Nhỏ: pill IPTV thứ 4 chỉ còn
+  "T"; logo đội là vòng tròn xám placeholder.
+- **Run này KHÔNG có proxy VN** (annotation: "Khong co proxy VN
+  (YUNA_PROXY_YAML/YUNA_SUB_URL) — chay khong qua proxy") — embed có thể bị
+  chặn geo khi không proxy; F63 chỉ kiểm được khi có proxy hoặc trên máy thật.
+
+**Bằng chứng thiếu:** `step_035_sidebar_.jpg` (SIDEBAR_RAIL) và
+`step_042_iptv_epg.jpg` (unverified IPTV_EPG) **không có trong shots/** (29
+file); `step_051_phim_epi.jpg` có file nhưng không thấy dialog.
+`findings[].evidence.video_t` ghi **thời gian QA** (1181.7 / 203.1), không phải
+thời gian tour — tên trường gây nhầm với `defect_reel_entries[].video_t`
+(43.2 / 251.4, thời gian tour).
+
+**Đối chiếu switchover (§15):** QA <30 phút FAIL (2057s); 0 PASS giả — 0 tuyệt
+đối nhưng 2 PASS mềm thiếu bằng chứng mắt; WebPlayer tới đích + vision thấy OSD
+CHƯA (tới activity, OSD thấy bằng mắt, vision 503, phát không chạy); 0×429
+≤40 PASS (23, 0×429); frame bằng chứng FAIL (step_035, step_042 thiếu); reel
+khớp báo cáo FAIL (0/2 đúng cảnh theo nội dung); 0 HIGH giả FAIL (finding #1
+giả); mắt khớp báo cáo MỘT PHẦN.
+
+**Danh sách sửa CI-T8 (harness):**
+1. Detector focus trong WebPlayer phải đọc ẢNH (tìm viền vàng/vòng focus trên
+   OSD), không tin dump NONE — dump mù bên trong WebView (finding #1 giả).
+2. Timebase tour không đều: ghi timestamp QA theo từng chunk (hoặc nhúng QA
+   t vào video), tính video_t từ map đó thay vì /4,7 đều; verify reel theo
+   NỘI DUNG (frame-match với shot trích dẫn), không chỉ theo timestamp.
+3. Frame bằng chứng thiếu phải FAIL ồn ào (step_035/step_042 class); đồng bộ
+   shot/dump ở `_finish_mission` (step_051 không thấy dialog dù dialog đã mở).
+4. Tốc độ 2057s → <1800s: vision latency 57,9s/call là nút thắt (11 call =
+   637,2s); giảm call hoặc đổi endpoint nhanh hơn.
+5. Vision endpoint: 3/11 call lỗi (2×503 + 1 timeout, 27%) — retry 1 lần khi
+   503/timeout rồi mới ghi UNVERIFIED, hoặc fallback provider.
+6. Detector "kẹt" phải coi điều hướng bàn phím là đổi trạng thái
+   (`keyboard_open_image` True + highlight di chuyển) — STRESS không được FAIL
+   oan khi đang gõ bàn phím.
+7. Schedule detector: nếu run không có hàng LIVE, ghi item (e) là UNTESTED
+   (không im lặng); thêm mission directed chờ hàng LIVE thật.
+8. WebPlayer phát thật (F63): trial sau cần proxy VN (YUNA secrets) hoặc máy
+   thật — embed 00:00/00:00 trong emulator không proxy không chứng minh được gì.
