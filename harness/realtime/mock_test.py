@@ -576,6 +576,27 @@ def main():
     assert _o15b["ui_state"]["has_dialog"] is False
     print("SYNC_SHOT_DUMP_OK")
 
+    # --- Test N16: IPTV_EPG cần vision_confirm EPG text (CI-T7 mục 8) ---
+    # CI-T6 PASS mềm: frame chỉ thấy list kênh, không thấy EPG text mà vẫn
+    # PASS cứng. Giờ mission bắt buộc vision (xác nhận tên kênh + EPG trong
+    # frame): đủ tín hiệu rẻ mà chưa có vision thì VISION_PENDING, không PASS.
+    from gate import EvidenceGate as _EG16
+    _spec16 = specs["MISSION_IPTV_EPG_AND_ZAPPING_PLAYER"]
+    assert _spec16.needs_vision is True, "IPTV_EPG phải cần vision_confirm"
+    assert "EPG" in _spec16.target_desc and "tên kênh" in _spec16.target_desc, \
+        "target_desc phải yêu cầu thấy tên kênh + EPG text trong frame"
+    _g16 = _EG16(_spec16)
+    for _t in (10.0, 20.0, 30.0, 40.0):
+        _g16.observe("com.kenhlive.tv/.PlayerActivity", [], [], False, True, _t)
+    _v16, _r16, _ = _g16.evaluate("step_004.jpg")
+    print("IPTV_EPG đủ tín hiệu rẻ, chưa vision ->", _v16, "|", _r16)
+    assert _v16 == "VISION_PENDING", "chỉ thấy list/player mà chưa vision thì không được PASS"
+    _g16.record_vision(True, "step_004.jpg", 40.0,
+                       "đang phát VTV1, EPG: Thời sự 19:00")
+    _v16b, _r16b, _ = _g16.evaluate("step_004.jpg")
+    assert _v16b == "PASS", "vision xác nhận có EPG text thì PASS"
+    print("IPTV_EPG_VISION_OK")
+
     # --- Test N6: bằng chứng thời gian phát tăng (CI-T6 mục 8) ---
     # CI-T5 WebPlayer đóng băng 00:20 qua 3 quan sát mà vẫn PASS — giờ phải
     # FAIL (hoặc UNVERIFIED nếu không đọc được đồng hồ). Chỉ 2 mission VOD

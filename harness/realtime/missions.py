@@ -123,11 +123,15 @@ ALL_MISSIONS = [
     MissionSpec(
         "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
         "Hero Preview IPTV, EPG & Nhảy Kênh",
-        "Hero Preview + EPG theo giờ, mở phát toàn màn hình, gõ số nhảy kênh.",
+        "Hero Preview + EPG theo giờ, mở phát toàn màn hình, gõ số nhảy kênh. "
+        "CI-T7 mục 8: CI-T6 PASS mềm — frame chỉ thấy list kênh, không thấy "
+        "EPG text — nên mission này bắt buộc vision_confirm (xác nhận có "
+        "thấy tên kênh + thông tin EPG/lịch phát sóng trong frame), không "
+        "PASS cứng khi chỉ thấy list.",
         max_steps=7, min_steps=3,
         required_activity="PlayerActivity",
-        needs_motion=True,
-        target_desc="trình phát IPTV đang phát một kênh truyền hình",
+        needs_motion=True, needs_vision=True,
+        target_desc="trình phát IPTV đang phát một kênh truyền hình, màn hình hiện tên kênh và thông tin EPG/lịch phát sóng của chương trình đang phát (tên chương trình và giờ phát)",
         tab=2,
     ),
     MissionSpec(
