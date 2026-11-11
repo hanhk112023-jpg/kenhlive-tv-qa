@@ -2039,6 +2039,77 @@ def main():
             "reel phải được ghi ra file"
         print("REEL_CONTENT_OK")
 
+    # --- Test N20: đồng bộ frame bằng chứng + FAIL ồn ào khi thiếu (CI-T8 mục 3) ---
+    # CI-T7: step_035/step_042 trích dẫn trong evidence nhưng file không có
+    # trong shots/ (dedup trả path cũ mà evidence vẫn giữ tên mới);
+    # step_051: dialog mở thật nhưng khung cuối mission không thấy dialog.
+    from gate import EvidenceGate as _EG20
+    # (a) frame bằng chứng thiếu trên đĩa -> FAIL ồn ào, không PASS lặng lẽ.
+    _r20a = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_ev3a", serial=None,
+                                      vision_budget=0, no_vision=True)
+    _g20a = _EG20(specs["MISSION_COLD_START"])
+    _g20a.outcome = "PASS"
+    _g20a.outcome_reason = "đủ mọi tín hiệu áp dụng"
+    _g20a.evidence = {"frame": "step_999_ghost.jpg", "activities_seen": [],
+                      "texts_seen": [], "views_seen": [], "dialog_seen": False,
+                      "motion_seen": False, "vision_confirmations": [],
+                      "vision_denials": 0, "playback_status": "unknown",
+                      "playback_readings": [], "playback_monotonic": True,
+                      "steps": 3}
+    _res20a = _r20a._finish_mission(specs["MISSION_COLD_START"], _g20a, [])
+    print("evidence ghost -> outcome:", _res20a["outcome"], "| reason:", _res20a["reason"])
+    assert _res20a["outcome"] == "FAIL", "frame bằng chứng thiếu phải FAIL ồn ào"
+    assert _res20a.get("evidence_frame_missing") is True
+    assert "BẰNG CHỨNG THIẾU" in _res20a["reason"]
+    # (b) mission cần dialog -> evidence frame phải là khung dialog đã thấy.
+    _r20b = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_ev3b", serial=None,
+                                      vision_budget=0, no_vision=True)
+    _g20b = _EG20(specs["MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE"])
+    _g20b.outcome = "PASS"
+    _g20b.outcome_reason = "đủ mọi tín hiệu áp dụng"
+    _g20b.evidence = {"frame": "step_005_phim_epi.jpg", "activities_seen": [],
+                      "texts_seen": [], "views_seen": [], "dialog_seen": True,
+                      "motion_seen": False, "vision_confirmations": [],
+                      "vision_denials": 0, "playback_status": "unknown",
+                      "playback_readings": [], "playback_monotonic": True,
+                      "steps": 5}
+    _dlg20 = {"png": _fake_png(7), "frame_ref": "step_002_phim_epi.jpg", "t_offset": 5.0}
+    _last20 = {"png": _fake_png(8), "frame_ref": "step_005_phim_epi.jpg", "t_offset": 12.0}
+    _res20b = _r20b._finish_mission(specs["MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE"],
+                                    _g20b, [_last20], dialog_obs=_dlg20)
+    _ev20b = (_res20b.get("evidence") or {}).get("frame")
+    print("dialog evidence frame:", _ev20b, "| duplicate_of:",
+          _res20b.get("evidence_frame_duplicate_of"))
+    assert _ev20b and "step_002" in _ev20b, \
+        "evidence frame phải là khung dialog (step_002), không phải khung cuối, được %s" % _ev20b
+    assert os.path.exists(os.path.join("/tmp/qa_mock_ev3b", "shots",
+                                       os.path.basename(_ev20b))), \
+        "frame dialog trích dẫn phải tồn tại trên đĩa"
+    assert _res20b["outcome"] == "PASS", "dialog frame có đủ thì không được FAIL oan"
+    # (c) dedup: 2 mission cùng 1 frame cuối -> evidence frame của mission 2
+    # phải trỏ file TỒN TẠI (shot dùng lại), không trỏ tên mới không có file.
+    import shutil as _sh20c
+    _sh20c.rmtree("/tmp/qa_mock_ev3c", ignore_errors=True)
+
+    class _DupDevice20(FakeDevice):
+        def screencap_bytes(self):
+            return _fake_png(0)
+
+    _orig_dev20 = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = _DupDevice20
+    try:
+        _r20c = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_ev3c", serial=None,
+                                          vision_budget=0, no_vision=True)
+        _r20c.run([specs["MISSION_COLD_START"], specs["MISSION_COLD_START"]])
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev20
+    _ev20c = (_r20c.mission_results[1].get("evidence") or {}).get("frame")
+    print("mission 2 evidence frame (dedup):", _ev20c)
+    assert _ev20c and os.path.exists(os.path.join("/tmp/qa_mock_ev3c", "shots",
+                                                  os.path.basename(_ev20c))), \
+        "evidence frame sau dedup phải trỏ file tồn tại, được %s" % _ev20c
+    print("EVIDENCE_SYNC_OK")
+
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)

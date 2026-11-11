@@ -265,6 +265,15 @@ class RealtimeRunner:
         if findings or (self._global_step % 5 == 0):
             if not (duplicate_frame and not findings):
                 saved = self._save_frame(png, frame_ref.replace(".jpg", ""))
+        # CI-T8 mục 3: _save_frame dedup theo nội dung — frame trùng shot
+        # đã lưu thì trả lại path CŨ; finding trích dẫn frame_ref MỚI sẽ
+        # trỏ file không tồn tại (step_035/042 CI-T7). Viết lại evidence
+        # của finding sang path đã lưu thật.
+        if saved and os.path.basename(saved) != frame_ref:
+            _saved_base = os.path.basename(saved)
+            for f in findings:
+                if (f.get("evidence") or {}).get("frame") == frame_ref:
+                    f["evidence"]["frame"] = _saved_base
         dt = round(time.time() - t0, 2)
         self.timings["observe_s"] += dt
         breakdown = {"wait": t_wait, "dump": t_dump, "detect": t_detect}
@@ -573,6 +582,7 @@ class RealtimeRunner:
                         vision=None if self.no_vision else self.vision)
         last_frame_ref = None
         last_obs = None
+        dialog_obs = None  # CI-T8 mục 3: observation đầu tiên thấy dialog mở
         pending_vision_confirm = False
         last_action_rule = None  # rule của action vừa thực thi (CI-T5 mục 9)
 
@@ -620,6 +630,11 @@ class RealtimeRunner:
             # tích lũy bằng chứng vào gate
             texts = [t for _, t in ui_state.get("all_visible_texts", [])]
             views = [rid for rid, _ in ui_state.get("all_visible_texts", [])]
+            # CI-T8 mục 3: giữ khung ĐẦU TIÊN thấy dialog mở — mission cần
+            # dialog thì frame bằng chứng phải là khung này (step_051: dialog
+            # mở thật nhưng khung cuối mission không thấy dialog).
+            if dialog_obs is None and ui_state.get("has_dialog"):
+                dialog_obs = obs
             # View đang focus cũng tính là "đã thấy" (view không có text thì
             # không có trong all_visible_texts — CI-T5 mục 9: focus đã đứng
             # trên view đích thì gate không được đòi driver đi tìm nữa).
@@ -764,13 +779,29 @@ class RealtimeRunner:
         pss = self.device.get_pss_memory_mb()
         if pss > 0:
             print("   📊 [Telemetry] RAM PSS: %.1f MB" % pss, flush=True)
-        return self._finish_mission(spec, gate, last_obs and [last_obs] or [])
+        return self._finish_mission(spec, gate, last_obs and [last_obs] or [],
+                                    dialog_obs=dialog_obs)
 
-    def _finish_mission(self, spec, gate, _obs):
+    def _finish_mission(self, spec, gate, _obs, dialog_obs=None):
         res = {"name": spec.name, "title": spec.title,
                "outcome": gate.outcome or "FAIL",
                "reason": gate.outcome_reason or "?",
                "evidence": gate.evidence, "steps": gate.steps}
+        # CI-T8 mục 3 (step_051): mission cần dialog thì frame bằng chứng
+        # phải là khung dialog ĐÃ THẤY (không phải khung cuối mission, lúc
+        # đó dialog có thể đã đóng). Lưu khung dialog nếu chưa có, viết lại
+        # evidence frame sang path đã lưu thật (kể cả khi dedup trả path cũ).
+        if gate.outcome and spec.needs_dialog and dialog_obs is not None:
+            _d_png = dialog_obs.get("png")
+            _d_ref = dialog_obs.get("frame_ref")
+            if _d_png and _d_ref:
+                _d_saved = self._save_frame(
+                    _d_png, _d_ref[:-4] if _d_ref.endswith(".jpg") else _d_ref)
+                if _d_saved:
+                    _d_base = os.path.basename(_d_saved)
+                    if isinstance(res.get("evidence"), dict):
+                        res["evidence"]["frame"] = _d_base
+                    res["evidence_frame_dialog"] = _d_saved
         # Bằng chứng (vision confirm) phải tồn tại trên đĩa cho MỌI outcome:
         # frame chỉ được lưu khi có defect hoặc mỗi bước thứ 5, nên frame của
         # mission có thể chưa được lưu (CI-T2: step_085 trích dẫn trong
@@ -793,6 +824,11 @@ class RealtimeRunner:
                     if _h in self._saved_shot_hashes:
                         _dup = self._saved_shot_hashes[_h]
                         res["evidence_frame_duplicate_of"] = _dup
+                        # CI-T8 mục 3: evidence phải trỏ file TỒN TẠI — viết
+                        # lại frame sang shot đã lưu thay vì tên mới
+                        # (step_035/042 CI-T7: evidence trỏ file không có).
+                        if isinstance(res.get("evidence"), dict):
+                            res["evidence"]["frame"] = os.path.basename(_dup)
                         print("   📸 [Evidence] frame cuối mission trùng shot đã lưu "
                               "(%s) — không lưu trùng, dùng lại %s"
                               % (gate.outcome, _dup), flush=True)
@@ -800,6 +836,22 @@ class RealtimeRunner:
                         saved = self._save_frame(png, frame_ref[:-4] if frame_ref.endswith(".jpg") else frame_ref)
                         if saved:
                             print("   📸 [Evidence] lưu frame cuối mission (%s): %s" % (gate.outcome, saved), flush=True)
+        # CI-T8 mục 3: frame bằng chứng thiếu trên đĩa thì FAIL ỒN ÀO —
+        # không được PASS/FAIL lặng lẽ với evidence trỏ file không tồn tại
+        # (step_035/step_042 CI-T7). Kiểm tra sau mọi bước lưu/dedup ở trên.
+        _ev_frame = (res.get("evidence") or {}).get("frame")
+        if _ev_frame:
+            _ev_path = os.path.join(self.shots_dir, os.path.basename(_ev_frame))
+            if not os.path.exists(_ev_path):
+                res["evidence_frame_missing"] = True
+                res["reason"] = (res.get("reason") or "") + \
+                    " | BẰNG CHỨNG THIẾU: frame %s không có trên đĩa" % _ev_frame
+                if res["outcome"] != "FAIL":
+                    res["outcome"] = "FAIL"
+                    gate.outcome = "FAIL"
+                    gate.outcome_reason = res["reason"]
+                print("   ❌ [Evidence] frame bằng chứng %s THIẾU trên đĩa — FAIL ồn ào"
+                      % _ev_frame, flush=True)
         self.mission_results.append(res)
         return res
 
