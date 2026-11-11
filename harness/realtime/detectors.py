@@ -408,6 +408,77 @@ def detect_fake_score(ui_state, activity, ctx, frame_ref, t_offset):
     return out
 
 
+def detect_schedule_live_no_score(ui_state, activity, ctx, frame_ref, t_offset):
+    """Hàng LIVE ở tab Lịch chỉ hiện giờ kickoff thay vì tỉ số (CI-T7 mục 9).
+    Lỗi thật từ CI-T3, mắt thấy ở step_030 CI-T6: hàng LIVE hiện '18:30' /
+    '18:35' (giờ đá) thay vì tỉ số đang diễn ra. Dump phẳng không gắn được
+    badge với thẻ nên gom node theo HÀNG (tâm dọc bounds gần nhau, ±60px
+    theo 1080p): hàng nào có badge LIVE + token giờ kickoff 'HH:MM'
+    (không khoảng trắng — tỉ số app render dạng 'X : Y' có khoảng trắng)
+    mà KHÔNG có token tỉ số thì tố. Hàng 'SẮP ĐÁ' hiện giờ kickoff là đúng
+    nên loại. Cần thấy 2 lần quan sát (ổn định, tránh trạng thái chuyển
+    tiếp lúc list đang cập nhật). Chỉ chạy khi dump có ngữ cảnh lịch
+    (id chứa 'sched') để không tố nhầm list thể thao."""
+    if "MainActivity" not in (activity or ""):
+        return []
+    nodes = ui_state.get("all_visible_nodes") or []
+    if not any("sched" in (n.get("id") or "").lower() for n in nodes):
+        return []
+    _time_re = re.compile(r"^\d{1,2}:\d{2}$")
+    _score_re = re.compile(r"^\d{1,2}\s+[:\-]\s+\d{1,2}$")
+    _live_re = re.compile(r"\blive\b", re.IGNORECASE)
+    # Gom node có bounds theo hàng (tâm dọc).
+    rows = []
+    for n in nodes:
+        txt = (n.get("text") or "").strip()
+        if not txt:
+            continue
+        m = re.findall(r"-?\d+", n.get("bounds") or "")
+        if len(m) < 4:
+            continue
+        y1, y2 = int(m[1]), int(m[3])
+        cy = (y1 + y2) / 2.0
+        placed = False
+        for r in rows:
+            if abs(cy - r["cy"]) <= 60:
+                r["nodes"].append((n, txt))
+                r["cy"] = (r["cy"] * (len(r["nodes"]) - 1) + cy) / len(r["nodes"])
+                placed = True
+                break
+        if not placed:
+            rows.append({"cy": cy, "nodes": [(n, txt)]})
+    out = []
+    seen = ctx.setdefault("_sched_live_noscore_seen", {})
+    for r in rows:
+        texts = [t for _, t in r["nodes"]]
+        low = [t.lower() for t in texts]
+        if any("sắp đá" in t for t in low):
+            continue  # trận chưa đá: hiện giờ kickoff là đúng
+        if not any(_live_re.search(t) or "trực tiếp" in t for t in low):
+            continue  # không phải hàng LIVE
+        times = [t for t in texts if _time_re.match(t)]
+        if not times:
+            continue
+        if any(_score_re.match(t) for t in texts):
+            continue  # hàng đã có tỉ số -> đúng, không tố
+        sig = " | ".join(sorted(texts))[:60]
+        key = (times[0], sig)
+        if key not in seen:
+            seen[key] = (frame_ref, t_offset)
+            continue  # lần đầu thấy — ghi nhận, chưa tố
+        _fkey = "SCHED_LIVE_NOSCORE:%s:%s" % (times[0], sig[:30])
+        if _fkey in ctx.setdefault("reported", set()):
+            continue
+        ctx["reported"].add(_fkey)
+        out.append(_mk("HIGH", "Lịch thi đấu",
+                       "Hàng LIVE chỉ hiện giờ kickoff thay vì tỉ số: '%s'" % times[0],
+                       "Hàng LIVE '%s' hiện giờ kickoff '%s' mà không có tỉ số "
+                       "(ổn định qua 2 lần quan sát)" % (sig[:40], times[0]),
+                       "Hiện tỉ số trực tiếp cho trận đang diễn ra; giờ kickoff chỉ dùng cho trận chưa đá",
+                       frame_ref, t_offset, ""))
+    return out
+
+
 def detect_row_overflow(ui_state, activity, ctx, frame_ref, t_offset):
     """Header '— N kênh' với N quá lớn trong một hàng (P0-7: TV360 75 kênh)."""
     out = []
@@ -724,6 +795,7 @@ def run_all_detectors(frame_png, ui_state, activity, ctx, frame_ref, t_offset, o
     findings += detect_dialog_focus_leak(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_bad_text(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_fake_score(ui_state, activity, ctx, frame_ref, t_offset)
+    findings += detect_schedule_live_no_score(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_row_overflow(ui_state, activity, ctx, frame_ref, t_offset)
     if _ocr_due(ctx):
         # CI-T5 mục 6: hero band là band OCR đắt nhất — đo local trên frame

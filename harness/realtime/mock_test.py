@@ -597,6 +597,59 @@ def main():
     assert _v16b == "PASS", "vision xác nhận có EPG text thì PASS"
     print("IPTV_EPG_VISION_OK")
 
+    # --- Test N17: detector điểm số trực tiếp ở Schedule (CI-T7 mục 9) ---
+    # Lỗi thật từ CI-T3, mắt thấy ở CI-T6: hàng LIVE hiện giờ kickoff
+    # '18:30'/'18:35' thay vì tỉ số. Detector gom node theo hàng (bounds):
+    # hàng LIVE + token giờ kickoff 'HH:MM' mà không có token tỉ số 'X : Y'
+    # -> tố (cần thấy 2 lần quan sát). Hàng SẮP ĐÁ hiện giờ là đúng, hàng
+    # LIVE đã có tỉ số là đúng, màn không phải lịch thì không chạy.
+    from detectors import detect_schedule_live_no_score as _d_sched
+
+    def _ui_sched():
+        _nodes = [
+            # Hàng 1: LIVE, chỉ có giờ kickoff 18:30 -> PHẢI TỐ.
+            {"id": "schedCard", "text": "Vietnam vs Thailand", "bounds": "[100,400][900,560]"},
+            {"id": "cardBadge", "text": "LIVE", "bounds": "[820,420][880,450]"},
+            {"id": "schedTime", "text": "18:30", "bounds": "[820,470][880,500]"},
+            # Hàng 2: LIVE, đã có tỉ số 2 : 1 -> đúng, không tố.
+            {"id": "schedCard", "text": "Japan vs Korea", "bounds": "[100,600][900,760]"},
+            {"id": "cardBadge", "text": "LIVE", "bounds": "[820,620][880,650]"},
+            {"id": "cardScore", "text": "2 : 1", "bounds": "[820,670][880,700]"},
+            # Hàng 3: SẮP ĐÁ, giờ kickoff 19:00 -> đúng, không tố.
+            {"id": "schedCard", "text": "Inter vs Milan", "bounds": "[100,800][900,960]"},
+            {"id": "cardBadge", "text": "SẮP ĐÁ", "bounds": "[820,820][880,850]"},
+            {"id": "schedTime", "text": "19:00", "bounds": "[820,870][880,900]"},
+        ]
+        return {"focused_sig": "schedCard#[100,400][900,560]",
+                "focused_text": "Vietnam vs Thailand",
+                "focused_bounds": "[100,400][900,560]",
+                "focusable_count": 8, "has_dialog": False,
+                "all_visible_texts": [(n["id"], n["text"]) for n in _nodes],
+                "all_visible_nodes": _nodes}
+
+    _ui17 = _ui_sched()
+    _ctx17 = {"reported": set()}
+    _f17a = _d_sched(_ui17, "com.kenhlive.tv/.MainActivity", _ctx17, "step_001.jpg", 1.0)
+    print("Schedule LIVE 18:30 lần 1 ->", _f17a)
+    assert _f17a == [], "lần đầu thấy chỉ ghi nhận, chưa tố (cần ổn định 2 lần)"
+    _f17b = _d_sched(_ui17, "com.kenhlive.tv/.MainActivity", _ctx17, "step_002.jpg", 2.0)
+    print("Schedule LIVE 18:30 lần 2 ->", [f["issue"] for f in _f17b])
+    assert len(_f17b) == 1 and _f17b[0]["severity"] == "HIGH", \
+        "hàng LIVE chỉ hiện giờ kickoff phải tố HIGH ở lần thấy thứ 2"
+    assert "18:30" in _f17b[0]["issue"] and "19:00" not in _f17b[0]["issue"], \
+        "chỉ tố hàng LIVE 18:30, không tố hàng SẮP ĐÁ 19:00 hay hàng đã có tỉ số"
+    assert "2 : 1" not in (_f17b[0]["detail"] or ""), "hàng đã có tỉ số không được tố"
+    # Lần 3: không tố trùng (reported).
+    assert _d_sched(_ui17, "com.kenhlive.tv/.MainActivity", _ctx17, "step_003.jpg", 3.0) == []
+    # Màn không phải lịch (không có id 'sched') -> không chạy.
+    _ui17b = _ui_sched()
+    for _n in _ui17b["all_visible_nodes"]:
+        _n["id"] = _n["id"].replace("sched", "live")
+    _ui17b["all_visible_texts"] = [(n["id"], n["text"]) for n in _ui17b["all_visible_nodes"]]
+    assert _d_sched(_ui17b, "com.kenhlive.tv/.MainActivity", {"reported": set()},
+                    "step_001.jpg", 1.0) == [], "không có ngữ cảnh lịch thì không tố"
+    print("SCHEDULE_LIVE_SCORE_OK")
+
     # --- Test N6: bằng chứng thời gian phát tăng (CI-T6 mục 8) ---
     # CI-T5 WebPlayer đóng băng 00:20 qua 3 quan sát mà vẫn PASS — giờ phải
     # FAIL (hoặc UNVERIFIED nếu không đọc được đồng hồ). Chỉ 2 mission VOD
