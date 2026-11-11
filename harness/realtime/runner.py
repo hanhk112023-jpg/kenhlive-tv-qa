@@ -63,6 +63,20 @@ class RealtimeRunner:
         # frame nào (frame path + timestamp + crop) — debug cú bỏ sót CI-T5
 
     # -- helpers -------------------------------------------------------
+    def _log_action(self, action):
+        """CI-T7 mục 2: ghi rõ luật driver chọn ở mỗi bước vào timeline —
+        CI-T6 luật goto_live_card chạy 4 lần nhưng sai trạng thái mà log
+        không thấy được (chỉ có print `-> KEY ... [rule]` trên console, CI
+        log không giữ đủ). Ghi action (type/param/rule/thought) vào entry
+        timeline của bước quan sát vừa xong — action này là hành động driver
+        chọn SAU quan sát đó, thực thi rồi mới tới quan sát sau."""
+        if action is None or not self.timeline:
+            return
+        try:
+            self.timeline[-1]["action"] = action.as_dict()
+        except Exception:
+            pass
+
     def _save_frame(self, png_bytes, label):
         if not png_bytes:
             return None
@@ -570,6 +584,7 @@ class RealtimeRunner:
                             last_frame_ref)
                         break
                     act = driver.next_action(ui_state, obs["activity"], obs["png"], obs["t_offset"])
+                    self._log_action(act)
                     if act.type == "FAIL":
                         gate.force_fail(act.thought, last_frame_ref)
                         break
@@ -585,6 +600,7 @@ class RealtimeRunner:
                 break
 
             action = driver.next_action(ui_state, obs["activity"], obs["png"], obs["t_offset"])
+            self._log_action(action)
             print("      -> %s %s [%s]" % (action.type, action.param, action.rule), flush=True)
             if action.type == "FAIL":
                 gate.force_fail(action.thought, last_frame_ref)

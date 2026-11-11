@@ -169,7 +169,14 @@ class Driver:
         Trả Action DPAD theo hướng, hoặc None: không thấy thẻ LIVE, hoặc
         focus đã nằm trong bounds thẻ LIVE (caller bấm OK như thường).
         Thẻ = node nhỏ nhất chứa tâm badge (diện tích lớn hơn badge),
-        ưu tiên id thẻ quen thuộc."""
+        ưu tiên id thẻ quen thuộc.
+        CI-T7 mục 2: CẤM khi dialog/panel đang mở (has_dialog) — luật này
+        từng đuổi theo badge LIVE ở list NỀN sau overlay (CI-T6: chạy 4 lần
+        nhưng sai trạng thái, dao động dialog↔list) thay vì bấm OK trên
+        phòng đang focus. Khi panel đã mở, caller phải bấm OK (open_player)
+        trên phòng đang focus, không được đi tìm thẻ khác."""
+        if ui_state.get("has_dialog"):
+            return None
         nodes = ui_state.get("all_visible_nodes") or []
         if not nodes:
             return None
@@ -304,6 +311,16 @@ class Driver:
         is_welcome = "btnCloseFeedback" in dialog_ids
         if not is_welcome and self.mission.needs_dialog:
             return None  # có thể là dialog đích — để nguyên
+        # CI-T7 mục 2: panel chi tiết trận (MatchDetailPanel) KHÔNG phải
+        # dialog chặn khi mission cần player — nó là ĐƯỜNG VÀO player: OK
+        # trên phòng đang focus mở thẳng player (onPlayRoom). Đóng nó bằng
+        # BACK rồi đuổi badge LIVE ở list nền là đúng lỗi A-B-A-B của CI-T6
+        # (rule 0c2 chạy 4 lần sai trạng thái). Để nguyên cho luật 0c bấm OK.
+        _is_panel = any((d or "").startswith("panel") or d == "blvCardRoot"
+                        for d in dialog_ids)
+        if _is_panel and self.mission.required_activity in (
+                "PlayerActivity", "WebPlayerActivity"):
+            return None
         if self._dismiss_tries >= 3:
             return Action("FAIL", "", rule="dialog:blocked",
                           thought="Dialog chặn vẫn mở sau 3 lần đóng thử")
@@ -372,11 +389,16 @@ class Driver:
 
         # -- 0c2. Mission cần player mà đang ở list: đi tới thẻ LIVE rồi mới
         # bấm OK (CI-T6 mục 6; như goto-view-by-id của EPISODE_PICKER).
+        # CI-T7 mục 2: gate bằng `not has_dialog` — dialog/panel đang mở
+        # (VD MatchDetailPanel đã mở, focus trên blvCardRoot) thì KHÔNG đuổi
+        # theo badge LIVE ở list nền sau overlay; rơi xuống luật 0c bấm OK
+        # trên phòng đang focus (đường open_player hiện có).
         if (m.required_activity in ("PlayerActivity", "WebPlayerActivity")
                 or m.needs_dialog) \
                 and not m.directed_launch \
                 and "PlayerActivity" not in act \
-                and "WebPlayerActivity" not in act:
+                and "WebPlayerActivity" not in act \
+                and not ui_state.get("has_dialog"):
             goto_live = self._goto_live_card_action(ui_state)
             if goto_live is not None:
                 return goto_live

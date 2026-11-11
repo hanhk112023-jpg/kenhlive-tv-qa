@@ -989,6 +989,133 @@ def main():
     print("VISION_PROVIDER_LABEL_OK")
     print("GOTO_VIEW_BY_ID_OK")
 
+    # --- Test N9: nhận diện MatchDetailPanel là dialog (CI-T7 mục 1) ---
+    # CI-T6 ROOM_PICKER FAIL: bấm thẻ trận mở match-detail PANEL
+    # (LiveFragment.openGroupPicker -> dialog_match_detail.xml) nhưng
+    # has_dialog=False suốt lúc panel mở vì không id panel nào có trong
+    # dialog_id_set -> driver tưởng dialog chưa mở, bấm OK tiếp -> player.
+    # Sửa: 13 id panel* trong set + mọi id bắt đầu "panel" / "blvCardRoot"
+    # đều tính là dialog. Kiểm chứng bằng XML dump THẬT (parse như live).
+    import device as _devmod9
+
+    def _fake_xml9(nodes):
+        parts = ['<hierarchy rotation="0">']
+        for _id, _txt, _foc in nodes:
+            parts.append(
+                '<node index="0" text="%s" resource-id="com.kenhlive.tv:id/%s" '
+                'class="android.widget.Button" package="com.kenhlive.tv" '
+                'content-desc="" checkable="false" checked="false" clickable="true" '
+                'enabled="true" focusable="true" focused="%s" scrollable="false" '
+                'long-clickable="false" password="false" selected="false" '
+                'bounds="[100,200][500,600]" />' % (_txt, _id, "true" if _foc else "false"))
+        parts.append('</hierarchy>')
+        return "".join(parts)
+
+    _orig_sh9 = _devmod9.sh
+    try:
+        # (a) panel mở: panelBlvList + blvCardRoot đang focus -> dialog.
+        _devmod9.sh = lambda cmd, timeout=30: _fake_xml9([
+            ("panelScore", "5 : 3", False),
+            ("panelBlvList", "", False),
+            ("blvCardRoot", "Phòng 1", True),
+            ("panelPlay", "Xem ngay", False)])
+        _st9a = _devmod9.RealtimeDevice().dump_ui_state()
+        print("panel mở -> has_dialog:", _st9a["has_dialog"],
+              "| dialog_ids:", _st9a["dialog_ids"],
+              "| focused:", _st9a["focused_sig"])
+        assert _st9a["has_dialog"] is True, \
+            "panelBlvList/blvCardRoot hiện thì has_dialog phải True"
+        assert "panelBlvList" in _st9a["dialog_ids"] and "panelPlay" in _st9a["dialog_ids"]
+        assert _st9a["focused_sig"].startswith("blvCardRoot#")
+        # (b) chỉ 1 id panel lẻ (panelScore) cũng đủ nhận dialog.
+        _devmod9.sh = lambda cmd, timeout=30: _fake_xml9([("panelScore", "5 : 3", True)])
+        assert _devmod9.RealtimeDevice().dump_ui_state()["has_dialog"] is True, \
+            "panelScore đơn độc cũng phải nhận là dialog"
+        # (c) dialog cũ (dialogTitle/btnCloseFeedback) vẫn nhận như trước.
+        _devmod9.sh = lambda cmd, timeout=30: _fake_xml9([
+            ("dialogTitle", "THÔNG BÁO", False),
+            ("btnCloseFeedback", "ĐÃ HIỂU", True)])
+        _st9c = _devmod9.RealtimeDevice().dump_ui_state()
+        assert _st9c["has_dialog"] is True and "btnCloseFeedback" in _st9c["dialog_ids"]
+        # (d) màn thường KHÔNG có dialog: channelCarouselPanel kết thúc bằng
+        # "Panel" (không bắt đầu bằng "panel") -> không được nhận nhầm.
+        _devmod9.sh = lambda cmd, timeout=30: _fake_xml9([
+            ("nav_home", "Trang chủ", True),
+            ("channelCarouselPanel", "", False),
+            ("sportOptionsPanel", "", False)])
+        _st9d = _devmod9.RealtimeDevice().dump_ui_state()
+        print("màn thường (channelCarouselPanel) -> has_dialog:", _st9d["has_dialog"])
+        assert _st9d["has_dialog"] is False, \
+            "id kết thúc bằng 'Panel' không được tính là dialog"
+    finally:
+        _devmod9.sh = _orig_sh9
+    print("DIALOG_PANEL_IDS_OK")
+
+    # --- Test N10: driver không đuổi badge LIVE sau overlay (CI-T7 mục 2) ---
+    # CI-T6 PLAYER_STREAMING: rule 0c2 (_goto_live_card_action) chạy 4 lần
+    # nhưng sai trạng thái — panel đã mở (không được nhận là dialog) nên
+    # luật đuổi theo badge LIVE ở list NỀN sau overlay thay vì bấm OK trên
+    # phòng đang focus -> dao động dialog<->list (A-B-A-B) cả 8 bước.
+    # Sửa: gate 0c2 bằng `not has_dialog` (+ guard trong chính
+    # _goto_live_card_action) và panel không còn bị dismiss bằng BACK khi
+    # mission cần player (đường vào player là OK trên phòng đang focus).
+    _ui_panel_open = {
+        "focused_sig": "blvCardRoot#[180,408][666,664]",
+        "focused_text": "Phòng 1",
+        "focused_bounds": "[180,408][666,664]",
+        "all_visible_texts": [("panelBlvTitle", "Phòng BLV"),
+                              ("blvCardRoot", "Phòng 1"),
+                              ("cardRoot", "Singapore U17 vs India U"),
+                              ("cardBadge", "LIVE")],
+        "all_visible_nodes": [
+            {"id": "panelBlvList", "text": "", "bounds": "[180,408][666,664]"},
+            {"id": "blvCardRoot", "text": "Phòng 1", "bounds": "[180,408][666,664]"},
+            {"id": "cardRoot", "text": "Singapore U17 vs India U", "bounds": "[100,700][500,900]"},
+            {"id": "cardBadge", "text": "LIVE", "bounds": "[120,710][200,740]"}],
+        "has_dialog": True, "dialog_ids": ["panelBlvList", "blvCardRoot"],
+    }
+    _dev10 = FakeDevice()
+    _dev10._tab = 0  # PLAYER_STREAMING cần tab Trực tiếp (0)
+    drv10b = Driver(_dev10, EvidenceGate(specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]),
+                    specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"])
+    a_10 = drv10b.next_action(_ui_panel_open, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("panel mở + badge LIVE sau overlay ->", a_10.type, a_10.param, "| rule:", a_10.rule)
+    assert (a_10.type, a_10.param, a_10.rule) == ("KEY", "OK", "open_player"), \
+        "panel đang mở thì phải bấm OK trên phòng đang focus, không goto_live_card"
+    # _goto_live_card_action trực tiếp cũng phải từ chối khi dialog mở.
+    assert drv10b._goto_live_card_action(_ui_panel_open) is None, \
+        "goto_live_card phải trả None khi has_dialog (guard trong hàm)"
+    # Panel đóng -> hành vi cũ: focus ở nav, thẻ LIVE ở dưới -> goto_live_card.
+    _ui_panel_closed = dict(_ui_panel_open,
+                            focused_sig="nav_home#[362,0][563,112]",
+                            focused_text="Trang chủ",
+                            focused_bounds="[362,0][563,112]",
+                            has_dialog=False, dialog_ids=[])
+    _ui_panel_closed["all_visible_nodes"] = [
+        {"id": "nav_home", "text": "Trang chủ", "bounds": "[362,0][563,112]"},
+        {"id": "cardRoot", "text": "Singapore U17 vs India U", "bounds": "[100,400][500,700]"},
+        {"id": "cardBadge", "text": "LIVE", "bounds": "[120,410][200,440]"}]
+    _ui_panel_closed["all_visible_texts"] = [
+        ("nav_home", "Trang chủ"), ("cardRoot", "Singapore U17 vs India U"),
+        ("cardBadge", "LIVE")]
+    a_10b = drv10b.next_action(_ui_panel_closed, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("panel đóng, thẻ LIVE dưới ->", a_10b.type, a_10b.param, "| rule:", a_10b.rule)
+    assert a_10b.rule == "goto_live_card" and a_10b.param == "DPAD_DOWN", \
+        "không có dialog thì luật goto_live_card cũ vẫn chạy"
+    # Luật driver chọn ở mỗi bước phải ghi vào timeline (CI-T6: luật chạy
+    # 4 lần mà không thấy được trong log — chỉ có print console).
+    r10 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_actionlog", serial=None,
+                                    vision_budget=0, no_vision=True)
+    r10.run([specs["MISSION_COLD_START"]])
+    _acts10 = [(e["step_id"], (e.get("action") or {}).get("rule")) for e in r10.timeline]
+    print("timeline actions:", _acts10)
+    assert len(_acts10) >= 3, "COLD_START phải có >= 3 bước timeline"
+    assert _acts10[0][1] == "explore:down" and _acts10[1][1] == "explore:down", \
+        "2 bước đầu phải ghi đúng rule explore:down vào timeline"
+    assert all((e.get("action") or {}).get("rule") for e in r10.timeline[:-1]), \
+        "mọi bước có hành động đều phải ghi rule vào timeline"
+    print("DRIVER_NO_GOTO_BEHIND_DIALOG_OK")
+
     # --- Test B10: LONG_PRESS thật cho IPTV favorites (CI-T5 mục 10, nợ cũ) ---
     # Driver trước giờ không bao giờ phát LONG_PRESS (execute có sẵn nhưng
     # không rule nào dùng) nên favorites chưa từng kiểm tra thật.

@@ -666,3 +666,13 @@ transport trong `vision._post` vẫn là lưới an toàn đúng).
   WebPlayer đè đôi tiêu đề; spinner đè nút + loading vô hạn; Schedule
   giờ-thay-tỉ-số; hàng 66 kênh; rail không mở; detail LIVE "VS" không tỉ
   số; **nút "ÂM THANH & PHỤ ĐỀ" bị cắt mép phải khi focus**.
+
+### 15.10. CI-T7 — danh sách sửa (9 mục harness + mục 10 app chỉ ghi, VISUAL-REVIEW.md §9)
+
+Bảng này ghi từng mục CI-T7 khi xong (1 mục = 1 commit trên main, Build APK
+xanh từng commit, mock + replay giữ nguyên). Mock baseline trước CI-T7: 33/33.
+Replay baseline trước CI-T7 (R7, run 43027661716): 8/8 P0, 0 false pass.
+
+| Mục | Sửa | Kiểm chứng |
+|---|---|---|
+| 1 | Nhận diện dialog: thêm 13 id của MatchDetailPanel (`panelLeague`, `panelBadge`, `panelHostName`, `panelHostIcon`, `panelScore`, `panelClock`, `panelGuestIcon`, `panelGuestName`, `panelBlvTitle`, `panelBlvList`, `panelSameTimeTitle`, `panelSameTimeList`, `panelPlay` — grep layout `dialog_match_detail.xml`, chỉ đọc) vào `dialog_id_set` (`device.py`); ngoài ra coi mọi id bắt đầu bằng `"panel"` hoặc `"blvCardRoot"` (card phòng trong panel, focus lúc panel mở — step_011 CI-T6) là dialog đang mở. An toàn: không id layout nào khác bắt đầu bằng `"panel"` (`channelCarouselPanel`/`sportOptionsPanel` đều kết thúc bằng `"Panel"`). | Mock N9 (XML dump thật): panel mở (`panelBlvList` + `blvCardRoot` focus) -> `has_dialog` True, `dialog_ids` đủ panel; `panelScore` đơn độc -> True; dialog cũ (`dialogTitle`/`btnCloseFeedback`) vẫn True; màn thường có `channelCarouselPanel` -> False. Mock 34/34 PASS. |

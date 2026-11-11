@@ -200,9 +200,25 @@ class RealtimeDevice:
         # của dialog chào mừng "THÔNG BÁO" lần đầu; dialogBtnClose = nút đóng
         # của dialog chọn tập. dialog_ids trả về để driver phân biệt dialog
         # chặn (welcome) với dialog đích (roomList/episodeList/...).
+        # CI-T7 mục 1: thêm id của MatchDetailPanel — cái mở ra khi bấm thẻ
+        # trận là PANEL chi tiết (LiveFragment.openGroupPicker -> dialog
+        # dialog_match_detail.xml, KHÔNG phải RoomPickerDialog độc lập).
+        # Gốc rễ CI-T6 (ROOM_PICKER + PLAYER_STREAMING): không id panel nào
+        # có trong set này nên has_dialog=False suốt lúc panel mở -> driver
+        # bấm OK tiếp -> mở player. 13 id panel* lấy bằng grep layout
+        # dialog_match_detail.xml (chỉ đọc app source); ngoài ra coi mọi id
+        # bắt đầu bằng "panel" hoặc "blvCardRoot" (card phòng trong panel,
+        # focus lúc panel mở — step_011 CI-T6) là dialog đang mở. An toàn:
+        # không id layout nào khác bắt đầu bằng "panel" (channelCarouselPanel
+        # / sportOptionsPanel đều KẾT THÚC bằng "Panel").
         dialog_id_set = ("dialogTitle", "roomList", "episodeList", "ivTelegramQr",
                          "btnOpenTelegram", "alertTitle", "btnCloseFeedback",
-                         "dialogBtnClose")
+                         "dialogBtnClose",
+                         "panelLeague", "panelBadge", "panelHostName",
+                         "panelHostIcon", "panelScore", "panelClock",
+                         "panelGuestIcon", "panelGuestName", "panelBlvTitle",
+                         "panelBlvList", "panelSameTimeTitle",
+                         "panelSameTimeList", "panelPlay")
         if "<hierarchy" in xml_text:
             try:
                 start = xml_text.find("<hierarchy")
@@ -236,7 +252,8 @@ class RealtimeDevice:
                     if txt and _in_view:
                         all_visible_texts.append((r_id, txt))
                         all_visible_nodes.append({"id": r_id, "text": txt, "bounds": bounds})
-                    if r_id in dialog_id_set:
+                    if r_id in dialog_id_set or r_id.startswith("panel") \
+                            or r_id == "blvCardRoot":
                         has_dialog = True
                         if r_id not in dialog_ids:
                             dialog_ids.append(r_id)

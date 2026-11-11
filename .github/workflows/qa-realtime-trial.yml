@@ -1,9 +1,12 @@
 name: QA-Realtime-Trial
 
-# Trial workflow — từ CI-T3 chạy trên main (đã merge 54287ff + QA):
-# `gh workflow run qa-realtime-trial.yml --ref main -f quick=false`
-# cho full 17 mission. Push trigger giữ lại cho nhánh trial (không dùng nữa
-# sau khi merge, không chạm main).
+# QA realtime — chạy ở repo kenhlive-tv-qa (từ khi dọn repo 2026-11-11):
+# app source checkout riêng (riêng tư, deploy key APP_CHECKOUT_KEY, path app/),
+# harness chạy từ ./harness (bản sao qa/kenhlive_qa/).
+# `gh workflow run qa-realtime-trial.yml --ref main -f quick=false` cho full 17 mission.
+# Cần secret ở repo này: APP_CHECKOUT_KEY (đã có) + GEMINI_API_KEY /
+# NVIDIA_API_KEY / METEOR_API_KEY (AI brain) + YUNA_PROXY_YAML / YUNA_SUB_URL
+# (proxy VN — tùy chọn, không có thì chạy không qua proxy).
 on:
   workflow_dispatch:
     inputs:
@@ -11,8 +14,6 @@ on:
         description: 'Chế độ nhanh (5 mission trọng tâm: Cold Start, Home, IPTV, Phim, Player Settings)'
         type: boolean
         default: true
-  push:
-    branches: [qa-realtime-trial]
 
 # Tier 1: job QA chỉ đọc code và upload artifact, không cần ghi contents.
 permissions:
@@ -24,15 +25,20 @@ jobs:
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout KenhLive TV app source (private)
+        uses: actions/checkout@v4
+        with:
+          repository: hanhk112023-jpg/kenhlive-tv
+          ref: main
+          ssh-key: ${{ secrets.APP_CHECKOUT_KEY }}
+          path: app
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Build debug APK
-        env:
-          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        working-directory: app
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           chmod +x gradlew
@@ -54,6 +60,7 @@ jobs:
           STATIC_YAML: ${{ secrets.YUNA_PROXY_YAML }}
         run: |
           set -euo pipefail
+          if [ -z "$STATIC_YAML" ] && [ -z "$SUB_URL" ]; then echo "::warning::Khong co proxy VN (YUNA_PROXY_YAML/YUNA_SUB_URL) — chay khong qua proxy"; exit 0; fi
           MH=$(ls /usr/local/bin/mihomo 2>/dev/null || true)
           if [ -z "$MH" ]; then
             VER=v1.19.30
@@ -70,11 +77,12 @@ jobs:
               echo "sub fetch attempt $try failed, retry in 20s"; sleep 20
             done
             [ "$OK" = "1" ] || { echo "::error::Khong tai duoc subscription Yuna sau 4 lan"; exit 1; }
-            python3 qa/ci_sub_to_yaml.py
+            python3 harness/ci_sub_to_yaml.py
           fi
           nohup mihomo -f /tmp/mihomo_ci.yaml -d /tmp/mihomo_ci > /tmp/mihomo.log 2>&1 &
           sleep 4
           echo "exit IP: $(curl -sS -m 15 -x http://127.0.0.1:7891 https://api.ipify.org || echo '?')"
+          echo "HAS_PROXY=1" >> "$GITHUB_ENV"
 
       - name: KVM permissions
         run: |
@@ -225,7 +233,7 @@ jobs:
           profile: tv_1080p
           script: |
             adb root
-            adb shell settings put global http_proxy 10.0.2.2:7891
+            if [ "${{ env.HAS_PROXY }}" = "1" ]; then adb shell settings put global http_proxy 10.0.2.2:7891; fi
             adb shell wm size 1920x1080
             adb shell wm density 320
             adb shell settings put system accelerometer_rotation 0
@@ -233,7 +241,7 @@ jobs:
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             # Launcher rieng cho test (module :testlauncher): HOME duy nhat, khong
             # co YouTube de script bam mu lac sang (bai hoc UI-Tour 2026-11-05).
-            adb install -r testlauncher/build/outputs/apk/debug/testlauncher-debug.apk || true
+            adb install -r app/testlauncher/build/outputs/apk/debug/testlauncher-debug.apk || true
             adb shell pm disable-user com.google.android.youtube.tv >/dev/null 2>&1 || true
             adb shell pm disable-user com.google.android.youtube.tv.kids >/dev/null 2>&1 || true
             adb shell cmd package set-home-activity com.kenhlive.testlauncher/com.kenhlive.testlauncher.TestLauncherActivity >/dev/null 2>&1 || true
@@ -246,7 +254,7 @@ jobs:
             mkdir -p qa_out /tmp/qa_report
             # Harness mới: realtime (evidence-gated, vision chỉ khi cần).
             # --quick: 5 mission trọng tâm. Ngân sách vision mặc định 40/run.
-            python3 qa/kenhlive_qa/realtime/run_realtime.py --out qa_out $ARGS || true
+            python3 harness/realtime/run_realtime.py --out qa_out $ARGS || true
             cp -r qa_out/* /tmp/qa_report/ 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
@@ -257,4 +265,4 @@ jobs:
 
       - name: Kết quả
         if: always()
-        run: python3 qa/ci_report.py
+        run: python3 harness/ci_report.py
