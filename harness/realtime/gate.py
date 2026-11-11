@@ -80,6 +80,11 @@ class EvidenceGate:
         self._failed = False
         self.last_activity = None     # activity ở observation gần nhất
         self.playback_readings = []   # [(t_offset, elapsed_s)] — CI-T6 mục 8
+        self._post_seek_positions = set()  # index lần đọc sau tua ngược
+        # CI-T7 mục 4: vị trí các lần đọc NGAY SAU một lần tua NGƯỢC
+        # (DPAD_LEFT/REWIND trong player) — lần đọc đó được miễn kiểm tra
+        # đơn điệu (tua ngược thì đồng hồ lùi là đúng). Tua TỚI (DPAD_RIGHT)
+        # KHÔNG miễn: đồng hồ chỉ được tăng, lùi sau tua tới là lỗi thật.
 
     # -- tích lũy ------------------------------------------------------
     def observe(self, activity, visible_texts, views, has_dialog, motion_playing, t_offset):
@@ -121,6 +126,12 @@ class EvidenceGate:
             self.vision_denials += 1
 
     # -- CI-T6 mục 8: thời gian phát phải TĂNG --------------------------------
+    def note_seek(self):
+        """Driver vừa tua NGƯỢC (DPAD_LEFT/REWIND) trong player: lần đọc
+        đồng hồ kế tiếp được miễn kiểm tra tăng đơn điệu (đồng hồ lùi là
+        đúng sau tua ngược). Chỉ đánh dấu vị trí đọc kế tiếp."""
+        self._post_seek_positions.add(len(self.playback_readings))
+
     def observe_playback(self, elapsed_s, t_offset):
         """Ghi 1 lần đọc đồng hồ elapsed (giây) trong player. None = không đọc
         được ở observation này (không có đồng hồ trên màn hình) — bỏ qua,
@@ -128,6 +139,27 @@ class EvidenceGate:
         if elapsed_s is None:
             return
         self.playback_readings.append((t_offset, float(elapsed_s)))
+
+    def playback_monotonic(self):
+        """(True, '') nếu các lần đọc tăng đơn điệu (cho phép nhiễu OCR
+        nhỏ: lùi <= 2s không tính); (False, chi tiết) nếu có lần lùi > 2s
+        mà không phải ngay sau tua ngược. CI-T6 WebPlayer: 00:20 -> 00:00
+        -> 00:30 -> 00:20 — max-min = 30s nên playback_status() cũ vẫn
+        'increasing' và PASS, dù video thực tế đóng băng 60,3s
+        (step_055 = step_059 pixel-identical). Đơn điệu mới là bằng chứng
+        phát thật; cần >= 3 lần đọc mới kết luận."""
+        vals = [s for _, s in self.playback_readings]
+        if len(vals) < 3:
+            return True, ""
+        for i in range(1, len(vals)):
+            if i in self._post_seek_positions:
+                continue  # lùi ngay sau tua ngược là đúng, không tính
+            if vals[i] < vals[i - 1] - 2.0:
+                _a_m, _a_s = divmod(int(vals[i - 1]), 60)
+                _b_m, _b_s = divmod(int(vals[i]), 60)
+                return False, "%02d:%02d -> %02d:%02d (lùi %.0fs)" % (
+                    _a_m, _a_s, _b_m, _b_s, vals[i - 1] - vals[i])
+        return True, ""
 
     def playback_status(self):
         """'increasing' | 'frozen' | 'unknown'.
@@ -171,6 +203,19 @@ class EvidenceGate:
                 _m, _s = divmod(int(min(_vals)), 60)
                 missing.append("playback: thời gian phát đứng yên %02d:%02d qua %d quan sát "
                                "— video đóng băng, không phát thật" % (_m, _s, len(_vals)))
+            elif _pb == "unknown" and self.steps >= 2:
+                # CI-T7 mục 4: không đọc được đồng hồ sau >= 2 quan sát thì
+                # KHÔNG được PASS tự do nữa (CI-T6: readings [] + unknown ở
+                # mọi mission player mà vẫn PASS). Live: FAIL ở max_steps;
+                # replay downgrade thành UNVERIFIED (thiếu dữ liệu đo).
+                missing.append("playback: không đọc được đồng hồ phát sau %d quan sát "
+                               "— chưa chứng minh video phát thật (UNVERIFIED)" % self.steps)
+            else:
+                _mono, _mono_detail = self.playback_monotonic()
+                if not _mono:
+                    missing.append("playback: thời gian phát không tăng đơn điệu "
+                                   "(%s) — video có thể đóng băng/khởi động lại, "
+                                   "chưa chứng minh phát thật" % _mono_detail)
         return missing
 
     def _evidence_bundle(self, last_frame_ref):
@@ -184,6 +229,7 @@ class EvidenceGate:
             "vision_denials": self.vision_denials,
             "playback_status": self.playback_status(),
             "playback_readings": list(self.playback_readings),
+            "playback_monotonic": self.playback_monotonic()[0],
             "steps": self.steps,
             "frame": last_frame_ref,
         }

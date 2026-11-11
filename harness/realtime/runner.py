@@ -33,6 +33,24 @@ except Exception:
     VideoRecorder = None
 
 
+def _playback_seconds_from_text(text):
+    """Giây elapsed từ chuỗi 'elapsed / total' (VD '00:20 / 01:05:24',
+    '00:20 / 24:14') — lấy số nhỏ hơn (elapsed). None nếu không có cặp
+    đó. Dùng chung cho dump text và quote vision (CI-T7 mục 4)."""
+    m = re.search(r"(\d{1,2}:\d{2}(?::\d{2})?)\s*/\s*(\d{1,2}:\d{2}(?::\d{2})?)",
+                  text or "")
+    if not m:
+        return None
+
+    def _to_s(tok):
+        parts = [int(p) for p in tok.split(":")]
+        if len(parts) == 3:
+            return parts[0] * 3600 + parts[1] * 60 + parts[2]
+        return parts[0] * 60 + parts[1]
+
+    return min(_to_s(m.group(1)), _to_s(m.group(2)))
+
+
 class RealtimeRunner:
     def __init__(self, out_dir="/tmp/qa_report_realtime", serial=None, vision_budget=40,
                  no_vision=False):
@@ -210,7 +228,7 @@ class RealtimeRunner:
         h, mi, s = m.groups()
         return int(h) * 3600 + int(mi) * 60 + int(s) if s else int(h) * 60 + int(mi)
 
-    def _extract_playback_s(self, ui_state, frame_ref):
+    def _extract_playback_s(self, ui_state, frame_ref, png=None):
         """Đồng hồ elapsed (giây) của player ở observation này, hoặc None.
         CI-T6 mục 8. Ưu tiên dump text dạng 'elapsed / total' (VD '00:20 /
         24:14' — lấy số nhỏ hơn). Không có thì lấy min token thời gian trong
@@ -218,24 +236,51 @@ class RealtimeRunner:
         elapsed là số nhỏ nhất trên thanh seekbar. Fallback OCR đòi >=2 token
         (1 token lẻ không phân biệt được elapsed/total — trả None thay vì
         đoán sai rồi tố đóng băng oan). None = không đọc được — gate coi là
-        unknown, không chặn PASS."""
+        unknown, không chặn PASS.
+        CI-T7 mục 4 (gốc rễ CI-T6: readings [] ở mọi mission player):
+        dump WebView không có text -> osd_visible=False -> cả 3 detector đọc
+        band dưới đều skip khi osd False (detectors.py:536/582) -> cache OCR
+        band dưới TRỐNG -> hàm này luôn None. Sửa: cache trống thì OCR ÉP
+        band dưới TRỰC TIẾP TỪ ẢNH (không qua osd_visible từ dump), và ghi
+        vào cache để detector sau dùng chung (không OCR lại). Chỉ chạy cho
+        2 mission VOD (caller đã gate needs_playback_progress)."""
         texts = [t for _, t in ui_state.get("all_visible_texts", [])]
         for t in texts:
-            m = re.search(r"(\d{1,2}:\d{2}(?::\d{2})?)\s*/\s*(\d{1,2}:\d{2}(?::\d{2})?)", t or "")
-            if m:
-                a = self._parse_time_token(m.group(1))
-                b = self._parse_time_token(m.group(2))
-                if a is not None and b is not None:
-                    return min(a, b)
+            v = _playback_seconds_from_text(t or "")
+            if v is not None:
+                return v
         from detectors import BOTTOM_BAR_BAND
-        boxes = (self.detector_ctx.get("_ocr_cache", {}) or {}).get(
-            (frame_ref, BOTTOM_BAR_BAND), [])
+        cache = self.detector_ctx.setdefault("_ocr_cache", {})
+        key = (frame_ref, BOTTOM_BAR_BAND)
+        if key not in cache and png is not None and ocr_mod.available():
+            # Cache trống = detector đã skip band dưới (thường vì osd False
+            # theo dump) — đọc ép từ ảnh, không dựa osd_visible nữa.
+            try:
+                cache[key] = ocr_mod.read_boxes(png, region=BOTTOM_BAR_BAND)
+            except Exception:
+                cache[key] = []
+            if len(cache) > 12:
+                cache.pop(next(iter(cache)))
+        boxes = cache.get(key, [])
         vals = []
         for box in boxes or []:
             v = self._parse_time_token(box.get("text", ""))
             if v is not None:
                 vals.append(v)
         return min(vals) if len(vals) >= 2 else None
+
+    def _note_seek_if_needed(self, gate, action, activity):
+        """CI-T7 mục 4: driver vừa tua NGƯỢC (DPAD_LEFT/REWIND) trong player
+        thì báo gate để lần đọc đồng hồ kế tiếp được miễn kiểm tra đơn điệu
+        (tua ngược thì đồng hồ lùi là đúng). Tua TỚI (DPAD_RIGHT — luật
+        probe_player) KHÔNG miễn: đồng hồ chỉ được tăng sau tua tới."""
+        if action is None or action.type != "KEY":
+            return
+        if (action.param or "").upper() not in ("DPAD_LEFT", "REWIND"):
+            return
+        if "PlayerActivity" not in (activity or ""):
+            return
+        gate.note_seek()
 
     def _run_directed_launch(self, spec, gate):
         """Launch có định hướng TRƯỚC vòng driver; không tới activity đích -> FAIL."""
@@ -381,6 +426,13 @@ class RealtimeRunner:
             return False
         gate.record_vision(res.get("confirmed"), obs["frame_ref"],
                            obs["t_offset"], res.get("quote", ""))
+        # CI-T7 mục 4: quote vision có thể chứa đồng hồ 'elapsed / total'
+        # (VD '00:20 / 01:05:24' — chính nguồn này đã cứu WebPlayer directed
+        # ở CI-T2) — parse thành 1 lần đọc playback, không bỏ nguồn thật.
+        if spec.needs_playback_progress:
+            _pv = _playback_seconds_from_text(res.get("quote", ""))
+            if _pv is not None:
+                gate.observe_playback(_pv, obs["t_offset"])
         return bool(res.get("confirmed"))
 
     def _reset_to_mission(self, spec):
@@ -510,9 +562,12 @@ class RealtimeRunner:
                          obs["motion"], obs["t_offset"])
             # CI-T6 mục 8: đồng hồ phát của mission VOD (chỉ 2 mission VOD
             # có needs_playback_progress; live stream không có elapsed).
+            # CI-T7 mục 4: truyền cả ảnh để _extract_playback_s OCR ép band
+            # dưới khi dump/cache trống (osd False theo dump).
             obs["playback_s"] = None
             if spec.needs_playback_progress:
-                obs["playback_s"] = self._extract_playback_s(ui_state, obs["frame_ref"])
+                obs["playback_s"] = self._extract_playback_s(
+                    ui_state, obs["frame_ref"], obs.get("png"))
                 gate.observe_playback(obs["playback_s"], obs["t_offset"])
             for f in obs["findings"]:
                 print("      🔎 [%s] %s" % (f.get("severity"), f.get("issue")), flush=True)
@@ -589,6 +644,7 @@ class RealtimeRunner:
                         gate.force_fail(act.thought, last_frame_ref)
                         break
                     driver.execute(act)
+                    self._note_seek_if_needed(gate, act, obs["activity"])
                     last_action_rule = act.rule
                     continue
                 verdict, reason, _ev = gate.evaluate(last_frame_ref)
@@ -607,6 +663,7 @@ class RealtimeRunner:
                 print("   ❌ [Mission FAIL] %s" % action.thought, flush=True)
                 break
             driver.execute(action)
+            self._note_seek_if_needed(gate, action, obs["activity"])
             last_action_rule = action.rule
 
         if gate.outcome is None:

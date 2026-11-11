@@ -448,13 +448,50 @@ def main():
     _vo, _ro, _ = _go.evaluate("step_010.jpg")
     print("playback tăng 20->65 ->", _vo, "|", _ro)
     assert _vo == "PASS"
-    # Không đọc được đồng hồ (unknown) -> KHÔNG chặn PASS (giới hạn đo đã ghi rõ).
+    # Không đọc được đồng hồ (unknown) sau >= 2 quan sát -> KHÔNG PASS tự
+    # do nữa (CI-T7 mục 4; luật CI-T6 cũ cho unknown PASS là lỗ false-pass
+    # — CI-T6 readings [] + unknown ở mọi mission player mà vẫn PASS).
+    # Live: FAIL ở max_steps; replay downgrade thành UNVERIFIED.
     _seq_un = [(float(i * 10), None) for i in range(1, 11)]
     _gu = _gate_pb(_seq_un)
     assert _gu.playback_status() == "unknown"
+    assert any(m.startswith("playback:") for m in _gu.missing_summary())
     _vu, _ru, _ = _gu.evaluate("step_010.jpg")
-    print("playback unknown ->", _vu, "|", _ru)
-    assert _vu == "PASS"
+    print("playback unknown x10 ->", _vu, "|", _ru)
+    assert _vu == "FAIL" and "playback" in _ru
+    # Đơn điệu (CI-T7 mục 4): dãy mắt đọc CI-T6 00:20->00:00->00:30->00:20
+    # có max-min=30s nên playback_status() cũ vẫn 'increasing' -> PASS oan
+    # dù frame đóng băng 60,3s (step_055 = step_059 pixel-identical).
+    _seq_nm = [(float(i * 10), v) for i, v in
+               enumerate([20, 0, 30, 20, 25, 30, 20, 25, 30, 35], start=1)]
+    _gnm = _gate_pb(_seq_nm)
+    assert _gnm.playback_status() == "increasing", \
+        "max-min=35s nên status cũ vẫn increasing — đó chính là lỗ hổng"
+    _mono_nm, _det_nm = _gnm.playback_monotonic()
+    print("playback không đơn điệu 20->0->30->20 -> mono:", _mono_nm, _det_nm)
+    assert _mono_nm is False, "lùi 30->20 không sau tua ngược phải tố"
+    assert any(m.startswith("playback:") for m in _gnm.missing_summary())
+    _vnm, _rnm, _ = _gnm.evaluate("step_010.jpg")
+    print("playback không đơn điệu ->", _vnm, "|", _rnm)
+    assert _vnm == "FAIL" and "playback" in _rnm
+    # Tăng đơn điệu thật (20->25->31...) vẫn PASS như cũ.
+    _go2 = _gate_pb([(float(i * 10), 20 + 5 * (i - 1)) for i in range(1, 11)])
+    assert _go2.playback_monotonic()[0] is True
+    # Lùi ngay sau tua NGƯỢC thì được miễn (đồng hồ lùi là đúng).
+    _gsk = _EG6(specs["MISSION_VOD_PLAYER_SEEK_AND_RESUME"])
+    for _t, _pb in [(10.0, 20), (20.0, 0), (30.0, 30)]:
+        if _pb == 0:
+            _gsk.note_seek()
+        _gsk.observe("com.kenhlive.tv/.phim.WebPlayerActivity", [], [], False, True, _t)
+        _gsk.observe_playback(_pb, _t)
+    assert _gsk.playback_monotonic()[0] is True, \
+        "lùi 20->0 ngay sau tua ngược phải được miễn"
+    # Nhiễu OCR nhỏ (lùi <= 2s) không tính là không đơn điệu.
+    _gno = _EG6(specs["MISSION_VOD_PLAYER_SEEK_AND_RESUME"])
+    for _t, _pb in [(10.0, 20), (20.0, 19), (30.0, 25)]:
+        _gno.observe("com.kenhlive.tv/.phim.WebPlayerActivity", [], [], False, True, _t)
+        _gno.observe_playback(_pb, _t)
+    assert _gno.playback_monotonic()[0] is True, "lùi 1s là nhiễu OCR, không tố"
     # Trích xuất đồng hồ: dump '00:20 / 01:05:24' -> 20 (lấy số nhỏ hơn).
     r_pb = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_pb", serial=None,
                                      vision_budget=0, no_vision=True)
@@ -471,6 +508,45 @@ def main():
         ("step_001.jpg", _BBB): [{"text": "24:14"}]}
     assert r_pb._extract_playback_s({"all_visible_texts": []}, "step_001.jpg") is None
     print("PLAYBACK_PROGRESS_OK")
+
+    # --- Test N12: playback_readings từ ẢNH — OCR ép band dưới (CI-T7 mục 4) ---
+    # Gốc rễ CI-T6: dump WebView không có text -> osd_visible=False ->
+    # detector band dưới skip -> cache OCR trống -> _extract_playback_s
+    # luôn None -> readings [] ở mọi mission player. Sửa: cache trống thì
+    # OCR ÉP band dưới trực tiếp từ ảnh, không dựa osd_visible từ dump.
+    from PIL import Image as _Image12, ImageDraw as _Draw12, ImageFont as _Font12
+    _im12 = _Image12.new("RGB", (960, 540), (10, 10, 15))
+    _d12 = _Draw12.Draw(_im12)
+    _f12 = _Font12.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 44)
+    _d12.text((80, 450), "00:20", fill=(255, 255, 255), font=_f12)
+    _d12.text((700, 450), "24:14", fill=(255, 255, 255), font=_f12)
+    _buf12 = io.BytesIO()
+    _im12.save(_buf12, format="PNG")
+    _png12 = _buf12.getvalue()
+    r_img = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_pb_img", serial=None,
+                                      vision_budget=0, no_vision=True)
+    r_img.detector_ctx["_ocr_cache"] = {}
+    _v12 = r_img._extract_playback_s(
+        {"all_visible_texts": [], "osd_visible": False}, "step_001.jpg", _png12)
+    print("playback từ ảnh (dump rỗng, osd False) ->", _v12)
+    assert _v12 == 20, "OCR ép band dưới phải đọc được 00:20 từ ảnh dù osd False"
+    assert ("step_001.jpg", _BBB) in r_img.detector_ctx["_ocr_cache"], \
+        "lần OCR ép phải ghi vào cache để detector sau dùng chung, không OCR lại"
+    # Ảnh đen không có chữ giờ -> None, không bịa số.
+    _im12b = _Image12.new("RGB", (960, 540), (0, 0, 0))
+    _buf12b = io.BytesIO()
+    _im12b.save(_buf12b, format="PNG")
+    r_img.detector_ctx["_ocr_cache"] = {}
+    assert r_img._extract_playback_s(
+        {"all_visible_texts": []}, "step_002.jpg", _buf12b.getvalue()) is None
+    # Parse quote vision 'elapsed / total' (nguồn thứ hai, CI-T2 đã cứu
+    # WebPlayer directed bằng quote '00:20 / 24:14').
+    from runner import _playback_seconds_from_text as _pb_txt
+    assert _pb_txt("phim đang phát 00:20 / 01:05:24") == 20
+    assert _pb_txt("00:00 / 24:14") == 0
+    assert _pb_txt("không thấy đồng hồ") is None
+    assert _pb_txt("chỉ có 24:14 lẻ") is None
+    print("PLAYBACK_FROM_IMAGE_OK")
 
 
     # --- Test B4: cuộn lên đầu đầu mission list (CI-T5 mục 4) ---
