@@ -75,6 +75,7 @@ class RealtimeRunner:
                              "logo_check_frames": []}
         self._global_step = 0
         self._prev_obs_png = None  # frame observation trước (CI-T5: fallback pixel_diff)
+        self._saved_shot_hashes = {}  # CI-T7 mục 6: sha256 PNG -> rel path shot đã lưu (dedup)
         self._hero_frame = None  # frame hero Home để vision check cuối run (CI-T5 mục 7)
         self._player_title_frame = None  # frame title player để vision check (CI-T5 mục 7)
         self.vision_check_log = []  # CI-T6 mục 2: mỗi call check_visual đã soi
@@ -96,8 +97,15 @@ class RealtimeRunner:
             pass
 
     def _save_frame(self, png_bytes, label):
+        # CI-T7 mục 6: dedup theo nội dung — cùng 1 ảnh PNG thì chỉ lưu 1
+        # file, lần sau trả lại đường dẫn đã lưu (không ghi trùng). Áp cho
+        # cả _observe lẫn _finish_mission và giữa các mission (046=047,
+        # 026=037 ở CI-T6 là cùng 1 ảnh lưu 2 lần).
         if not png_bytes:
             return None
+        _h = hashlib.sha256(png_bytes).hexdigest()
+        if _h in self._saved_shot_hashes:
+            return self._saved_shot_hashes[_h]
         path = os.path.join(self.shots_dir, "%s.jpg" % label)
         try:
             from PIL import Image
@@ -108,7 +116,9 @@ class RealtimeRunner:
             path = path.replace(".jpg", ".png")
             with open(path, "wb") as f:
                 f.write(png_bytes)
-        return "shots/%s" % os.path.basename(path)
+        _rel = "shots/%s" % os.path.basename(path)
+        self._saved_shot_hashes[_h] = _rel
+        return _rel
 
     def _observe(self, mission_name):
         """Một observation: chờ stable frame + UI dump + detectors. Trả dict.
@@ -716,9 +726,22 @@ class RealtimeRunner:
             if png and frame_ref:
                 path = os.path.join(self.shots_dir, os.path.basename(frame_ref))
                 if not os.path.exists(path):
-                    saved = self._save_frame(png, frame_ref[:-4] if frame_ref.endswith(".jpg") else frame_ref)
-                    if saved:
-                        print("   📸 [Evidence] lưu frame cuối mission (%s): %s" % (gate.outcome, saved), flush=True)
+                    # CI-T7 mục 6: _finish_mission là đường bypass của check
+                    # duplicate trong _observe — frame cuối mission có thể
+                    # trùng hệt 1 shot đã lưu (CI-T6: 046=047, 026=037
+                    # identical). Trùng thì KHÔNG lưu file mới, ghi rõ shot
+                    # nào được dùng lại (bằng chứng vẫn có, không trùng file).
+                    _h = hashlib.sha256(png).hexdigest()
+                    if _h in self._saved_shot_hashes:
+                        _dup = self._saved_shot_hashes[_h]
+                        res["evidence_frame_duplicate_of"] = _dup
+                        print("   📸 [Evidence] frame cuối mission trùng shot đã lưu "
+                              "(%s) — không lưu trùng, dùng lại %s"
+                              % (gate.outcome, _dup), flush=True)
+                    else:
+                        saved = self._save_frame(png, frame_ref[:-4] if frame_ref.endswith(".jpg") else frame_ref)
+                        if saved:
+                            print("   📸 [Evidence] lưu frame cuối mission (%s): %s" % (gate.outcome, saved), flush=True)
         self.mission_results.append(res)
         return res
 

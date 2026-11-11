@@ -470,6 +470,46 @@ def main():
     assert _ctx11b.get("keyboard_open_image") is False
     print("KEYBOARD_FROM_IMAGE_OK")
 
+    # --- Test N14: dedup shot trùng ở _finish_mission + giữa mission (CI-T7 mục 6) ---
+    # CI-T6: 046=047, 026=037 là cùng 1 ảnh nhưng lưu 2 file — _observe có
+    # check duplicate_frame, _finish_mission là đường bypass (luôn lưu frame
+    # cuối mission nếu file chưa tồn tại, không so nội dung). Sửa: _save_frame
+    # dedup theo sha256 PNG (trả lại path đã lưu), _finish_mission ghi rõ
+    # shot nào được dùng lại (evidence_frame_duplicate_of).
+    _png_dup14 = _fake_png(0)
+    r14 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_dedup", serial=None,
+                                    vision_budget=0, no_vision=True)
+    _s14a = r14._save_frame(_png_dup14, "step_001_x")
+    _s14b = r14._save_frame(_png_dup14, "step_002_x")
+    print("save cùng PNG 2 lần ->", _s14a, "|", _s14b)
+    assert _s14a == _s14b and _s14a is not None, \
+        "cùng 1 ảnh thì _save_frame phải trả lại cùng 1 path, không ghi trùng"
+    assert _s14a != r14._save_frame(_fake_png(5), "step_003_x"), \
+        "ảnh khác thì vẫn lưu file riêng"
+
+    class _DupDevice14(FakeDevice):
+        def screencap_bytes(self):
+            return _fake_png(0)  # device trả cùng 1 frame mọi lần
+
+    _orig_dev14 = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = _DupDevice14
+    try:
+        r14b = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_dedup2", serial=None,
+                                         vision_budget=0, no_vision=True)
+        _rep14 = r14b.run([specs["MISSION_COLD_START"], specs["MISSION_COLD_START"]])
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev14
+    _shots14 = sorted(os.listdir(os.path.join("/tmp/qa_mock_dedup2", "shots")))
+    print("2 mission cùng frame: shots:", _shots14, "| outcomes:",
+          [(m["name"], m["outcome"]) for m in r14b.mission_results])
+    assert len(_shots14) == 1, \
+        "2 mission cùng 1 frame cuối thì chỉ được lưu 1 shot, được %s" % _shots14
+    assert r14b.mission_results[1].get("evidence_frame_duplicate_of") == "shots/" + _shots14[0], \
+        "mission 2 phải ghi rõ dùng lại shot của mission 1"
+    assert all(m["outcome"] == "PASS" for m in r14b.mission_results), \
+        "dedup không được làm đổi outcome mission"
+    print("DEDUP_FINISH_MISSION_OK")
+
     # --- Test N6: bằng chứng thời gian phát tăng (CI-T6 mục 8) ---
     # CI-T5 WebPlayer đóng băng 00:20 qua 3 quan sát mà vẫn PASS — giờ phải
     # FAIL (hoặc UNVERIFIED nếu không đọc được đồng hồ). Chỉ 2 mission VOD
