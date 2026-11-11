@@ -84,8 +84,81 @@ class HonestJudge:
         except Exception:
             return None
 
+    @staticmethod
+    def _pixel_diff(a_bytes, b_bytes, size=(160, 90)):
+        """% khác biệt trung bình giữa 2 frame (PIL thuần) — cùng thước đo
+        với device.pixel_diff. -1.0 khi lỗi. Dùng cho verify nội dung reel:
+        khung tour đúng cảnh có diff ~0.25-0.8, khung khác cảnh > 2."""
+        if not a_bytes or not b_bytes:
+            return -1.0
+        try:
+            from PIL import Image, ImageChops, ImageStat
+            import io as _io
+            a = Image.open(_io.BytesIO(a_bytes)).convert("RGB").resize(size)
+            b = Image.open(_io.BytesIO(b_bytes)).convert("RGB").resize(size)
+            diff = ImageChops.difference(a, b).convert("L")
+            return float(ImageStat.Stat(diff).mean[0] / 255.0 * 100.0)
+        except Exception:
+            return -1.0
+
+    def _extract_tour_frame(self, video_path, tour_t):
+        """1 frame JPEG tại tour_t (giây) — trích bằng -ss trước -i (seek
+        nhanh). Trả bytes hoặc None."""
+        tmp = os.path.join(self.out_dir, "_reel_verify.jpg")
+        try:
+            subprocess.run(
+                ["ffmpeg", "-y", "-v", "error", "-ss", str(max(0.0, tour_t)),
+                 "-i", video_path, "-frames:v", "1", "-q:v", "4", tmp],
+                capture_output=True, timeout=60)
+            if os.path.exists(tmp) and os.path.getsize(tmp) > 100:
+                with open(tmp, "rb") as f:
+                    return f.read()
+        except Exception:
+            pass
+        return None
+
+    def _verify_reel_content(self, video_path, tour_len, entry):
+        """Verify NỘI DUNG đoạn reel bằng frame-match với shot trích dẫn
+        (CI-T8 mục 2): thử 5 vị trí quanh video_t (±6s, bước 3s), chọn vị
+        trí có frame gần shot nhất. Trả (diff, best_t) hoặc (None, None)
+        khi không verify được (thiếu shot/ffmpeg). Đoạn loading không khớp
+        shot nên tự bị tránh — không cắt trúng khoảng loading như CI-T7
+        (tour 248-252 'Đang tải...')."""
+        shot_name = os.path.basename(entry.get("frame") or "")
+        if not shot_name:
+            return None, None
+        shot_path = os.path.join(self.out_dir, "shots", shot_name)
+        if not os.path.exists(shot_path):
+            return None, None
+        try:
+            with open(shot_path, "rb") as f:
+                shot_bytes = f.read()
+        except Exception:
+            return None, None
+        vt = entry.get("video_t", 0.0)
+        best = None
+        for cand in (vt - 6.0, vt - 3.0, vt, vt + 3.0, vt + 6.0):
+            t = min(max(cand, 0.0), tour_len)
+            fb = self._extract_tour_frame(video_path, t)
+            if fb is None:
+                continue
+            d = self._pixel_diff(shot_bytes, fb)
+            if d < 0:
+                continue
+            if best is None or d < best[0]:
+                best = (d, t)
+        try:
+            tmp = os.path.join(self.out_dir, "_reel_verify.jpg")
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass
+        if best is None:
+            return None, None
+        return round(best[0], 2), best[1]
+
     def build_defect_reel(self, video_path, findings, out_name="defect_reel.mp4",
-                          speed_factor=1.0):
+                          speed_factor=1.0, chunk_map=None):
         """Cắt ±3s quanh mỗi defect -> defect_reel.mp4 + danh sách timestamps.
         Trả (reel_path|None, reel_entries). Không có video/defect -> (None, []).
         video_t trong evidence là THỜI GIAN THẬT của run; vị trí cắt trong file
@@ -112,7 +185,23 @@ class HonestJudge:
             t = ev.get("video_t")
             if t is None or not video_path or not os.path.exists(video_path):
                 continue
-            vt = round(float(t) / speed_factor, 1)
+            # CI-T8 mục 2: video_t là thời gian QA — ánh xạ sang vị trí tour
+            # theo chunk_map khi có (timebase chunk_map), fallback chia đều.
+            # video_recorder nằm ở harness/ (cha của realtime/) — import
+            # lỗi khi judge chạy standalone (replay) thì fallback đều.
+            if chunk_map:
+                try:
+                    from video_recorder import qa_to_tour_t
+                    vt, in_gap = qa_to_tour_t(t, chunk_map, speed_factor)
+                    timebase = "chunk_map"
+                except Exception:
+                    vt = round(float(t) / speed_factor, 1)
+                    in_gap = False
+                    timebase = "uniform"
+            else:
+                vt = round(float(t) / speed_factor, 1)
+                in_gap = False
+                timebase = "uniform"
             # Kẹp: thời điểm defect nằm trong tour thì covered; vượt tour
             # thì đoạn cắt kẹp về 6s cuối tour (vẫn xem được, nhưng không
             # còn đúng thời điểm). tour_len None -> không kết luận, giữ cũ.
@@ -126,10 +215,32 @@ class HonestJudge:
                 seg_s = 6.0
             entries.append({"t": float(t), "video_t": vt,
                             "speed_factor": speed_factor,
+                            "timebase": timebase, "in_gap": in_gap,
                             "frame": ev.get("frame", ""),
                             "severity": f.get("severity", ""), "issue": f.get("issue", ""),
                             "covered": covered, "clamped": clamped,
+                            "content_verified": None, "content_diff": None,
                             "seg_start": round(start, 1), "seg_s": seg_s})
+        # CI-T8 mục 2: verify NỘI DUNG từng đoạn bằng frame-match với shot
+        # trích dẫn — đoạn nào không khớp thì dời tâm cắt về vị trí khớp
+        # nhất trong ±6s (tránh khoảng loading), gắn cờ content_verified.
+        # Ngưỡng 1.5%: khung cùng cảnh (kể cả highlight đổi chỗ) ~0.25-1.15,
+        # khung khác cảnh > 2 (đo ở CI-T7: Lịch vs OSD).
+        if tour_len is not None and entries:
+            for e in entries:
+                diff, best_t = self._verify_reel_content(video_path, tour_len, e)
+                if diff is None:
+                    continue  # không verify được (thiếu shot/ffmpeg) — giữ vị trí cũ
+                e["content_diff"] = diff
+                e["content_verified"] = bool(diff < 1.5)
+                if best_t is not None and abs(best_t - e["video_t"]) > 0.5:
+                    e["video_t"] = round(best_t, 1)
+                    # Tính lại vị trí cắt + covered theo tâm mới.
+                    e["covered"] = e["video_t"] <= tour_len + 0.5
+                    e["clamped"] = bool(e["video_t"] > tour_len + 0.5)
+                    start = max(0.0, min(e["video_t"] - 3.0, tour_len - 6.0))
+                    e["seg_start"] = round(start, 1)
+                    e["seg_s"] = round(min(6.0, tour_len - start), 1)
         if not entries or not video_path or not os.path.exists(video_path):
             return None, entries
         entries.sort(key=lambda e: e["t"])

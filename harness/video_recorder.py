@@ -13,6 +13,45 @@ import threading
 import time
 
 
+# -- CI-T8 mục 2: ánh xạ thời gian QA -> thời gian trong file tour --------
+# Chunk ghi liên tục nhưng GIỮA 2 chunk có khoảng trống (finalize/pull/chờ)
+# nên QA_t không tỉ lệ đều với tour_t — video_t = QA_t / speed_factor đều
+# bị lệch ~10-17 tour-giây (CI-T7: reel mỗi đoạn chỉ ~25% đúng cảnh).
+# Trong chunk: nội suy tuyến tính theo thời lượng thật của chunk; rơi vào
+# khoảng trống -> kẹp về biên chunk gần nhất + cờ in_gap=True.
+def qa_to_tour_t(qa_t, chunk_map, speed_factor=1.0):
+    """(tour_t, in_gap): thời gian QA (giây từ đầu run) -> vị trí trong
+    file tour (giây, đã chia hệ số tăng tốc). Không có chunk_map -> chia
+    đều như cũ (fallback, timebase='uniform')."""
+    try:
+        speed_factor = float(speed_factor) if speed_factor else 1.0
+    except Exception:
+        speed_factor = 1.0
+    if speed_factor < 1.0:
+        speed_factor = 1.0
+    if not chunk_map:
+        return round(float(qa_t) / speed_factor, 1), False
+    qa_t = float(qa_t)
+    prev = None
+    for ch in chunk_map:
+        qs, qe = float(ch["qa_start_s"]), float(ch["qa_end_s"])
+        rs, re_ = float(ch["raw_start_s"]), float(ch["raw_end_s"])
+        if qs <= qa_t <= qe:
+            span = max(qe - qs, 0.1)
+            frac = (qa_t - qs) / span
+            return round((rs + frac * (re_ - rs)) / speed_factor, 1), False
+        if qa_t < qs:
+            # Khoảng trống trước chunk này (hoặc trước chunk đầu): kẹp về
+            # đầu chunk (prev=None) hoặc cuối chunk trước.
+            if prev is None:
+                return round(rs / speed_factor, 1), True
+            return round(float(prev["raw_end_s"]) / speed_factor, 1), True
+        prev = ch
+    if prev is not None:
+        return round(float(prev["raw_end_s"]) / speed_factor, 1), True
+    return round(float(qa_t) / speed_factor, 1), False
+
+
 class VideoRecorder:
     def __init__(self, serial=None, out_dir="/tmp/qa_report", max_total_seconds=7200):
         self.serial = serial
@@ -49,6 +88,14 @@ class VideoRecorder:
         # harness cũ — 2 caller cũ chỉ dùng 3 hàm đó).
         self._graceful_stop = False  # True: worker để chunk hiện tại hết hạn tự nhiên
         self._screenrecord_exited = None  # None: chưa kiểm / True: pidof hết / False: vẫn chạy
+        # CI-T8 mục 2: timestamp QA của từng chunk (wall-clock bắt đầu/kết
+        # thúc) — tour không đều (chunk có khoảng trống giữa các lần quay,
+        # chunk cuối thiếu) nên video_t = QA_t / speed_factor đều bị lệch
+        # ~10-17 tour-giây (CI-T7: reel mỗi đoạn chỉ ~25% đúng cảnh). Map
+        # chunk -> (qa_start, qa_end, raw_start, raw_end) được dựng ở
+        # stop_and_save() để judge cắt reel đúng vị trí thật.
+        self._chunk_times = []  # [{index, remote, wall_start, wall_end}]
+        self._chunk_map = None  # [{qa_start_s, qa_end_s, raw_start_s, raw_end_s, dur_s}]
 
     def start(self):
         print(f"📹 [VIDEO RECORDER] Bắt đầu quay toàn bộ quá trình test Android TV 1080p...", flush=True)
@@ -83,6 +130,10 @@ class VideoRecorder:
             self.remote_chunks.append(remote_path)
             self._current_remote = remote_path  # CI-T5 mục 8: chunk đang quay
             self._current_started_at = time.time()
+            # CI-T8 mục 2: mốc wall-clock của chunk (để map QA_t -> tour_t).
+            _t_entry = {"index": idx, "remote": remote_path,
+                        "wall_start": self._current_started_at, "wall_end": None}
+            self._chunk_times.append(_t_entry)
             # adb screenrecord trên emulator Android TV: 1280x720 2.5Mbps (tránh tràn buffer phần mềm OMX err=-10005)
             cmd = f"{self.adb} shell screenrecord --time-limit 175 --bit-rate 2500000 --size 1280x720 {remote_path}"
             t_chunk0 = time.time()
@@ -103,6 +154,7 @@ class VideoRecorder:
                             print(f"📹 [VIDEO RECORDER] Chunk {idx} hết hạn tự nhiên "
                                   f"(175s), screenrecord đã chết: {self._screenrecord_exited}.",
                                   flush=True)
+                            _t_entry["wall_end"] = time.time()
                             return
                         print(f"📹 [VIDEO RECORDER] Chunk {idx} không hết hạn sau "
                               f"175s — SIGINT để dừng (fallback).", flush=True)
@@ -126,8 +178,12 @@ class VideoRecorder:
                     self._screenrecord_exited = not self._screenrecord_running()
                     print(f"📹 [VIDEO RECORDER] Dừng quay: screenrecord đã chết xác "
                           f"minh bằng pidof: {self._screenrecord_exited}.", flush=True)
+                    _t_entry["wall_end"] = time.time()
                     return
                 time.sleep(0.5)
+            # screenrecord thoát tự nhiên (hết hạn 175s): ghi mốc kết thúc.
+            if _t_entry["wall_end"] is None:
+                _t_entry["wall_end"] = time.time()
             # KL8 fix loop 2 (F67c): screenrecord chết ngay (vd /sdcard đầy,
             # "already recording") thì vòng lặp cũ quay tít tạo chunk rỗng và
             # spam adb suốt phiên. Chờ 5s rồi mới thử chunk sau.
@@ -369,6 +425,9 @@ class VideoRecorder:
         # Kéo các chunks về local (kèm kiểm tra đủ byte: pull thiếu thì pull
         # lại 1 lần; chỉ xóa bản trên máy khi bản local đã đủ — tránh mất
         # chunk vì pull dở, như chunk cuối CI-T4).
+        # CI-T8 mục 2: ghi index remote (qa_rec_NN) của từng chunk local để
+        # map lại _chunk_times khi dựng chunk_map.
+        _local_remote_idx = []
         for i, remote in enumerate(all_remotes):
             local_path = os.path.join(self.out_dir, f"chunk_{i+1:02d}.mp4")
             subprocess.run(f"{self.adb} pull {remote} {local_path}", shell=True, capture_output=True)
@@ -380,6 +439,10 @@ class VideoRecorder:
                 got = os.path.getsize(local_path) if os.path.exists(local_path) else 0
             if got > 2000:
                 self.local_chunks.append(local_path)
+                try:
+                    _local_remote_idx.append(int(os.path.basename(remote).split("_")[-1].split(".")[0]))
+                except Exception:
+                    _local_remote_idx.append(i + 1)
             if got and (not want or got >= want):
                 subprocess.run(f"{self.adb} shell rm -f {remote}", shell=True, capture_output=True)
 
@@ -436,6 +499,7 @@ class VideoRecorder:
                 return -1.0
 
             valid = []
+            _remote_by_local = dict(zip(self.local_chunks, _local_remote_idx))
             for c in self.local_chunks:
                 # _probe_video trả (0.0, False, 0) cho chunk thật mà ffprobe
                 # chỉ đọc ra N/A (float("N/A") raise) — KHÔNG được loại ngay
@@ -444,26 +508,28 @@ class VideoRecorder:
                 # vẫn qua bước chuẩn hóa từng chunk (F67c) — chunk rác thật
                 # sẽ tự rớt ở đó, không phá cả lần ghép.
                 dur, has_video, nframes = self._probe_video(c)
+                _ridx = _remote_by_local.get(c, 0)
                 if dur > 1.0 and has_video:
                     if nframes and dur > 0 and nframes / dur < 5.0:
                         print(f"⚠️ [VIDEO RECORDER] Chunk fps thap: {os.path.basename(c)} ({nframes / dur:.1f} fps, {dur:.0f}s) — emulator screenrecord doi CPU, video se giat.", flush=True)
-                    valid.append((c, dur))
+                    valid.append((c, dur, _ridx))
                     continue
                 d2 = _dur(c)
                 if (d2 > 1.0 or d2 < 0) and os.path.getsize(c) > 2000:
                     # d2 < 0 = không đọc được nhưng file có thật: giữ lại.
-                    valid.append((c, d2))
+                    valid.append((c, d2, _ridx))
                 else:
                     print(f"⚠️ [VIDEO RECORDER] Bo chunk hong: {os.path.basename(c)} (duration {dur:.1f}s, video={has_video})", flush=True)
             if not valid:
                 print("⚠️ [VIDEO RECORDER] Khong co chunk nao hop le, giu chunk dau tien.", flush=True)
-                valid = [(self.local_chunks[0], 0.0)]
+                valid = [(self.local_chunks[0], 0.0, _remote_by_local.get(self.local_chunks[0], 1))]
                 self._keep_chunks_on_failure = True
 
             # Chuẩn hóa từng chunk riêng (CFR 30fps, cùng 1280x720) — chunk
             # nào re-encode lỗi thì bỏ chunk đó, không phá cả lần ghép.
             self._norm_chunks = []
-            for i, (c, _d) in enumerate(valid):
+            self._norm_valid = []  # CI-T8 mục 2: valid entry tương ứng từng norm chunk
+            for i, (c, _d, _r) in enumerate(valid):
                 out = os.path.join(self.out_dir, f"norm_{i + 1:02d}.mp4")
                 res_norm = subprocess.run(
                     ["ffmpeg", "-y", "-v", "error", "-fflags", "+genpts", "-i", c,
@@ -475,6 +541,7 @@ class VideoRecorder:
                     print(f"⚠️ [VIDEO RECORDER] Chuan hoa chunk loi, bo: {os.path.basename(c)}: {(res_norm.stderr or '')[-300:]}", flush=True)
                     continue
                 self._norm_chunks.append(out)
+                self._norm_valid.append((c, _d, _r))
             if not self._norm_chunks:
                 print("⚠️ [VIDEO RECORDER] Khong chuan hoa duoc chunk nao, giu chunk dai nhat.", flush=True)
                 # Duration chưa biết (-1) thì so bằng kích thước file (fix QA).
@@ -525,6 +592,35 @@ class VideoRecorder:
             if not os.path.exists(self.final_mp4):
                 if os.path.exists(raw_full):
                     os.rename(raw_full, self.final_mp4)
+
+        # CI-T8 mục 2: dựng chunk_map (QA_t -> raw tour_t) từ các norm chunk
+        # còn sống, theo đúng thứ tự tour — PHẢI làm trước bước dọn file
+        # norm tạm bên dưới (probe cần file còn tồn tại). qa_start/end từ
+        # wall-clock lúc quay chunk; raw_start/end tích lũy theo thời lượng
+        # thật file norm.
+        self._chunk_map = None
+        if getattr(self, "_norm_chunks", None) and getattr(self, "_norm_valid", None) \
+                and getattr(self, "_start_wall", 0) > 0:
+            _map = []
+            _raw = 0.0
+            for _nf, (_c, _d, _r) in zip(self._norm_chunks, self._norm_valid):
+                _dur_n, _, _ = self._probe_video(_nf)
+                if _dur_n <= 0:
+                    _dur_n = _d if _d and _d > 0 else 0.0
+                _te = next((t for t in self._chunk_times if t["index"] == _r), None)
+                if _te is None:
+                    continue
+                _qs = max(0.0, _te["wall_start"] - self._start_wall)
+                _qe = _te["wall_end"]
+                _qe = max(_qs, (_qe - self._start_wall) if _qe else (_qs + _dur_n))
+                _map.append({"qa_start_s": round(_qs, 1), "qa_end_s": round(_qe, 1),
+                             "raw_start_s": round(_raw, 1), "raw_end_s": round(_raw + _dur_n, 1),
+                             "dur_s": round(_dur_n, 1)})
+                _raw += _dur_n
+            self._chunk_map = _map or None
+            if self._chunk_map:
+                print(f"🎬 [VIDEO] Chunk map: {len(self._chunk_map)} chunk, "
+                      f"tour thô {self._chunk_map[-1]['raw_end_s']:.1f}s.", flush=True)
 
         # Tạo bản tua nhanh 10x Timelapse Preview (chuẩn android-tv-qa)
         if os.path.exists(self.final_mp4) and os.path.getsize(self.final_mp4) > 2000:
@@ -589,4 +685,8 @@ class VideoRecorder:
             # cơ thiếu moov) + có dùng dừng mềm không.
             "screenrecord_exited": self._screenrecord_exited,
             "graceful_stop": bool(self._graceful_stop),
+            # CI-T8 mục 2: map QA_t -> tour_t theo từng chunk (None khi
+            # không dựng được — judge fallback chia đều như cũ).
+            "chunk_map": self._chunk_map,
+            "timebase": "chunk_map" if self._chunk_map else "uniform",
         }

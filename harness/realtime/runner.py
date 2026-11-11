@@ -875,9 +875,12 @@ class RealtimeRunner:
             video_file = os.path.basename(video_info)
         # defect reel: video_t là thời gian thật, phải chia cho hệ số tốc độ
         # của tour (CI-T3: reel sai 4x). Ghi hệ số vào report để kiểm chứng.
+        # CI-T8 mục 2: dùng chunk_map (QA_t -> tour_t theo từng chunk) khi
+        # có — chia đều bị lệch do khoảng trống giữa các chunk.
         reel_path, reel_entries = self.judge.build_defect_reel(
             os.path.join(self.out_dir, video_file) if video_file else None, self.findings,
-            speed_factor=video_speed_factor)
+            speed_factor=video_speed_factor,
+            chunk_map=(video_info.get("chunk_map") if isinstance(video_info, dict) else None))
         timings = dict(self.timings)
         step_times = timings.pop("step_times", [])
         if step_times:
@@ -916,14 +919,24 @@ class RealtimeRunner:
         report["defect_reel_entries"] = reel_entries
         # CI-T6 mục 3: báo rõ reel khớp bao nhiêu finding (entry vượt tour
         # bị kẹp thì không tính là khớp đúng thời điểm).
+        # CI-T8 mục 2: thêm số đoạn khớp NỘI DUNG với shot trích dẫn
+        # (content_verified) — 'covered' chỉ tính theo timestamp.
         _cov = sum(1 for e in reel_entries if e.get("covered", True))
+        _cv = sum(1 for e in reel_entries if e.get("content_verified") is True)
+        _nver = sum(1 for e in reel_entries if e.get("content_verified") is not None)
         _clamp = sum(1 for e in reel_entries if e.get("clamped"))
         report["defect_reel_coverage"] = {
-            "covered": _cov, "total": len(reel_entries), "clamped": _clamp,
-            "text": "%d/%d finding%s" % (
+            "covered": _cov, "content_verified": _cv,
+            "total": len(reel_entries), "clamped": _clamp,
+            "text": "%d/%d finding%s%s%s" % (
                 _cov, len(reel_entries),
-                " (%d đoạn bị kẹp do vượt tour)" % _clamp if _clamp else "")}
+                " (%d đoạn bị kẹp do vượt tour)" % _clamp if _clamp else "",
+                " · nội dung khớp: %d/%d" % (_cv, _nver) if _nver else "",
+                " · timebase: %s" % (video_info.get("timebase") if isinstance(video_info, dict) else "uniform"))}
         print("   🎞️ [Reel] cover %s" % report["defect_reel_coverage"]["text"], flush=True)
+        if isinstance(video_info, dict) and video_info.get("timebase"):
+            report["video_timebase"] = video_info.get("timebase")
+            report["video_chunk_map"] = video_info.get("chunk_map")
         # CI-T6 mục 10: ghi rõ provider thật ở cấp report (không ghi 'NIM'
         # khi provider là OPENAI — CI-T5 report ghi nim_usage.provider đúng
         # là OPENAI nhưng dòng in + HTML vẫn ghi 'NIM requests'). requests

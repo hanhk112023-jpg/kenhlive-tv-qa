@@ -1969,6 +1969,76 @@ def main():
         "ảnh cũng không có vòng thì mất focus thật vẫn phải tố"
     print("IMAGE_FOCUS_RING_OK")
 
+    # --- Test N19: timebase tour theo chunk + verify nội dung reel (CI-T8 mục 2) ---
+    # CI-T7: video_t = QA_t / 4,7 đều bị lệch ~10-17 tour-giây (reel mỗi
+    # đoạn chỉ ~25% đúng cảnh) vì giữa các chunk có khoảng trống. Sửa:
+    # (a) map QA_t -> tour_t theo chunk_map (nội suy trong chunk, kẹp ở
+    # khoảng trống); (b) verify nội dung đoạn reel bằng frame-match với
+    # shot trích dẫn, dời tâm cắt về vị trí khớp nhất (±6s).
+    import video_recorder as _vr19
+    _cm19 = [{"qa_start_s": 0, "qa_end_s": 175, "raw_start_s": 0, "raw_end_s": 170, "dur_s": 170},
+             {"qa_start_s": 180, "qa_end_s": 355, "raw_start_s": 170, "raw_end_s": 345, "dur_s": 175}]
+    _t19a, _g19a = _vr19.qa_to_tour_t(87.5, _cm19, 4.7)
+    print("QA 87.5s trong chunk 1 -> tour", _t19a, "in_gap:", _g19a)
+    assert abs(_t19a - 85.0 / 4.7) < 0.2 and _g19a is False, "nội suy trong chunk phải đúng"
+    _t19b, _g19b = _vr19.qa_to_tour_t(177, _cm19, 4.7)
+    assert _g19b is True and abs(_t19b - 170.0 / 4.7) < 0.3, \
+        "QA rơi vào khoảng trống giữa 2 chunk phải kẹp về cuối chunk trước + cờ in_gap"
+    _t19c, _g19c = _vr19.qa_to_tour_t(267.5, _cm19, 4.7)
+    assert abs(_t19c - 257.5 / 4.7) < 0.2 and _g19c is False, "nội suy trong chunk 2 phải đúng"
+    _t19d, _g19d = _vr19.qa_to_tour_t(94, None, 4.7)
+    assert abs(_t19d - 20.0) < 0.1 and _g19d is False, \
+        "không có chunk_map thì fallback chia đều như cũ"
+    print("CHUNK_MAP_OK")
+    # (b) verify nội dung reel: tour 12s (đỏ 0-6s, xanh 6-12s), shot đỏ,
+    # finding ở video_t=9.0 (vùng xanh — lệch do drift) -> phải dời tâm cắt
+    # về ~3s (vùng đỏ khớp shot) và gắn content_verified=True; shot xanh lá
+    # (không có trong tour) -> content_verified=False.
+    import shutil as _sh19
+    import subprocess as _sp19
+    if _sh19.which("ffmpeg") is None:
+        print("REEL_CONTENT_SKIP (thiếu ffmpeg)")
+    else:
+        _out19 = "/tmp/qa_mock_reel2"
+        _sh19.rmtree(_out19, ignore_errors=True)
+        os.makedirs(os.path.join(_out19, "shots"), exist_ok=True)
+        _tour19 = os.path.join(_out19, "tour.mp4")
+        _r19 = _sp19.run(
+            ["ffmpeg", "-y", "-v", "error",
+             "-f", "lavfi", "-i", "color=c=red:s=320x180:r=10:d=6",
+             "-f", "lavfi", "-i", "color=c=blue:s=320x180:r=10:d=6",
+             "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0",
+             "-c:v", "libx264", "-pix_fmt", "yuv420p", _tour19],
+            capture_output=True, timeout=120)
+        assert os.path.exists(_tour19) and os.path.getsize(_tour19) > 1000, \
+            "không dựng được tour giả bằng ffmpeg"
+        from PIL import Image as _Im19
+        _Im19.new("RGB", (960, 540), (255, 0, 0)).save(
+            os.path.join(_out19, "shots", "step_001_test.jpg"), "JPEG", quality=85)
+        _Im19.new("RGB", (960, 540), (0, 255, 0)).save(
+            os.path.join(_out19, "shots", "step_002_test.jpg"), "JPEG", quality=85)
+        from judge import HonestJudge as _HJ19
+        _j19 = _HJ19(_out19)
+        _f19 = [{"severity": "HIGH", "area": "Test", "issue": "defect đỏ",
+                 "detail": "d", "suggestion": "s",
+                 "evidence": {"frame": "step_001_test.jpg", "video_t": 9.0, "ui_state": ""}},
+                {"severity": "HIGH", "area": "Test", "issue": "defect xanh lá",
+                 "detail": "d", "suggestion": "s",
+                 "evidence": {"frame": "step_002_test.jpg", "video_t": 9.0, "ui_state": ""}}]
+        _rp19, _en19 = _j19.build_defect_reel(_tour19, _f19, speed_factor=1.0)
+        print("reel entries:", [(e["video_t"], e.get("content_verified"), e.get("content_diff"),
+                                 e.get("seg_start")) for e in _en19])
+        assert len(_en19) == 2, "2 finding phải ra 2 entry"
+        assert _en19[0]["content_verified"] is True, \
+            "đoạn đỏ phải khớp shot đỏ (content_verified True)"
+        assert abs(_en19[0]["video_t"] - 3.0) < 1.0, \
+            "tâm cắt phải dời về vùng đỏ khớp shot (~3s), được %s" % _en19[0]["video_t"]
+        assert _en19[1]["content_verified"] is False, \
+            "shot xanh lá không có trong tour thì không được ghi khớp"
+        assert os.path.exists(_rp19) and os.path.getsize(_rp19) > 1000, \
+            "reel phải được ghi ra file"
+        print("REEL_CONTENT_OK")
+
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
