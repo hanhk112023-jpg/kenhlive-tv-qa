@@ -750,6 +750,17 @@ class RealtimeRunner:
                 self.mission_results.append({
                     "name": spec.name, "title": spec.title, "outcome": "FAIL",
                     "reason": "runner exception: %s" % e, "evidence": {}, "steps": 0})
+        # CI-T7 mục 5: DỪNG QUAY TRƯỚC giai đoạn post-processing dài (vision
+        # check cuối run + dựng reel): xin dừng mềm để chunk cuối kết thúc
+        # bằng expiry 175s tự nhiên trong lúc vision check chạy, thay vì bị
+        # SIGINT cắt giữa chừng ở cuối run (CI-T6: video chỉ 79%, chunk cuối
+        # mất moov). stop_and_save() sau vision check sẽ join worker (đã
+        # thoát hoặc gần thoát) + kéo chunk đã finalize.
+        if self.recorder:
+            try:
+                self.recorder.request_graceful_stop()
+            except Exception as e:
+                print("⚠️ [VideoRecorder] request_graceful_stop lỗi: %s" % e, flush=True)
         # Vision check hero + title player (CI-T5 mục 7): tối đa 2 call/run,
         # sau khi mọi mission xong (frame đã giữ trong run_mission).
         try:
@@ -811,6 +822,11 @@ class RealtimeRunner:
         report["video"] = video_file
         report["video_speed_factor"] = video_speed_factor
         report["video_recorded_seconds"] = video_recorded_seconds
+        # CI-T7 mục 5: screenrecord đã chết xác minh bằng pidof trước khi
+        # chờ moov (False = vẫn chạy lúc dừng — chunk cuối có nguy cơ mất).
+        if isinstance(video_info, dict):
+            report["video_screenrecord_exited"] = video_info.get("screenrecord_exited")
+            report["video_graceful_stop"] = video_info.get("graceful_stop")
         # CI-T6 mục 2: log vision check (frame nào, crop nào, kết quả gì) phải
         # nằm trong report để lần sau debug được cú bỏ sót mà không cần đoán.
         report["vision_checks"] = list(self.vision_check_log)

@@ -42,6 +42,13 @@ class VideoRecorder:
         # (CI-T6 mục 3: 20s cũ chưa đủ để moov flush xong trong ca xấu;
         # chờ này chỉ tốn thời gian khi chunk lỗi — chunk tốt về ngay sau
         # khi size ổn định + probe thấy moov, thường ~2-4s).
+        # CI-T7 mục 5: dừng mềm (chunk cuối hết hạn 175s tự nhiên thay vì
+        # bị SIGINT cắt giữa chừng) + xác minh screenrecord đã chết thật
+        # bằng pidof trước khi chờ moov. Chỉ THÊM attr/method, không đổi
+        # chữ ký __init__/start()/stop_and_save() (file dùng chung với
+        # harness cũ — 2 caller cũ chỉ dùng 3 hàm đó).
+        self._graceful_stop = False  # True: worker để chunk hiện tại hết hạn tự nhiên
+        self._screenrecord_exited = None  # None: chưa kiểm / True: pidof hết / False: vẫn chạy
 
     def start(self):
         print(f"📹 [VIDEO RECORDER] Bắt đầu quay toàn bộ quá trình test Android TV 1080p...", flush=True)
@@ -53,6 +60,18 @@ class VideoRecorder:
         self.worker_thread = threading.Thread(target=self._record_loop, daemon=True)
         self.worker_thread.start()
         time.sleep(1.5)  # Chờ screenrecord khởi động thực tế trên emulator
+
+    def request_graceful_stop(self):
+        """CI-T7 mục 5: xin dừng MỀM — chỉ đặt cờ, KHÔNG SIGINT ngay.
+        Worker sẽ để chunk screenrecord hiện tại chạy tới hết hạn 175s tự
+        nhiên (moov atom được ghi đầy đủ khi thoát sạch) rồi mới dừng, thay
+        vì bị cắt giữa chừng. Runner gọi hàm này TRƯỚC giai đoạn
+        post-processing dài (vision check cuối run) để thời gian chờ hết hạn
+        chồng lên lúc xử lý sau, rồi stop_and_save() sẽ join worker + kéo
+        chunk đã finalize. Gọi trực tiếp stop_and_save() mà không qua đây
+        thì hành vi cũ (SIGINT ngay) vẫn giữ nguyên cho caller harness cũ."""
+        self._graceful_stop = True
+        self.stop_event.set()
 
     def _record_loop(self):
         idx = 0
@@ -70,17 +89,43 @@ class VideoRecorder:
             p = subprocess.Popen(cmd, shell=True)
             while p.poll() is None:
                 if self.stop_event.is_set():
+                    if self._graceful_stop:
+                        # CI-T7 mục 5: dừng mềm — để chunk hiện tại hết hạn
+                        # 175s tự nhiên (screenrecord tự thoát, moov đầy đủ)
+                        # thay vì SIGINT cắt giữa chừng. Chờ tối đa tới hết
+                        # hạn + 10s; quá hạn mà chưa thoát thì rơi xuống
+                        # đường SIGINT bên dưới (không chờ vô hạn).
+                        _grace_deadline = t_chunk0 + 175.0 + 10.0
+                        while p.poll() is None and time.time() < _grace_deadline:
+                            time.sleep(0.5)
+                        if p.poll() is not None:
+                            self._screenrecord_exited = not self._screenrecord_running()
+                            print(f"📹 [VIDEO RECORDER] Chunk {idx} hết hạn tự nhiên "
+                                  f"(175s), screenrecord đã chết: {self._screenrecord_exited}.",
+                                  flush=True)
+                            return
+                        print(f"📹 [VIDEO RECORDER] Chunk {idx} không hết hạn sau "
+                              f"175s — SIGINT để dừng (fallback).", flush=True)
                     # Gửi SIGINT (signal 2) để screenrecord đóng file MP4 hợp lệ
-                    subprocess.run(f"{self.adb} shell 'pkill -2 screenrecord 2>/dev/null || kill -2 $(pidof screenrecord) 2>/dev/null || true'", shell=True, capture_output=True)
+                    for _try in range(3):
+                        subprocess.run(f"{self.adb} shell 'pkill -2 screenrecord 2>/dev/null || kill -2 $(pidof screenrecord) 2>/dev/null || true'", shell=True, capture_output=True)
+                        # CI-T7 mục 5: CI-T6 moov-wait 60s chạy mà vẫn thất
+                        # bại vì _wait_for_screenrecord_exit() TRẢ VỀ BỊ BỎ
+                        # QUA — screenrecord chưa chết hẳn thì moov không
+                        # bao giờ được ghi. Thử tối đa 3 lần (10s/lần), ghi
+                        # rõ kết quả, không trả về khi process còn sống.
+                        if self._wait_for_screenrecord_exit(timeout=10.0):
+                            break
+                        if _try < 2:
+                            print(f"📹 [VIDEO RECORDER] screenrecord chưa chết sau SIGINT "
+                                  f"lần {_try + 1} — thử lại.", flush=True)
                     try:
                         p.wait(timeout=6)
                     except Exception:
                         pass
-                    # CI-T5 mục 8: chờ screenrecord thoát HẲN (moov atom chỉ
-                    # được ghi khi thoát sạch) thay vì giết client adb rồi
-                    # trả về ngay — file pull về lúc đó sẽ thiếu moov (lỗi
-                    # CI-T4 chunk_08: 'moov atom not found', mất ~160s cuối).
-                    self._wait_for_screenrecord_exit(timeout=10.0)
+                    self._screenrecord_exited = not self._screenrecord_running()
+                    print(f"📹 [VIDEO RECORDER] Dừng quay: screenrecord đã chết xác "
+                          f"minh bằng pidof: {self._screenrecord_exited}.", flush=True)
                     return
                 time.sleep(0.5)
             # KL8 fix loop 2 (F67c): screenrecord chết ngay (vd /sdcard đầy,
@@ -266,11 +311,45 @@ class VideoRecorder:
             return None
         self.is_recording = False
         print("📹 [VIDEO RECORDER] Đang dừng quay màn hình và thu thập video từ thiết bị...", flush=True)
-        self.stop_event.set()
-        subprocess.run(f"{self.adb} shell 'pkill -2 screenrecord 2>/dev/null || kill -2 $(pidof screenrecord) 2>/dev/null || true'", shell=True, capture_output=True)
-        if self.worker_thread:
-            self.worker_thread.join(timeout=8)
+        if self._graceful_stop:
+            # CI-T7 mục 5: dừng mềm đã xin từ trước (request_graceful_stop)
+            # — stop_event đã đặt, worker đang để chunk hết hạn tự nhiên:
+            # KHÔNG SIGINT nữa, chỉ join chờ worker thoát (tối đa thời gian
+            # còn lại của chunk 175s + 15s, chặn trên 190s). Quá hạn thì
+            # SIGINT fallback ở dưới.
+            _remaining = 175.0 - (time.time() - self._current_started_at) \
+                if self._current_started_at > 0 else 0.0
+            _join_timeout = min(190.0, max(15.0, _remaining + 15.0)) \
+                if self._current_started_at > 0 else 8.0
+            if self.worker_thread:
+                self.worker_thread.join(timeout=_join_timeout)
+                if self.worker_thread.is_alive():
+                    print("📹 [VIDEO RECORDER] Worker chưa thoát sau %.0fs chờ hết hạn — "
+                          "SIGINT fallback." % _join_timeout, flush=True)
+                    subprocess.run(f"{self.adb} shell 'pkill -2 screenrecord 2>/dev/null || kill -2 $(pidof screenrecord) 2>/dev/null || true'", shell=True, capture_output=True)
+                    self._wait_for_screenrecord_exit(timeout=10.0)
+        else:
+            self.stop_event.set()
+            subprocess.run(f"{self.adb} shell 'pkill -2 screenrecord 2>/dev/null || kill -2 $(pidof screenrecord) 2>/dev/null || true'", shell=True, capture_output=True)
+            if self.worker_thread:
+                self.worker_thread.join(timeout=8)
         time.sleep(2.0)  # Chờ mp4 header được finalize trên Android filesystem
+
+        # CI-T7 mục 5: XÁC MINH process screenrecord đã chết thật bằng pidof
+        # TRƯỚC khi chờ moov — nếu còn sống thì SIGINT thêm 1 lần + chờ tối
+        # đa 5s (chỉ khi có worker thread thật; không có worker — VD mock
+        # gọi trực tiếp — thì chỉ log, để moov-wait xử lý, không cộng thêm
+        # thời gian chờ làm vỡ timeout của test). Ghi rõ vào log + dict trả về.
+        _running = self._screenrecord_running()
+        if _running and self.worker_thread is not None:
+            print("📹 [VIDEO RECORDER] screenrecord VẪN CHẠY sau khi dừng (pidof) — "
+                  "SIGINT thêm 1 lần + chờ 5s.", flush=True)
+            subprocess.run(f"{self.adb} shell 'pkill -2 screenrecord 2>/dev/null || kill -2 $(pidof screenrecord) 2>/dev/null || true'", shell=True, capture_output=True)
+            self._wait_for_screenrecord_exit(timeout=5.0)
+            _running = self._screenrecord_running()
+        self._screenrecord_exited = not _running
+        print("📹 [VIDEO RECORDER] Xác minh screenrecord đã chết (pidof) trước khi "
+              "chờ moov: %s." % self._screenrecord_exited, flush=True)
 
         # CI-T6 mục 3: chờ chunk đang quay dở finalize tới khi ffprobe THẤY
         # moov (không chỉ size ổn định như CI-T5 mục 8 — video CI-T5 vẫn
@@ -505,4 +584,9 @@ class VideoRecorder:
             "expected_seconds": round(expected, 1),
             "chunks": len(getattr(self, "_norm_chunks", [])),
             "partial": partial,
+            # CI-T7 mục 5: screenrecord đã chết xác minh bằng pidof trước
+            # khi chờ moov (False = vẫn chạy lúc dừng — chunk cuối có nguy
+            # cơ thiếu moov) + có dùng dừng mềm không.
+            "screenrecord_exited": self._screenrecord_exited,
+            "graceful_stop": bool(self._graceful_stop),
         }

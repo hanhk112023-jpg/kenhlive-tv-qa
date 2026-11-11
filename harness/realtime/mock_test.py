@@ -988,6 +988,151 @@ def main():
         "không có moov thì trả False, không treo run"
     print("VIDEO_MOOV_WAIT_OK")
 
+    # --- Test N13: video chunk cuối — dừng mềm + xác minh pidof (CI-T7 mục 5) ---
+    # CI-T6: video chỉ 79% — moov-wait 60s chạy mà vẫn thất bại vì
+    # _wait_for_screenrecord_exit() trả về bị bỏ qua (screenrecord chưa chết
+    # hẳn thì moov không được ghi). Sửa: (a) request_graceful_stop() để chunk
+    # cuối hết hạn 175s tự nhiên (không SIGINT); (b) xác minh pidof trước
+    # khi chờ moov, log + ghi vào dict trả về (screenrecord_exited).
+    import threading as _th13
+    import subprocess as _sp13
+    import video_recorder as _vr13
+    from video_recorder import VideoRecorder as _VR13
+    # LƯU HÀM THẬT TRƯỚC KHI PATCH: _vr13.subprocess CHÍNH LÀ module
+    # subprocess toàn cục — gán _vr13.subprocess.run = fake sẽ đổi cả
+    # _sp13.run, nên fake phải gọi bản đã lưu, không gọi _sp13.run.
+    _real_run13 = _sp13.run
+
+    class _FakeCompleted13:
+        def __init__(self, stdout="", returncode=0):
+            self.stdout, self.stderr, self.returncode = stdout, "", returncode
+
+    def _make_fake_adb13(devdir, pidof_pid=None):
+        pull_count = {}
+
+        def fake_run(cmd, *a, **k):
+            if isinstance(cmd, str) and "adb" in cmd:
+                if "pidof screenrecord" in cmd:
+                    return _FakeCompleted13((pidof_pid + "\n") if pidof_pid else "")
+                if "ls /sdcard/qa_rec_" in cmd:
+                    return _FakeCompleted13(
+                        "".join("/sdcard/%s\n" % f for f in sorted(os.listdir(devdir))
+                                if f.endswith(".mp4")))
+                if "stat -c %s" in cmd:
+                    remote = cmd.rsplit(None, 1)[-1]
+                    p = os.path.join(devdir, os.path.basename(remote))
+                    return _FakeCompleted13("%d\n" % os.path.getsize(p)
+                                            if os.path.exists(p) else "")
+                if " pull " in cmd:
+                    parts = cmd.split()
+                    remote, local = parts[parts.index("pull") + 1: parts.index("pull") + 3]
+                    src = os.path.join(devdir, os.path.basename(remote))
+                    pull_count[remote] = pull_count.get(remote, 0) + 1
+                    _shutil.copy(src, local)
+                    return _FakeCompleted13("")
+                return _FakeCompleted13("")
+            return _real_run13(cmd, *a, **k)
+
+        return fake_run, pull_count
+
+    # (a) worker dừng mềm: chunk tự thoát (poll -> 0) thì KHÔNG SIGINT.
+    _adb_cmds13 = []
+
+    def _fake_run13a(cmd, *a, **k):
+        if isinstance(cmd, str) and "adb" in cmd:
+            _adb_cmds13.append(cmd)
+            if "pidof screenrecord" in cmd:
+                return _FakeCompleted13("")
+            return _FakeCompleted13("")
+        return _real_run13(cmd, *a, **k)
+
+    class _FakeProc13:
+        def __init__(self):
+            self._polls = 0
+
+        def poll(self):
+            self._polls += 1
+            return None if self._polls <= 10 else 0  # tự thoát sau ~5s
+
+        def wait(self, timeout=None):
+            return 0
+
+    _orig_run13 = _vr13.subprocess.run
+    _orig_popen13 = _vr13.subprocess.Popen
+    _vr13.subprocess.run = _fake_run13a
+    _vr13.subprocess.Popen = lambda cmd, *a, **k: _FakeProc13()
+    try:
+        rec13 = _VR13(out_dir="/tmp/qa_mock_video_grace/out")
+        rec13.start()
+        time.sleep(0.5)
+        rec13.request_graceful_stop()
+        assert rec13._graceful_stop is True and rec13.stop_event.is_set()
+        rec13.worker_thread.join(timeout=8)
+        assert not rec13.worker_thread.is_alive(), \
+            "worker dừng mềm phải thoát khi chunk hết hạn tự nhiên"
+        assert not any("pkill" in c or "kill -2" in c for c in _adb_cmds13), \
+            "dừng mềm không được SIGINT chunk (phải để hết hạn tự nhiên)"
+        assert rec13._screenrecord_exited is True, \
+            "chunk hết hạn tự nhiên thì screenrecord đã chết (pidof)"
+    finally:
+        _vr13.subprocess.run = _orig_run13
+        _vr13.subprocess.Popen = _orig_popen13
+    print("VIDEO_GRACEFUL_STOP_OK")
+    # (b)+(c) cần ffmpeg để tạo chunk thật (như B8).
+    if not _shutil.which("ffmpeg"):
+        print("VIDEO_GRACEFUL_SAVE_SKIP (không có ffmpeg local)")
+    else:
+        td13 = "/tmp/qa_mock_video_grace"
+        devdir13 = os.path.join(td13, "device")
+        os.makedirs(devdir13, exist_ok=True)
+        _sp13.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i",
+                 "testsrc=duration=5:size=320x180:rate=10",
+                 "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                 os.path.join(devdir13, "qa_rec_01.mp4")], check=True, timeout=60)
+        # (b) stop_and_save dừng mềm: join worker xong, pidof hết, chunk về đủ.
+        _fake13b, _pull13b = _make_fake_adb13(devdir13, pidof_pid=None)
+        _vr13.subprocess.run = _fake13b
+        try:
+            rec13b = _VR13(out_dir=os.path.join(td13, "out_b"))
+            rec13b.is_recording = True
+            rec13b.remote_chunks = ["/sdcard/qa_rec_01.mp4"]
+            rec13b._current_remote = "/sdcard/qa_rec_01.mp4"
+            rec13b._current_started_at = time.time() - 170.0  # chunk sắp hết hạn
+            rec13b.worker_thread = _th13.Thread(target=lambda: time.sleep(0.5))
+            rec13b.worker_thread.start()
+            rec13b.request_graceful_stop()
+            res13b = rec13b.stop_and_save()
+        finally:
+            _vr13.subprocess.run = _orig_run13
+        print("video graceful save: recorded", res13b and res13b.get("recorded_seconds"),
+              "| screenrecord_exited:", res13b and res13b.get("screenrecord_exited"),
+              "| graceful:", res13b and res13b.get("graceful_stop"))
+        assert res13b is not None and 4.0 <= res13b["recorded_seconds"] <= 6.5
+        assert res13b["screenrecord_exited"] is True, "pidof hết thì phải ghi True"
+        assert res13b["graceful_stop"] is True
+        # (c) pidof vẫn thấy screenrecord chạy -> ghi False, không chờ thêm
+        # quá lâu (mock B8: không có worker thread thì chỉ log, moov-wait xử lý).
+        _fake13c, _pull13c = _make_fake_adb13(devdir13, pidof_pid="1234")
+        _vr13.subprocess.run = _fake13c
+        _t13c = time.time()
+        try:
+            rec13c = _VR13(out_dir=os.path.join(td13, "out_c"))
+            rec13c.is_recording = True
+            rec13c.remote_chunks = ["/sdcard/qa_rec_01.mp4"]
+            rec13c._current_remote = "/sdcard/qa_rec_01.mp4"
+            rec13c._finalize_timeout_s = 4.0
+            res13c = rec13c.stop_and_save()
+        finally:
+            _vr13.subprocess.run = _orig_run13
+        _dt13c = time.time() - _t13c
+        print("video pidof còn chạy: recorded", res13c and res13c.get("recorded_seconds"),
+              "| screenrecord_exited:", res13c and res13c.get("screenrecord_exited"),
+              "| elapsed %.1fs" % _dt13c)
+        assert res13c is not None and res13c["screenrecord_exited"] is False, \
+            "pidof còn thấy process thì phải ghi False (chunk cuối có nguy cơ mất moov)"
+        assert _dt13c < 20, "xác minh pidof không được treo run"
+        print("VIDEO_GRACEFUL_SAVE_OK")
+
     # --- Test B9: driver đi tới view đích theo id + phân biệt dialog/player (CI-T5 mục 9) ---
     # CI-T4 EPISODE_PICKER đi lạc về Home trong khi nút CHỌN TẬP hiện ngay
     # trên màn hình; ROOM_PICKER OK mở PLAYER thay vì dialog (step_018).
