@@ -293,6 +293,107 @@ class RealtimeDevice:
                 return t_idx
         return None
 
+    def detect_focus_ring_anywhere(self, png_bytes, band=None):
+        """Tìm viền focus BẤT KỲ ĐÂU trong band — dùng khi dump không có
+        focused view (WebPlayer: WebView mù với uiautomator, focused=NONE
+        nhưng mắt thấy viền vàng quanh nút OSD — CI-T7 finding #1 giả).
+        Band mặc định = hàng nút OSD dưới (0,850,1920,1080) hệ 1920x1080.
+        Một 'vòng focus' = cụm pixel vàng/trắng có bbox cỡ nút
+        (rộng 50-650px, cao 30-170px) với pixel tập trung ở CHU VI của box
+        (>= 45% pixel nằm sát 4 cạnh) và KHÔNG đặc (tỉ lệ lấp <= 0.6) —
+        loại khối vàng/trắng đặc (logo, thumbnail, nội dung video).
+        Trả (found, color, coverage, box_1920) — box None khi không thấy.
+        Rẻ: chỉ quét band dưới ở 960 rộng (~55k điểm)."""
+        if not png_bytes or not Image:
+            return False, "UNKNOWN", 0.0, None
+        try:
+            im = Image.open(io.BytesIO(png_bytes)).convert("RGB")
+            W, H = im.size
+            bx0, by0, bx1, by1 = band or (0, 850, 1920, 1080)
+            x0 = int(bx0 * W / 1920)
+            y0 = int(by0 * H / 1080)
+            x1 = int(bx1 * W / 1920)
+            y1 = int(by1 * H / 1080)
+            if x1 <= x0 or y1 <= y0:
+                return False, "UNKNOWN", 0.0, None
+            if W > 960:
+                im = im.resize((960, int(H * 960 / W)), Image.BILINEAR)
+                W, H = im.size
+                x0 = int(bx0 * W / 1920)
+                y0 = int(by0 * H / 1080)
+                x1 = int(bx1 * W / 1920)
+                y1 = int(by1 * H / 1080)
+            px = im.load()
+            # Mask: điểm vàng/trắng, quét bước 2 theo x, bước 1 theo y.
+            pts = {}  # (sx, y) -> 'YELLOW' | 'WHITE'
+            for y in range(y0, y1):
+                for x in range(x0, x1, 2):
+                    r, g, b = px[x, y]
+                    if r >= 170 and g >= 120 and b <= 120 and (r - b) >= 80 and (r - g) <= 100:
+                        pts[(x, y)] = "YELLOW"
+                    elif r >= 215 and g >= 215 and b >= 215:
+                        pts[(x, y)] = "WHITE"
+            if len(pts) < 30:
+                return False, "UNKNOWN", 0.0, None
+            # Connected components 8-hướng (lệch ±2 theo x do bước quét 2).
+            seen = set()
+            best = None  # (perimeter_px, color, coverage, box_960)
+            for seed in list(pts):
+                if seed in seen:
+                    continue
+                stack = [seed]
+                seen.add(seed)
+                comp = []
+                while stack:
+                    cx, cy = stack.pop()
+                    comp.append((cx, cy))
+                    for nx in (cx - 2, cx, cx + 2):
+                        for ny in (cy - 1, cy, cy + 1):
+                            nb = (nx, ny)
+                            if nb in pts and nb not in seen:
+                                seen.add(nb)
+                                stack.append(nb)
+                if len(comp) < 30:
+                    continue
+                xs = [p[0] for p in comp]
+                ys = [p[1] for p in comp]
+                wx0, wx1, wy0, wy1 = min(xs), max(xs), min(ys), max(ys)
+                # Bbox theo hệ 1920x1080 (x mẫu đã là tọa độ pixel thật
+                # của ảnh downscale, bước quét 2 — KHÔNG nhân 2 nữa).
+                b1920 = (int(wx0 * 1920 / W), int(wy0 * 1080 / H),
+                         int((wx1 + 2) * 1920 / W), int((wy1 + 1) * 1080 / H))
+                bw1920 = b1920[2] - b1920[0]
+                bh1920 = b1920[3] - b1920[1]
+                if not (50 <= bw1920 <= 650 and 30 <= bh1920 <= 170):
+                    continue
+                # Tỉ lệ lấp: mỗi điểm mẫu đại diện ~2px ảnh downscale; vòng
+                # rỗng có tỉ lệ thấp (~0.1), khối đặc ~1.0.
+                area_down = max(1.0, (wx1 - wx0 + 1) * 2.0 * (wy1 - wy0 + 1))
+                fill = (len(comp) * 2.0) / area_down
+                if fill > 0.6:
+                    continue
+                # Pixel tập trung ở chu vi: trong 3px (ảnh downscale) tính
+                # từ 4 cạnh của bbox.
+                per = 0
+                for (pxx, pyy) in comp:
+                    if pyy - wy0 <= 3 or wy1 - pyy <= 3 or \
+                       pxx - wx0 <= 3 or wx1 - pxx <= 3:
+                        per += 1
+                cov = per / max(1, len(comp))
+                if cov < 0.45:
+                    continue
+                cols = {}
+                for p in comp:
+                    cols[pts[p]] = cols.get(pts[p], 0) + 1
+                color = "YELLOW" if cols.get("YELLOW", 0) >= cols.get("WHITE", 0) else "WHITE"
+                if best is None or per > best[0]:
+                    best = (per, color, round(cov, 2), b1920)
+            if best is None:
+                return False, "UNKNOWN", 0.0, None
+            return True, best[1], best[2], best[3]
+        except Exception:
+            return False, "ERR", 0.0, None
+
     def detect_focus_ring(self, png_bytes, focused_bounds_str):
         """Viền focus cam/amber/trắng/cyan quanh bounds đang focus (PIL thuần)."""
         if not png_bytes or not Image or not focused_bounds_str:

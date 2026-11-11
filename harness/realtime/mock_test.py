@@ -1927,6 +1927,48 @@ def main():
     assert lim.requests == 1, "chỉ lần gửi thật mới đếm"
     print("RATELIMIT_WAIT_OK")
 
+    # --- Test N18: vòng focus trên ẢNH trong WebPlayer (CI-T8 mục 1) ---
+    # CI-T7 finding #1 giả: dump NONE trong WebPlayer nhưng mắt thấy viền
+    # vàng quanh nút OSD — detector cũ tin dump nên tố mất focus oan.
+    # Ảnh giả 960x540: nút OSD viền VÀNG ở band dưới + khối vàng ĐẶC (phải
+    # loại bằng guard tỉ lệ lấp) + khối trắng đặc (phải loại).
+    def _ring_png():
+        from PIL import Image as _Im, ImageDraw as _Dr
+        _im = _Im.new("RGB", (960, 540), (25, 25, 30))
+        _d = _Dr.Draw(_im)
+        _d.rectangle([100, 450, 300, 500], outline=(255, 200, 0), width=3)
+        _d.rectangle([600, 450, 700, 500], fill=(255, 200, 0))
+        _d.rectangle([760, 450, 900, 500], fill=(240, 240, 240))
+        _buf = io.BytesIO()
+        _im.save(_buf, format="PNG")
+        return _buf.getvalue()
+    _dev18 = RealtimeDevice()
+    _found18, _col18, _cov18, _box18 = _dev18.detect_focus_ring_anywhere(_ring_png())
+    print("vòng vàng OSD trên ảnh ->", _found18, _col18, _cov18, _box18)
+    assert _found18 is True and _col18 == "YELLOW", \
+        "viền vàng quanh nút OSD phải được nhận là vòng focus (CI-T7 #1 giả)"
+    assert _box18 and 180 <= _box18[0] <= 220 and 880 <= _box18[1] <= 920, \
+        "box vòng phải gần nút đã vẽ (100,450)-(300,500) ở 960x540, được %s" % (_box18,)
+    # Khung thường (khối đặc, không có vòng) -> False.
+    _found18b, _, _, _ = _dev18.detect_focus_ring_anywhere(_fake_png(0))
+    print("khung thường (khối đặc) ->", _found18b)
+    assert _found18b is False, "khối vàng/trắng đặc không phải vòng focus"
+    # Tích hợp detector: dump NONE + OSD hiện + ảnh có vòng -> KHÔNG tố;
+    # ảnh không có vòng -> tố như cũ (P0-6 thật vẫn bắt).
+    _ui18 = {"focused_sig": "NONE", "osd_visible": True, "image_focus_ring": True,
+             "all_visible_texts": []}
+    _f18 = det2.detect_player_focus_loss(_ui18, "com.kenhlive.tv/.phim.WebPlayerActivity",
+                                         {"reported": set()}, "step_056_web.jpg", 1181.7)
+    print("WebPlayer dump NONE + ảnh có vòng -> findings:", len(_f18))
+    assert _f18 == [], "ảnh có viền vàng thì không được tố mất focus (HIGH giả CI-T7)"
+    _ui18b = dict(_ui18)
+    _ui18b["image_focus_ring"] = False
+    _f18b = det2.detect_player_focus_loss(_ui18b, "com.kenhlive.tv/.phim.WebPlayerActivity",
+                                          {"reported": set()}, "step_056_web.jpg", 1181.7)
+    assert len(_f18b) == 1 and _f18b[0]["severity"] == "HIGH", \
+        "ảnh cũng không có vòng thì mất focus thật vẫn phải tố"
+    print("IMAGE_FOCUS_RING_OK")
+
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)

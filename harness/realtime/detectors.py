@@ -116,13 +116,20 @@ def detect_focus_loss(ui_state, activity, ctx, frame_ref, t_offset):
 def detect_player_focus_loss(ui_state, activity, ctx, frame_ref, t_offset):
     """Mất focus TRONG player (P0-6): OSD/hàng nút đang hiện (osd_visible)
     nhưng focused NONE — khác OSD tự ẩn (lúc đó không có nút nào hiện).
-    Chạy khi runner đã tính ui_state['osd_visible'] từ UI dump."""
+    Chạy khi runner đã tính ui_state['osd_visible'] từ UI dump.
+    CI-T8 mục 1: dump NONE trong WebPlayer KHÔNG có nghĩa là mất focus —
+    WebView mù với uiautomator (CI-T7 finding #1 giả: viền vàng quanh nút
+    OSD nhưng dump NONE). Runner đã quét viền trên ẢNH
+    (ui_state['image_focus_ring']); ảnh có vòng thì KHÔNG tố — chỉ tố khi
+    cả dump lẫn ảnh đều không thấy focus."""
     if "PlayerActivity" not in (activity or "") and "WebPlayerActivity" not in (activity or ""):
         return []
     if ui_state.get("focused_sig") != "NONE":
         return []
     if not ui_state.get("osd_visible"):
         return []  # OSD ẩn -> focus NONE là bình thường, không báo
+    if ui_state.get("image_focus_ring"):
+        return []  # ảnh có viền focus (vàng/trắng) quanh 1 nút OSD
     key = "PLAYERFOCUSLOSS:%s" % activity
     if key in ctx.setdefault("reported", set()):
         return []

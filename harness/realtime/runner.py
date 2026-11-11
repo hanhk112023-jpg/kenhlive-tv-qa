@@ -177,6 +177,25 @@ class RealtimeRunner:
             for rid, txt in ui_state.get("all_visible_texts", []))
         has_ring, ring_col, _ = self.device.detect_focus_ring(
             png, ui_state.get("focused_bounds"))
+        # CI-T8 mục 1: WebPlayer dump không có focused view (WebView mù với
+        # uiautomator) — quét viền focus trên ẢNH (vùng OSD dưới) khi dump
+        # nói NONE hoặc không thấy vòng. Ảnh có vòng vàng/trắng thì focus
+        # CÓ thật (CI-T7 finding #1 giả: viền vàng quanh nút tua lùi/play
+        # nhưng dump NONE). Chỉ quét trong player để khỏi tốn mỗi bước.
+        image_ring = False
+        image_ring_color = "UNKNOWN"
+        image_ring_box = None
+        if ("PlayerActivity" in (activity or "") or "WebPlayerActivity" in (activity or "")) \
+                and (ui_state.get("focused_sig") == "NONE" or not has_ring):
+            try:
+                image_ring, image_ring_color, _cov, image_ring_box = \
+                    self.device.detect_focus_ring_anywhere(png)
+            except Exception:
+                image_ring = False
+            if image_ring:
+                has_ring, ring_col = True, image_ring_color
+        ui_state["image_focus_ring"] = image_ring
+        ui_state["image_focus_box"] = image_ring_box
         motion = self.watcher.is_video_playing()
         motion_delta = self.watcher.motion_delta()
         # CI-T5 mục 2/6: fallback pixel_diff giữa 2 frame quan sát liên tiếp —
@@ -255,6 +274,7 @@ class RealtimeRunner:
             "png": png, "waited_s": t_wait, "timed_out": timed_out,
             "ui_state": ui_state, "activity": activity,
             "has_ring": has_ring, "ring_col": ring_col,
+            "image_focus_ring": image_ring, "image_focus_box": image_ring_box,
             "motion": motion, "motion_delta": motion_delta,
             "motion_state": motion_state, "motion_source": motion_source,
             "t_offset": t_offset, "frame_ref": frame_ref,
@@ -635,6 +655,8 @@ class RealtimeRunner:
                              "focused_bounds": ui_state.get("focused_bounds"),
                              "has_focus_ring": obs["has_ring"],
                              "focus_ring_color": obs["ring_col"],
+                             "image_focus_ring": obs.get("image_focus_ring", False),
+                             "image_focus_box": obs.get("image_focus_box"),
                              "keyboard_open": ui_state.get("keyboard_open", False),
                              "keyboard_open_image": obs.get("keyboard_open_image")},
                 "playback_state": {"is_playing": obs["motion"],
