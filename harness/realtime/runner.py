@@ -216,6 +216,10 @@ class RealtimeRunner:
             "duplicate_frame": duplicate_frame,
             "frame_hash": (frame_hash[:12] if frame_hash else None),
             "keyboard_open": ui_state.get("keyboard_open", False),
+            # CI-T7 mục 3: bàn phím phát hiện từ ẢNH (detector ghi vào ctx
+            # khi nghi kẹt) — dump không thấy bàn phím in-app nên chỉ ghi
+            # dump sẽ thiếu; None = chưa từng nghi kẹt nên chưa kiểm ảnh.
+            "keyboard_open_image": self.detector_ctx.get("keyboard_open_image"),
             "observe_s": dt, "observe_breakdown": breakdown,
         }
 
@@ -584,7 +588,9 @@ class RealtimeRunner:
                              "focused_text": ui_state.get("focused_text"),
                              "focused_bounds": ui_state.get("focused_bounds"),
                              "has_focus_ring": obs["has_ring"],
-                             "focus_ring_color": obs["ring_col"]},
+                             "focus_ring_color": obs["ring_col"],
+                             "keyboard_open": ui_state.get("keyboard_open", False),
+                             "keyboard_open_image": obs.get("keyboard_open_image")},
                 "playback_state": {"is_playing": obs["motion"],
                                    # motion_delta -1 = chưa đủ mẫu để đo (không
                                    # rõ), KHÔNG phải 0.00 = đứng yên. Ghi None

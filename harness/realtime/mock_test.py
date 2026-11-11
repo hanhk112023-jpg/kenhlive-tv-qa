@@ -412,6 +412,64 @@ def main():
     assert _o3["duplicate_frame"] is False and _o3["frame_file"], "frame khác thì lưu shot"
     print("FOCUS_TRAP_DEDUP_OK")
 
+    # --- Test N11: focus-trap + bàn phím theo ẢNH, không theo dump (CI-T7 mục 3) ---
+    # CI-T6 tố oan focus-trap MEDIUM ở step_066/067: bàn phím QWERTY in-app
+    # đang mở (phím focus đổi ⇧ -> 'z' -> 'q') nhưng dump KHÔNG có node phím
+    # nào (ui_state chỉ có 5 trường focused) nên guard đếm ký tự trong dump
+    # không thấy gì; mock N5(c) cũ truyền keyboard_open=True bằng tay nên
+    # không chứng minh được hành vi live. Mock mới: dump KHÔNG có node bàn
+    # phím, chỉ có ẢNH bàn phím -> vẫn phải nhận ra đang gõ, không tố kẹt.
+    from detectors import detect_keyboard_from_image as _kb_img
+    assert _kb_img(None) is False
+    assert _kb_img(_fake_png(0)) is False, "ảnh thường không có bàn phím"
+    # (a) ảnh bàn phím tổng hợp (lưới QWERTY: 4 hàng phím xám trên nền tối).
+    from PIL import Image as _Image11, ImageDraw as _Draw11
+    _im11 = _Image11.new("RGB", (960, 540), (5, 5, 8))
+    _d11 = _Draw11.Draw(_im11)
+    _d11.rectangle([290, 290, 720, 530], fill=(32, 32, 32))
+    for _cy in (377, 420, 463, 506):
+        for _i in range(10):
+            _x0 = 310 + _i * 43
+            _d11.rectangle([_x0, _cy - 18, _x0 + 38, _cy + 18], fill=(55, 55, 55))
+    _buf11 = io.BytesIO()
+    _im11.save(_buf11, format="PNG")
+    _png_kb = _buf11.getvalue()
+    assert _kb_img(_png_kb) is True, "ảnh lưới phím QWERTY phải nhận là bàn phím mở"
+    # (b) frame THẬT CI-T6: 066/067/071 có bàn phím -> True; 011/026/051/055 không -> False.
+    _shots11 = os.path.expanduser("~/workspace/kenhlive-plan/qa-run-43027661716/qa-report-realtime/shots")
+    for _f, _want in (("step_066_search_a.jpg", True), ("step_067_search_a.jpg", True),
+                      ("step_071_dpad_cha.jpg", True), ("step_011_sports_r.jpg", False),
+                      ("step_026_home_bil.jpg", False), ("step_051_phim_epi.jpg", False),
+                      ("step_055_vod_play.jpg", False)):
+        _got = _kb_img(open(os.path.join(_shots11, _f), "rb").read())
+        print("keyboard ảnh %s -> %s (muốn %s)" % (_f, _got, _want))
+        assert _got is _want, "frame thật %s: keyboard=%s, muốn %s" % (_f, _got, _want)
+    # (c) tích hợp focus-trap: dump KHÔNG có node phím (keyboard_open False),
+    # 3 quan sát khác nhau cùng sig + DPAD_DOWN, ảnh là bàn phím -> KHÔNG tố.
+    _ctx11 = {"last_key": "DPAD_DOWN"}
+    for _i in range(3):
+        _hh = _hl.sha256(("KBIMG-%d" % _i).encode()).hexdigest()
+        _ctx11["frame_hash"] = _hh
+        _out11 = _dft(_ui_trap(), "MainActivity", _ctx11, "step_%03d.jpg" % _i,
+                      float(_i), _png_kb)
+        _ctx11["frame_hash_prev"] = _hh
+    print("focus-trap + ảnh bàn phím ->", _out11,
+          "| keyboard_open_image:", _ctx11.get("keyboard_open_image"))
+    assert not _out11, "dump không có node phím nhưng ẢNH có bàn phím thì không được tố kẹt"
+    assert _ctx11.get("keyboard_open_image") is True
+    # (d) cùng dump đó, ảnh thường (không bàn phím) -> vẫn tố kẹt như cũ.
+    _ctx11b = {"last_key": "DPAD_DOWN"}
+    for _i in range(3):
+        _hh = _hl.sha256(("PLAIN-%d" % _i).encode()).hexdigest()
+        _ctx11b["frame_hash"] = _hh
+        _out11b = _dft(_ui_trap(), "MainActivity", _ctx11b, "step_%03d.jpg" % _i,
+                       float(_i), _fake_png(_i))
+        _ctx11b["frame_hash_prev"] = _hh
+    assert len(_out11b) == 1 and _out11b[0]["severity"] == "MEDIUM", \
+        "ảnh không có bàn phím thì kẹt thật vẫn phải tố"
+    assert _ctx11b.get("keyboard_open_image") is False
+    print("KEYBOARD_FROM_IMAGE_OK")
+
     # --- Test N6: bằng chứng thời gian phát tăng (CI-T6 mục 8) ---
     # CI-T5 WebPlayer đóng băng 00:20 qua 3 quan sát mà vẫn PASS — giờ phải
     # FAIL (hoặc UNVERIFIED nếu không đọc được đồng hồ). Chỉ 2 mission VOD

@@ -134,13 +134,81 @@ def detect_player_focus_loss(ui_state, activity, ctx, frame_ref, t_offset):
                 frame_ref, t_offset, "NONE")]
 
 
-def detect_focus_trap(ui_state, activity, ctx, frame_ref, t_offset):
+def detect_keyboard_from_image(frame_png):
+    """Bàn phím ảo đang mở, nhận từ ẢNH (pixel) — không dựa dump.
+    CI-T7 mục 3: bàn phím QWERTY in-app của KenhLive không có node nào
+    trong dump (ui_state chỉ có 5 trường focused) nên guard đếm ký tự 1
+    chữ trong dump không thấy gì — CI-T6 tố oan focus-trap MEDIUM ở
+    step_066/067 trong khi người dùng đang gõ (phím focus đổi ⇧ -> 'z'
+    -> 'q' -> '▶'). Chữ ký pixel (đo trên frame thật CI-T6): >= 3 dải
+    ngang dày đặc pixel 'xám phím' (độ sáng 40-70) ở nửa dưới màn hình, mỗi
+    dải cao 20-45px (theo H/540), cách đều nhau (tỉ lệ khoảng cách max/min
+    <= 1.5) — chính là 4 hàng phím QWERTY. Kiểm trên 29 frame CI-T6:
+    bắt 3/3 frame có bàn phím (066/067/071), 0 FP trên 26 frame còn lại.
+    Chỉ downscale tối đa về 960 rộng (1920->960 vẫn bắt được; downscale
+    về 480 làm mờ phím, mất tín hiệu — đã kiểm). Quét rẻ (step 2 theo x),
+    nhưng caller chỉ gọi khi nghi kẹt (lazy) nên không tốn mỗi bước."""
+    if not frame_png:
+        return False
+    try:
+        from PIL import Image
+        import io as _io
+        im = Image.open(_io.BytesIO(frame_png)).convert("L")
+        if im.width > 960:
+            im = im.resize((960, int(im.height * 960 / im.width)), Image.BILINEAR)
+        W, H = im.size
+        px = im.load()
+        sc = H / 540.0
+        x0, x1 = int(W * 0.30), int(W * 0.75)
+        thr = 0.30 * (x1 - x0)
+        # Số pixel xám-phím trên mỗi hàng (step 2 theo x, nhân 2 lại).
+        runs = []
+        s = None
+        for y in range(H):
+            c = 0
+            for x in range(x0, x1, 2):
+                if 40 <= px[x, y] <= 70:
+                    c += 1
+            if c * 2 >= thr and s is None:
+                s = y
+            elif c * 2 < thr and s is not None:
+                runs.append((s, y - 1))
+                s = None
+        if s is not None:
+            runs.append((s, H - 1))
+        merged = []
+        for r in runs:
+            if merged and r[0] - merged[-1][1] <= max(4, int(4 * sc)):
+                merged[-1] = (merged[-1][0], r[1])
+            else:
+                merged.append(r)
+        cands = []
+        for (a, b) in merged:
+            h = b - a + 1
+            cy = (a + b) / 2.0
+            if 20 * sc <= h <= 45 * sc and cy >= 0.55 * H:
+                cands.append((a + b) / 2.0)
+        if len(cands) < 3:
+            return False
+        gaps = [cands[i + 1] - cands[i] for i in range(len(cands) - 1)]
+        return max(gaps) / max(1.0, min(gaps)) <= 1.5
+    except Exception:
+        return False
+
+
+def detect_focus_trap(ui_state, activity, ctx, frame_ref, t_offset, frame_png=None):
     """Kẹt focus: cùng focused sig sau 3 phím D-PAD cùng hướng, không phải mép.
     CI-T6 mục 7: chỉ tính quan sát KHÁC NHAU — frame trùng quan sát trước
     (011=012, 055=056, 075=076 ở CI-T5 là cùng 1 frame chụp lại) không được
     tính là 1 quan sát mới (hist từng nhận 2 entry giống hệt từ 1 trạng thái
     thật -> tố kẹt oan); và không tố khi bàn phím ảo đang mở (focus đứng yên
-    vì đang gõ là đúng, không phải kẹt)."""
+    vì đang gõ là đúng, không phải kẹt).
+    CI-T7 mục 3: bàn phím kiểm bằng ẢNH (detect_keyboard_from_image) khi đã
+    đủ 3 quan sát nghi kẹt — guard dump (keyboard_open từ đếm ký tự) không
+    thấy bàn phím in-app của KenhLive (dump không có node phím). Check ảnh
+    chỉ chạy lazy ở điểm sắp tố (không tốn mỗi bước); kết quả cache theo
+    frame_hash trong ctx, ghi vào ctx['keyboard_open_image'] để runner log
+    vào timeline."""
     fh = ctx.get("frame_hash")
     if fh and fh == ctx.get("frame_hash_prev"):
         return []  # frame trùng — không append hist, không tính quan sát mới
@@ -180,6 +248,18 @@ def detect_focus_trap(ui_state, activity, ctx, frame_ref, t_offset):
     key = "TRAP:%s:%s:%s" % (activity, focused_sig, s3[2])
     if key in ctx.setdefault("reported", set()):
         return []
+    # CI-T7 mục 3: sắp tố kẹt thì kiểm bàn phím bằng ẢNH trước đã — đang
+    # gõ thì đứng yên là đúng, không phải kẹt. Cache theo frame_hash.
+    if frame_png is not None:
+        _kb_cache = ctx.setdefault("_kb_image_cache", {})
+        _fh = ctx.get("frame_hash") or frame_ref
+        if _fh not in _kb_cache:
+            _kb_cache[_fh] = detect_keyboard_from_image(frame_png)
+            if len(_kb_cache) > 12:
+                _kb_cache.pop(next(iter(_kb_cache)))
+        ctx["keyboard_open_image"] = _kb_cache[_fh]
+        if _kb_cache[_fh]:
+            return []
     ctx["reported"].add(key)
     return [_mk("MEDIUM", "Điều hướng Focus TV", "Nghi vấn kẹt Focus (Focus Trap)",
                 "Gửi phím %s liên tiếp nhưng tiêu điểm và nội dung giữ nguyên tại '%s'" % (s3[2], focused_sig),
@@ -639,7 +719,7 @@ def run_all_detectors(frame_png, ui_state, activity, ctx, frame_ref, t_offset, o
     findings += detect_blank(frame_png, ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_focus_loss(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_player_focus_loss(ui_state, activity, ctx, frame_ref, t_offset)
-    findings += detect_focus_trap(ui_state, activity, ctx, frame_ref, t_offset)
+    findings += detect_focus_trap(ui_state, activity, ctx, frame_ref, t_offset, frame_png)
     findings += detect_offscreen_or_zero_focus(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_dialog_focus_leak(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_bad_text(ui_state, activity, ctx, frame_ref, t_offset)
