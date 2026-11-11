@@ -1,0 +1,740 @@
+#!/usr/bin/env python3
+"""
+KenhLive QA Suite — công cụ test chuyên nghiệp, chạy trên emulator/device đã có adb.
+
+    python3 run_qa.py [--out /tmp/qa_report] [--serial <adb-serial>] [--no-ai] [--quick]
+
+Quy trình:
+  1. Cold start + đo thời gian, check blank-screen, crash baseline
+  2. Dạo qua các tab bằng D-PAD (đúng kiểu remote TV): Live → Lịch → tab khác → dialog
+  3. Mỗi màn hình: screenshot → AI vision judge (rubric UX TV) + deterministic blank-check
+  4. Đo jank (gfxinfo), memory (PSS) sau mỗi tương tác
+  5. Probe auto-refresh: ngồi yên 3'+ đo pixel-diff (tính năng v4.7)
+  6. Test Trang Chủ billboard 60% + 6 hàng (KL8 Task 4: portal 3 Card đã xóa) & VOD Cinema player
+  7. Logcat AI triage (lỗi ẩn) + perf AI analysis
+  8. Báo cáo HTML + JSON: điểm /100, severity, gợi ý khắc phục, ảnh hiện trường
+"""
+import argparse, io, json, os, sys, time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from probes import Probes, sh
+from report import render, score
+
+PKG = 'com.kenhlive.tv'
+APK_VERSION = sh('adb shell dumpsys package %s | grep versionName | head -1' % PKG).split('=')[-1].strip() or '?'
+
+ap = argparse.ArgumentParser()
+ap.add_argument('--out', default='/tmp/qa_report')
+ap.add_argument('--serial', default=None)
+ap.add_argument('--no-ai', action='store_true')
+ap.add_argument('--quick', action='store_true', help='bỏ probe auto-refresh 3 phút')
+ap.add_argument('--legacy', action='store_true', help='Chạy kịch bản test tuần tự cũ')
+args = ap.parse_args()
+
+if not args.legacy:
+    try:
+        from autonomous_ai_qa import AutonomousQASuite
+        print("🤖 [QA Mode] Đang khởi chạy 100% Autonomous AI QA Agent Suite...", flush=True)
+        suite = AutonomousQASuite(out_dir=args.out, serial=args.serial, quick=args.quick)
+        suite.run()
+        sys.exit(0)
+    except Exception as e:
+        import traceback
+        print(f"⚠️ [Autonomous QA Agent] Gặp sự cố ({e}), chi tiết stacktrace:", flush=True)
+        traceback.print_exc()
+        print("Chuyển sang kịch bản fallback...", flush=True)
+
+os.makedirs(args.out + '/shots', exist_ok=True)
+P = Probes(PKG, args.serial)
+findings, checks, shots = [], [], []
+
+def add_check(name, ok, detail=''):
+    checks.append({'name': name, 'ok': bool(ok), 'detail': detail})
+    print(('  ✅' if ok else '  ❌') + f' {name} — {detail}', flush=True)
+
+def add_finding(area, severity, issue, evidence='', suggestion=''):
+    findings.append({'area': area, 'severity': severity, 'issue': issue, 'evidence': evidence, 'suggestion': suggestion})
+    print(f'  🔎 [{severity}] {area}: {issue[:90]}', flush=True)
+
+def shot(label):
+    png = P.screencap()
+    if png is None:
+        add_finding(label, 'HIGH', 'Không chụp được screenshot', 'screencap trả rỗng', 'kiểm tra adb/emulator')
+        return None
+    import re as _re
+    safe = _re.sub(r'[^a-z0-9_.-]', '', label.replace(' ', '_').lower())
+    path = f'{args.out}/shots/{len(shots)+1:02d}_{safe}.jpg'
+    try:
+        from PIL import Image
+        im = Image.open(io.BytesIO(png)).convert('RGB')
+        im.save(path, 'JPEG', quality=85)
+    except Exception:
+        open(path.replace('.jpg', '.png'), 'wb').write(png); path = path.replace('.jpg', '.png')
+    shots.append((label, os.path.basename(path)))
+    return png
+
+def judge(label, png):
+    if args.no_ai or png is None: return
+    try:
+        from PIL import Image
+        buf = io.BytesIO(); Image.open(io.BytesIO(png)).convert('RGB').save(buf, 'JPEG', quality=55)
+        jpeg = buf.getvalue()
+        # agent mode (model cam tool do dac): anh goc full-res + png path cho tool
+        raw = Image.open(io.BytesIO(png))
+        import re as _re
+        apng = f"{args.out}/shots/raw_{len(shots):02d}_" + _re.sub(r'[^a-z0-9_.-]', '', label.replace(' ', '_').lower()) + '.png'
+        raw.save(apng)
+        res = []
+        if os.environ.get('QA_AGENT', '1') == '1':
+            try:
+                from ai_judge import judge_screen_agent
+                res, notes = judge_screen_agent(label, apng, jpeg=jpeg)
+                if notes: print('    (agent:', '; '.join(notes)[:110], ')', flush=True)
+            except Exception as e:
+                print('    (agent fail:', str(e)[:60], '→ 1-shot)', flush=True)
+        if not res:
+            from ai_judge import judge_screen
+            res = judge_screen(label, jpeg)
+        for f in res:
+            if isinstance(f, dict) and f.get('issue'): findings.append({**f, 'area': f"{label} · {f.get('area','')}"})
+    except Exception as e:
+        print('  (ai judge skip:', str(e)[:60], ')', flush=True)
+
+auto_refresh_info = None
+print(f'=== KenhLive QA Suite · APK {APK_VERSION} · AI={"off" if args.no_ai else "on"} ===', flush=True)
+
+# ---------- 0. VIDEO RECORDER (quay từ lúc chưa mở app) ----------
+recorder = None
+try:
+    from video_recorder import VideoRecorder
+    recorder = VideoRecorder(serial=args.serial, out_dir=args.out)
+    recorder.start()
+except Exception as e:
+    print('  (video recorder init skip:', str(e)[:80], ')', flush=True)
+
+# ---------- 1. COLD START ----------
+print('[1] Cold start', flush=True)
+P.force_stop(); time.sleep(1.5); P.logcat_baseline()
+t = P.launch()
+add_check('App khởi động', t >= 0, f'cold start {t}ms' if t >= 0 else 'KHÔNG lên được màn hình')
+if 0 <= t > 8000: add_finding('Cold start', 'HIGH', f'Khởi động chậm {t}ms', 'đo từ am start tới có focus', 'lazy-load playlist, move fetch ra khỏi onCreate, tránh main-thread IO')
+# chờ playlist load qua proxy VN xong (tối đa 60s) — tránh chụp nhầm lúc "Đang tải..."
+for _ in range(12):
+    time.sleep(5)
+    _p = P.screencap()
+    if _p and not P.is_blank(_p):
+        from PIL import Image as _I
+        import io as _io
+        _im = _I.open(_io.BytesIO(_p)).convert('L')
+        # nội dung đã render: nhiều vùng sáng (card/ảnh) — blank/loading thuần thì std thấp
+        from PIL import ImageStat as _IS
+        if _IS.Stat(_im.resize((64,64))).stddev[0] > 18: break
+png = shot('home')
+if P.is_blank(png): add_finding('Home', 'CRITICAL', 'Màn hình trắng/đen sau khi mở app', 'std pixel < 4', 'kiểm tra crash render / layout chưa attach')
+judge('Home', png)
+cr = P.crashes()
+add_check('Không crash khi mở app', not cr, cr[0]['detail'][:80] if cr else 'logcat sạch')
+for c in cr: add_finding('Crash', 'CRITICAL', c['type'] + ' khi khởi động', c['detail'][:200], 'mở logcat stacktrace, fix NPE/lifecycle')
+
+# ---------- 2. D-PAD NAVIGATION & TAB TRUYỀN HÌNH (IPTV) ----------
+print('[2] Điều hướng D-pad & Khảo sát Tab Truyền Hình (IPTV)', flush=True)
+# Mở trực tiếp Tab Truyền hình để kiểm tra giao diện IPTV TV
+sh(f'adb shell am start -n {PKG}/.MainActivity --ei tab 2')
+time.sleep(3)
+png_iptv = shot('tab2_iptv_grid')
+judge('Tab Truyền hình IPTV', png_iptv)
+
+sh(f'{P.a} shell uiautomator dump /sdcard/iptv_ui.xml >/dev/null 2>&1')
+iptv_xml = sh(f'{P.a} shell cat /sdcard/iptv_ui.xml 2>/dev/null', timeout=15)
+
+has_grid = 'iptvGrid' in iptv_xml or 'VTV' in iptv_xml or 'HTV' in iptv_xml or 'Thể Thao' in iptv_xml
+add_check('Tab IPTV — Danh sách kênh & Lưới tải thành công', has_grid,
+          'phát hiện kênh VTV/HTV hoặc iptvGrid trên màn hình' if has_grid else 'chưa thấy danh sách kênh trong UI dump')
+
+has_hero = 'heroChannelTitle' in iptv_xml or 'heroEpgNow' in iptv_xml or 'VIỆT NAM' in iptv_xml or 'Đang phát' in iptv_xml
+add_check('Tab IPTV — Hero Preview & EPG hiển thị', has_hero,
+          'khung preview kênh và thông tin EPG đang phát có mặt' if has_hero else 'thiếu hero preview box')
+
+# Test di chuyển D-pad trong lưới kênh (5 cột)
+P.key('20'); time.sleep(0.4) # DOWN vào grid
+P.key('22'); time.sleep(0.4) # RIGHT sang cột 2
+P.key('22'); time.sleep(0.4) # RIGHT sang cột 3
+sh(f'{P.a} shell uiautomator dump /sdcard/iptv_foc.xml >/dev/null 2>&1')
+iptv_foc = sh(f'{P.a} shell cat /sdcard/iptv_foc.xml 2>/dev/null', timeout=15)
+focus_in_grid = 'focused="true"' in iptv_foc
+add_check('Tab IPTV — Di chuyển D-pad qua các cột trong lưới 5 cột', focus_in_grid,
+          'focus di chuyển mượt mà trên các cột thẻ kênh' if focus_in_grid else 'focus không ăn vào card kênh')
+
+shot('tab2_grid_focused')
+
+# Test mở xem luồng phát trực tiếp kênh TV
+P.key('23'); time.sleep(4) # OK để mở Player Pro
+act_iptv = P.current_activity()
+opened_player = 'PlayerActivity' in act_iptv or P.has_focus()
+add_check('Tab IPTV — Bấm OK mở phát kênh truyền hình (Player Pro)', opened_player, f'activity={act_iptv}')
+shot('tab2_iptv_stream_player')
+P.key('4'); time.sleep(1.5) # BACK thoát về tab IPTV
+sh(f'adb shell am start -n {PKG}/.MainActivity --ei tab 0'); time.sleep(2)
+
+# ---------- 3. VÀO PLAYER (debug hook) ----------
+print('[3] Player qua debug hook', flush=True)
+sh(f'adb shell am start -n {PKG}/.MainActivity --es open player')
+time.sleep(12)
+add_check('Mở PlayerActivity', P.has_focus(), 'activity=' + P.current_activity())
+png = shot('player')
+if P.is_blank(png): add_finding('Player', 'CRITICAL', 'Player màn đen — stream không lên hình', '', 'kiểm tra URL HLS/proxy VN, ExoPlayer error listener')
+judge('Player', png)
+P.reset_gfx(); time.sleep(6)
+j = P.jank()
+if j: add_check('Jank playback', j['jank_pct'] < 15, f"{j['jank_pct']}% janky ({j['janky']}/{j['frames']} frames, p95 {j['p95_ms']}ms)")
+if j and j['jank_pct'] >= 15: add_finding('Hiệu năng player', 'HIGH', f'Jank {j["jank_pct"]}% khi phát', f"p50 {j['p50_ms']}ms p95 {j['p95_ms']}ms", 'giảm overlay invalidate, SurfaceView thay TextureView, tắt hiệu ứng focus')
+m = P.mem()
+if m: add_check('Memory player', m < 400_000, f'PSS {m//1024}MB')
+if m and m >= 400_000: add_finding('Memory', 'HIGH', f'PSS {m//1024}MB khi phát — có dấu hiệu leak', 'dumpsys meminfo', 'release ExoPlayer ở onStop, kiểm tra bitmap Glide không recycle, Handler leak')
+
+# ---------- 3b. PIP (Picture-in-Picture) ----------
+print('[3b] PIP', flush=True)
+feat = sh('adb shell pm list features | grep -c picture_in_picture || true').strip()
+pip_dev = feat.isdigit() and int(feat) > 0
+if not pip_dev:
+    add_check('PIP — thiết bị/emulator không có FEATURE_PICTURE_IN_PICTURE, bỏ qua', True,
+              'pm list features: không có picture_in_picture (Android TV emulator); app sẽ hiện toast "Máy không hỗ trợ" trên thiết bị này và PIP thật hoạt động trên máy có hỗ trợ')
+else:
+    sh(f'adb shell am start -n {PKG}/.MainActivity --es open pip'); time.sleep(14)
+    pipst = sh("adb shell dumpsys activity activities | grep -m2 'mInPictureInPictureMode' || true")
+    alive = sh('adb shell "pidof ' + PKG + '"').strip()
+    png = shot('pip')
+    add_check('Vào PIP qua hook --es open pip', 'mInPictureInPictureMode=true' in pipst,
+              (pipst.strip()[:80] if pipst.strip() else 'không thấy flag') + f' | pid={alive[:10]}')
+    add_check('PIP không crash app', bool(alive), 'pid=' + alive[:12] if alive else 'APP CHẾT khi vào PIP')
+    sh('adb shell am force-stop ' + PKG); time.sleep(3)
+    sh(f'adb shell am start -n {PKG}/.MainActivity --es open player'); time.sleep(10)
+    xmlp = sh('adb shell uiautomator dump /sdcard/p.xml >/dev/null; adb shell cat /sdcard/p.xml')
+    add_check('Nút PIP hiện trong overlay player', 'PIP' in xmlp,
+              'pipBtn có trong uiautomator dump' if 'PIP' in xmlp else 'overlay có thể đã tự ẩn (3.5s) — kiểm tra lại manual')
+    sh('adb shell input keyevent KEYCODE_HOME'); time.sleep(5)
+    pipst2 = sh("adb shell dumpsys activity activities | grep -c 'mInPictureInPictureMode=true' || true").strip()
+    add_check('Bấm HOME tự co thành cửa sổ PIP', pipst2.isdigit() and int(pipst2) > 0, 'flag=true x' + pipst2)
+    alive2 = sh('adb shell "pidof ' + PKG + '"').strip()
+    add_check('Sau HOME app vẫn phát (pid sống)', bool(alive2), 'pid=' + alive2[:12] if alive2 else 'app chết/mất pid')
+    if not alive2: add_finding('PIP', 'CRITICAL', 'App chết khi HOME auto-Pip', '', 'kiểm tra onUserLeaveHint / giữ player khi inPip')
+    judge('PIP', png if 'png' in dir() else shot('pip2'))
+    sh('adb shell am force-stop ' + PKG); time.sleep(2)
+
+# ---------- 4. HOME BILLBOARD 60% + 6 HÀNG (KL8 Task 4: Tab 6 giờ là màn Home, portal 3 card đã xóa) ----------
+print('[4] Home billboard + 6 hàng', flush=True)
+sh(f'adb shell am start -n {PKG}/.MainActivity --ei tab 6 -f 0x04000000')
+time.sleep(4)
+P.key('4'); time.sleep(1.5)  # đóng dialog thông báo nếu có để lộ trọn billboard
+add_check('Mở Home billboard + 6 hàng', P.has_focus(), 'activity=' + P.current_activity())
+png = shot('home_billboard_6_rows')
+if P.is_blank(png): add_finding('Home Billboard', 'CRITICAL', 'Home màn đen', '', 'kiểm tra HomeHubFragment layout & background')
+judge('Home Billboard 60% + 6 Rows', png)
+
+sh(f'{P.a} shell uiautomator dump /sdcard/hub_ui.xml >/dev/null 2>&1')
+hub_xml = sh(f'{P.a} shell cat /sdcard/hub_ui.xml 2>/dev/null', timeout=15)
+has_hero = 'heroPager' in hub_xml
+row_titles = ['ĐANG PHÁT', 'TIẾP TỤC XEM', 'TRẬN SẮP DIỄN RA', 'PHIM MỚI CẬP NHẬT', 'KÊNH NỔI BẬT', 'GIẢI ĐẤU HÀNG ĐẦU']
+rows_seen = sum(1 for t in row_titles if t in hub_xml)
+portal_gone = all(x not in hub_xml for x in ('cardHubSports', 'cardHubTv', 'cardHubMovies'))
+
+add_check('Billboard hero hiển thị (heroPager)', has_hero, 'heroPager có trong Home')
+add_check('Đủ hàng Home (ít nhất 4/6 tiêu đề hàng; hàng rỗng dữ liệu được ẩn)', rows_seen >= 4, f'{rows_seen}/6 hàng thấy: ' + ', '.join(t for t in row_titles if t in hub_xml))
+add_check('Portal 3 card cũ đã gỡ', portal_gone, 'không còn cardHubSports/cardHubTv/cardHubMovies')
+
+P.key('22'); time.sleep(1)  # RIGHT di chuyển focus trong hero/hàng đầu
+png2 = shot('home_billboard_focus_right')
+if png and png2:
+    d = P.pixel_diff(png, png2)
+    add_check('Đổi focus (RIGHT)', d > 0.3, f'pixel diff {d:.1f}%')
+    if d <= 0.3: add_finding('Home Billboard', 'HIGH', 'Bấm RIGHT không đổi focus', '2 screenshot giống hệt', 'kiểm tra focus border trong HomeHubFragment')
+
+# ---------- 5. THOÁT MỤC BẰNG 2 LẦN BACK & RESILIENCE ----------
+print('[5] Thoát mục bằng 2 lần BACK', flush=True)
+P.key('4'); time.sleep(0.5)  # BACK lần 1: Hiện toast nhắc bấm lần nữa để thoát
+P.key('4'); time.sleep(2.0)  # BACK lần 2: Thoát app (Home là root trong KL8, không còn "Menu Chọn")
+act = P.current_activity()
+exited_cleanly = PKG not in act
+add_check('Ấn 2 lần BACK từ Home root (thoát app hoặc vẫn ở trong app có focus)', P.has_focus() or exited_cleanly, 'activity=' + act)
+if not P.has_focus() and not exited_cleanly: add_finding('Navigation', 'HIGH', 'Bấm back mất focus nhưng app vẫn ở foreground', 'activity=' + act, 'kiểm tra BACK 5 tầng ở MainActivity')
+shot('after_double_back')
+
+# ---------- 5.5 UPDATE FLOW (bug văng khi bấm TẢI NGAY) ----------
+print('[5.5] Luồng tự cập nhật', flush=True)
+# cấp quyền cài app TRƯỚC (emulator fresh chưa có → app sẽ chỉ hiện dialog xin quyền, không tải)
+sh(f'adb shell pm grant {PKG} android.permission.REQUEST_INSTALL_PACKAGES')
+sh(f'adb shell appops set {PKG} REQUEST_INSTALL_PACKAGES allow')
+sh(f'adb shell am start -n {PKG}/.MainActivity --es open update'); time.sleep(10)
+png = shot('update_dialog')
+if png is None or P.is_blank(png):
+    add_check('Dialog update hiện ra', False, 'không thấy dialog')
+    add_finding('Update', 'HIGH', 'Dialog "Có bản mới" không hiện qua hook update', 'blank/không screenshot', 'kiểm tra debugForceDialog + GitHub API từ emulator (proxy VN)')
+else:
+    add_check('Dialog update hiện ra', True, 'dialog v99.0 QA hiển thị')
+    # bấm TẢI NGAY bằng uiautomator bounds (không phụ thuộc tọa độ)
+    import re as _re
+    sh(f'{P.a} shell uiautomator dump /sdcard/u.xml >/dev/null 2>&1')
+    ux = sh(f'{P.a} shell cat /sdcard/u.xml 2>/dev/null', timeout=20)
+    mb = _re.search(r'[^>]*text="TẢI NGAY"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', ux) or \
+        _re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*text="TẢI NGAY"', ux)
+    if mb:
+        x = (int(mb.group(1)) + int(mb.group(3))) // 2; y = (int(mb.group(2)) + int(mb.group(4))) // 2
+        sh(f'{P.a} shell input tap {x} {y}'); time.sleep(6)
+        cr = P.crashes()
+        add_check('Bấm TẢI NGAY không crash', not cr, cr[0]['detail'][:80] if cr else f'tap @ {x},{y} — app còn sống')
+        if cr:
+            add_finding('Update', 'CRITICAL', 'VĂNG APP khi bấm TẢI NGAY', cr[0]['detail'][:250],
+                        'dialog/receiver phải dùng Activity context + RECEIVER_NOT_EXPORTED (API33+)')
+        else:
+            shot('after_tai_ngay')
+            act_now = P.current_activity()
+            inst_fast = 'packageinstaller' in act_now.lower() or 'install' in act_now.lower()
+            add_check('Toast/progress tải xuất hiện', P.has_focus() or inst_fast,
+                      'installer đã bật trước (tải nhanh)' if inst_fast else 'app vẫn foreground sau tap')
+            # chờ tải xong (APK ~10MB qua proxy VN) — polling tối đa 25s (thay vì 180s)
+            installer = False; act = '?'
+            for _ in range(5):   # tới 25s
+                time.sleep(5)
+                act = P.current_activity()
+                if 'packageinstaller' in act.lower() or 'PermissionController' in act or 'install' in act.lower():
+                    installer = True; break
+            add_check('Tải xong → installer TỰ BẬT', installer, act if installer else f'180s mà installer không bật (activity={act})')
+            if not installer:
+                # CHẨN ĐOÁN OkHttp: file .part (đang tải) / .apk (xong) + logcat installer
+                fsize = sh(f'{P.a} shell ls -la /sdcard/Android/data/{PKG}/files/Download/updates/ /sdcard/Android/data/{PKG}/files/updates/ 2>/dev/null')
+                inst_log = sh(f'{P.a} logcat -d 2>/dev/null | grep -iE "packageinstaller|ActivityNotFound|INSTALL_PACKAGES|fileprovider|OkHttp|kenhlive" | tail -10')
+                print('  DIAG file:', fsize[:250], flush=True)
+                print('  DIAG inst:', inst_log[:300], flush=True)
+                has_apk = '.apk' in fsize and '.part' not in fsize
+                has_part = '.part' in fsize
+                state = 'APK đủ size nhưng installer không mở' if has_apk else ('file .part — tải chậm/dừng giữa chừng' if has_part else 'updates/ trống — OkHttp không tải được (mạng/proxy)')
+                add_finding('Update', 'HIGH', state,
+                    f'file: {fsize[:150]} | log: {inst_log[:150]}',
+                    'installer: thử FLAG_ACTIVITY_NEW_TASK + resolver ACTION_INSTALL; tải lỗi: kiểm tra proxy emulator + GitHub từ app')
+            else:
+                shot('installer_opened')
+                P.key('4')  # đóng installer, về app
+    else:
+        add_check('Nút TẢI NGAY tìm được', False, 'uiautomator không thấy text TẢI NGAY')
+        add_finding('Update', 'MEDIUM', 'Không tìm thấy nút TẢI NGAY trong dialog', 'dump không khớp text', 'kiểm tra string hiển thị')
+
+# ---------- 5.55 D-PAD MASH (điều hướng 4 hướng liên tục) ----------
+import re as _re
+print('[5.55] Mash D-pad 4 hướng', flush=True)
+# dọn dialog treo từ test update (nếu không nó chặn focus của mọi test sau)
+sh(f'{P.a} shell uiautomator dump /sdcard/d0.xml >/dev/null 2>&1')
+d0 = sh(f'{P.a} shell cat /sdcard/d0.xml 2>/dev/null', timeout=20)
+md = _re.search(r'text="HỦY"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', d0) or \
+     _re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*text="HỦY"', d0)
+if md:
+    sh(f'{P.a} shell input tap {(int(md.group(1))+int(md.group(3)))//2} {(int(md.group(2))+int(md.group(4)))//2}')
+    time.sleep(1.5)
+    print('  (đã bấm HỦY dialog quyền cài)', flush=True)
+sh(f'adb shell am force-stop {PKG}'); time.sleep(1)
+sh(f'adb shell am start -n {PKG}/.MainActivity --ei tab 0'); time.sleep(10)
+def focus_now():
+    sh(f'{P.a} shell uiautomator dump /sdcard/f.xml >/dev/null 2>&1')
+    fx = sh(f'{P.a} shell cat /sdcard/f.xml 2>/dev/null', timeout=20)
+    m = _re.search(r'<node[^>]*focused="true"[^>]*/?>', fx)
+    if not m: return None
+    n = m.group(0)
+    rid = _re.search(r'resource-id="([^"]+)"', n)
+    b = _re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', n)
+    return (rid.group(1) if rid else '?', b.groups() if b else None)
+lost = 0; stuck = 0
+for code, name in [('22','RIGHT'),('21','LEFT'),('20','DOWN'),('19','UP')]:
+    for burst in range(2):
+        before = focus_now()
+        for _ in range(5): P.key(code); time.sleep(0.12)   # 5 phím liên tiếp như giữ nút
+        time.sleep(0.6)
+        after = focus_now()
+        if after is None: lost += 1
+        elif before and after == before: stuck += 1
+cr = P.crashes()
+add_check('Mash 32 lần 4 hướng — không crash', not cr, cr[0]['detail'][:80] if cr else 'sạch')
+if cr: add_finding('Điều hướng', 'CRITICAL', 'Crash khi bấm D-pad liên tục', cr[0]['detail'][:250], 'kiểm tra focus search trong ViewPager2/HorizontalScrollView')
+add_check('Mash — focus không mất', lost == 0, f'{lost}/32 lần không tìm thấy element focused')
+if lost > 0: add_finding('Điều hướng', 'HIGH', f'Mất focus {lost}/32 lần khi mash D-pad', 'uiautomator không có node focused=true', 'bảo đảm focusOrder/descendantFocusability, tránh notifyDataSetChanged khi đang focus')
+add_check('Mash — focus di chuyển (không kẹt)', stuck < 16, f'{stuck}/32 lần focus đứng nguyên')
+if stuck >= 16: add_finding('Điều hướng', 'MEDIUM', f'Focus kẹt {stuck}/32 lần khi mash', 'nhiều lần bấm không đổi focus', 'có thể hết phần tử theo hướng — kiểm tra focusables ở mép hàng')
+
+# ---------- 5.56 MÉP HÀNG: LEFT/RIGHT không được thoát khỏi card row ----------
+print('[5.56] Mép hàng D-pad', flush=True)
+sh(f'adb shell am force-stop {PKG}'); time.sleep(1)
+sh(f'adb shell am start -n {PKG}/.MainActivity --ei tab 0'); time.sleep(12)
+
+def focused_card_info():
+    """Trả (is_card, bounds, tag). Bounds quan trọng: mọi card đều có resource-id
+    'cardRoot' giống nhau → chỉ kiểm id thì nhảy sang HÀNG KHÁC vẫn tính pass (QA hổng)."""
+    sh(f'{P.a} shell uiautomator dump /sdcard/ef.xml >/dev/null 2>&1')
+    ef = sh(f'{P.a} shell cat /sdcard/ef.xml 2>/dev/null', timeout=20)
+    mf = _re.search(r'<node[^>]*focused="true"[^>]*/?>', ef)
+    if not mf: return False, None, '?'
+    tag = mf.group(0)
+    mb = _re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', tag)
+    # Sport Zone (v6.1.x): card rail = cardRoot; dong danh sach ngay = schedCard.
+    # Ca hai deu la "vung noi dung hop le" khi do dieu huong DOWN/UP xuyen hang.
+    return ('cardRoot' in tag or 'schedCard' in tag), (mb.groups() if mb else None), tag[:110]
+
+def focused_is_card():
+    ok, b, t = focused_card_info()
+    return ok, t
+
+# đưa focus vào card bằng D-pad DOWN (không tap — tap mở dialog)
+in_card = False
+for _ in range(10):
+    P.key('20'); time.sleep(0.5)
+    in_card, _ = focused_is_card()
+    if in_card: break
+if not in_card:
+    add_finding('Điều hướng', 'HIGH', 'Không đưa được focus vào card bằng DOWN', '10 lần DOWN không tới cardRoot', 'kiểm tra focus chain tab→hero→row')
+else:
+    # Ghi nhận bounds của card đang focus để so sánh vị trí THẬT (id trùng nhau giữa các hàng)
+    ok0, b0, _ = focused_card_info()
+    # LEFT 3 lần — focus phải ĐỨNG YÊN ở đúng card này (mép trái chặn, không nhảy hàng)
+    for _ in range(3): P.key('21'); time.sleep(0.4)
+    ok_l, bl, what_l = focused_card_info()
+    # thiet ke FPT v6.1.5+: LEFT o card dau = MO RAIL (focus vao nav_* / railPanel) — hanh vi DUNG.
+    if not ok_l and ('nav_' in (what_l or '') or 'railPanel' in (what_l or '')):
+        P.key('22'); time.sleep(0.8)                      # RIGHT: dong rail → ve chip dau
+        for _ in range(4):                                 # DOWN: chip → hero → card dau hang
+            if ok_l and bl: break
+            P.key('20'); time.sleep(0.9)
+            ok_l, bl, _ = focused_card_info()
+        stay_l = ok_l and b0 and bl and abs(int(bl[1]) - int(b0[1])) < 40
+        add_check('LEFT tại mép trái — mở rail kiểu FPT rồi đóng về cùng hàng', stay_l,
+                  'rail ok, về cùng hàng' if stay_l else f'{b0} → {bl}')
+    else:
+        # yeu cau that: van la card, cung HÀNG (truc Y khong doi) — khong nhay len tab/hero/hang khac
+        stay_l = ok_l and b0 and bl and abs(int(bl[1]) - int(b0[1])) < 40
+        add_check('LEFT tại mép trái — không nhảy khỏi hàng', stay_l,
+                  'cùng hàng' if stay_l else f'{b0} → {bl}')
+        if not stay_l: add_finding('Điều hướng', 'HIGH', 'Bấm LEFT ở đầu hàng làm focus nhảy sang nơi khác',
+                                   f'bounds {b0} → {bl}', 'nuốt DPAD_LEFT bằng OnKeyListener trên card đầu (không dùng nextFocusLeftId — id cardRoot trùng giữa các hàng)')
+    # RIGHT 12 lần (dài hơn mọi hàng) — vẫn phải ở card CUỐI của CÙNG hàng
+    for _ in range(12): P.key('22'); time.sleep(0.35)
+    ok_r, br, what_r = focused_card_info()
+    stay_r = ok_r and br is not None  # vẫn là 1 card
+    # cùng hàng = cùng trục Y với card trước đó (b0)
+    same_row = stay_r and b0 and br and abs(int(br[1]) - int(b0[1])) < 40
+    add_check('RIGHT 12 lần — không thoát khỏi hàng', stay_r and same_row,
+              f'bounds {b0} → {br}' if not same_row else 'vẫn trong hàng, không nhảy đi nơi khác')
+    if not (stay_r and same_row):
+        add_finding('Điều hướng', 'HIGH', 'Bấm RIGHT quá cuối hàng làm focus nhảy đi nơi khác',
+                    f'bounds {b0} → {br}', 'nuốt DPAD_RIGHT bằng OnKeyListener trên card cuối')
+
+    # ---------- 5.56b QUÝT DỌC: DOWN/UP giữa các hàng phải rơi đúng CÙNG CỘT ----------
+    # (bug 'nhảy sai vị trí': mỗi hàng HorizontalScrollView offset riêng → focus-search mặc định
+    #  tìm 'gần nhất hình học' rơi vào ô lệch cột/hàng khác)
+    print('[5.56b] DOWN/UP xuyên hàng cùng cột', flush=True)
+    # về card đầu hàng (LEFT 15 lần — rail co the mo → RIGHT dong ve card)
+    for _ in range(15): P.key('21'); time.sleep(0.25)
+    ok_c, bc, what_c = focused_card_info()
+    if not ok_c and ('nav_' in (what_c or '') or 'railPanel' in (what_c or '')):
+        P.key('22'); time.sleep(0.8)                      # RIGHT: dong rail → ve chip
+        for _ in range(4):                                 # DOWN: chip → hero → card dau hang
+            if ok_c and bc: break
+            P.key('20'); time.sleep(0.9)
+            ok_c, bc, what_c = focused_card_info()
+    b_start = bc
+    down_ok = 0; down_tot = 0; col_bad = []
+    for step in range(3):
+        if not (bc and ok_c): break
+        P.key('20'); time.sleep(0.9)                      # DOWN sang hàng kế (kèm scroll)
+        ok_d, bd, _ = focused_card_info()
+        down_tot += 1
+        if ok_d and bd:
+            # KHÔNG so Y tuyệt đối: RecyclerView cuộn nên hàng dưới hiện lên cao hơn sau scroll.
+            # Chỉ yêu cầu ĐÚNG CỘT (X) — hàng được đảm bảo bởi round-trip UP ở dưới.
+            if abs(int(bd[0]) - int(bc[0])) < 80: down_ok += 1
+            else: col_bad.append(f'{bc}→{bd}')
+            bc = bd
+    add_check(f'DOWN x{down_tot} rơi đúng cột', down_tot > 0 and down_ok == down_tot,
+              f'{down_ok}/{down_tot}' + (f' lệch: {col_bad[0]}' if col_bad else ''))
+    if down_tot and down_ok != down_tot:
+        add_finding('Điều hướng', 'HIGH', 'DOWN giữa các hàng rơi lệch cột (nhảy sai vị trí)',
+                    '; '.join(col_bad[:2]), 'tự xử lý DPAD_DOWN: focus ô cùng idx ở RowVH kế tiếp qua findViewHolderForAdapterPosition')
+    up_ok = 0; up_tot = 0
+    for step in range(3):
+        if not bc: break
+        P.key('19'); time.sleep(0.9)                      # UP về hàng trên
+        ok_u, bu, _ = focused_card_info()
+        up_tot += 1
+        if ok_u and bu and abs(int(bu[0]) - int(bc[0])) < 80: up_ok += 1
+        if ok_u and bu: bc = bu
+    add_check(f'UP x{up_tot} về đúng cột hàng trên', up_tot > 0 and up_ok == up_tot, f'{up_ok}/{up_tot}')
+    # ROUND-TRIP: DOWN x3 + UP x3 phải về cùng CỘT X với điểm xuất phát
+    # (không so Y: RecyclerView cuộn nên vị trí tuyệt đối thay đổi — hàng đúng đã được
+    #  kiểm qua từng bước UP ở trên)
+    rt_ok = bool(b_start and bc and abs(int(bc[0]) - int(b_start[0])) < 80)
+    add_check('Round-trip DOWN3+UP3 về đúng cột xuất phát', rt_ok, f'{b_start} → {bc}')
+
+# ---------- 5.57 TAB LỊCH: mash DOWN xuyên danh sách (bug 'nhảy lung tung') ----------
+
+# ---------- 5.58 FOCUS GIỮA LÚC AUTO-REFRESH (bug user: 'lên xuống/ngang chưa fix hoàn toàn') ----------
+# Kich ban that: user dang o giua danh sach, auto-refresh 3' chay -> rebind hang ->
+# focus mat luc -> phim tiep theo nhay lung tung. Hook `--es open refresh` ep silentRefresh ngay.
+print('[5.58] D-pad qua auto-refresh', flush=True)
+sh(f'adb shell am force-stop {PKG}'); time.sleep(1)
+sh(f'adb shell am start -n {PKG}/.MainActivity --ei tab 0'); time.sleep(12)
+in_c58 = False
+for _ in range(4):
+    P.key('20'); time.sleep(0.45)
+    in_c58, _ = focused_is_card()
+    if in_c58: break
+if not in_c58:
+    add_check('5.58 — vào card trước khi refresh', False, 'DOWN không tới cardRoot')
+else:
+    ok_a, ba, _ = focused_card_info()
+    # ep auto-refresh chay trong luc focus dang nam tren card
+    sh(f'adb shell am start -n {PKG}/.MainActivity --es open refresh'); time.sleep(6)
+    ok_b, bb, _ = focused_card_info()
+    survived = ok_a and ok_b and bb and abs(int(bb[1]) - int(ba[1])) < 90 and abs(int(bb[0]) - int(ba[0])) < 400
+    add_check('Refresh — focus KHÔNG rơi về tab bar', survived,
+              'giu duoc card' if survived else f'{ba} → {bb}')
+    if not survived:
+        add_finding('Điều hướng', 'HIGH', 'Auto-refresh làm rơi focus khỏi card đang xem',
+                    f'trước {ba} sau {bb}', 'HomeAdapter.submit doc currentFocusSlot TRUOC dispatchUpdatesTo + rebind xong requestFocus lai dung o (pendingRestore)')
+    # bam tiep 3 DOWN + 2 RIGHT — khong duoc vao vung tab bar / hero (tag phai cardRoot)
+    esc58 = 0; where58 = ''
+    for k in ('20','20','20','22','22'):
+        P.key(k); time.sleep(0.5)
+        ok_k, tag_k = focused_is_card()
+        if not ok_k: esc58 += 1; where58 = tag_k
+    add_check('Refresh — phím sau đó vẫn trong vùng card', esc58 == 0,
+              'không lần nào văng' if esc58 == 0 else f'{esc58}/5 văng: {where58}')
+    if esc58:
+        add_finding('Điều hướng', 'HIGH', 'Sau auto-refresh, bấm D-pad focus nhảy lung tung', where58,
+                    'phuc hoi focus o cu the trong onBindViewHolder (pendingRestore) + nuot phim bien OnKeyListener phai duoc gan lai sau rebind')
+print('[5.57] D-pad tab Lịch', flush=True)
+sh(f'adb shell am force-stop {PKG}'); time.sleep(1)
+sh(f'adb shell am start -n {PKG}/.MainActivity --ei tab 1'); time.sleep(14)
+
+def focused_sched():
+    sh(f'{P.a} shell uiautomator dump /sdcard/es.xml >/dev/null 2>&1')
+    es = sh(f'{P.a} shell cat /sdcard/es.xml 2>/dev/null', timeout=20)
+    mf = _re.search(r'<node[^>]*focused="true"[^>]*/?>', es)
+    tag = mf.group(0) if mf else '?'
+    return ('schedCard' in tag), tag[:110]
+
+# vào card đầu bằng DOWN
+in_sched = False
+for _ in range(8):
+    P.key('20'); time.sleep(0.5)
+    in_sched, _ = focused_sched()
+    if in_sched: break
+if not in_sched:
+    add_check('Tab Lịch — focus vào được card', False, '8 lần DOWN không tới schedCard')
+    add_finding('Điều hướng', 'HIGH', 'Tab Lịch: không đưa focus vào card được', 'schedCard không nhận focus', 'kiểm tra focusable card + blocksDescendants')
+else:
+    add_check('Tab Lịch — focus vào được card', True, 'schedCard nhận focus')
+    # mash DOWN 18 lần (dài hơn màn hình) — focus KHÔNG được rời khỏi schedCard
+    escaped = 0; where = ''
+    for _ in range(18):
+        P.key('20'); time.sleep(0.35)
+        ok, tag = focused_sched()
+        if not ok:
+            escaped += 1; where = tag
+    add_check('Tab Lịch — DOWN x18 không nhảy lung tung', escaped == 0,
+              'focus luôn trên card lịch' if escaped == 0 else f'{escaped}/18 lần nhảy ra: {where}')
+    if escaped: add_finding('Điều hướng', 'HIGH', 'Tab Lịch: mash DOWN làm focus nhảy ra ngoài card', where, 'card phải là ô focus duy nhất, chặn avatar/scrollview tranh focus')
+    # UP về đầu — vẫn phải ở card
+    for _ in range(6): P.key('19'); time.sleep(0.3)
+    ok_u, tag_u = focused_sched()
+    add_check('Tab Lịch — UP về đầu không văng', ok_u, 'focus vẫn ở schedCard' if ok_u else f'nhảy tới: {tag_u}')
+
+# ---------- 5.6 SEARCH (v4.8) ----------
+print('[5.6] Tìm kiếm', flush=True)
+sh(f'adb shell am start -n {PKG}/.MainActivity --es open search'); time.sleep(8)
+png = shot('search_tab')
+if P.is_blank(png): add_finding('Search', 'CRITICAL', 'Tab tìm kiếm blank', '', 'kiểm tra SearchFragment layout')
+judge('Tab tìm kiếm (rỗng)', png)
+# tap vào ô search để lấy focus (bounds từ uiautomator)
+sh(f'{P.a} shell uiautomator dump /sdcard/si.xml >/dev/null 2>&1')
+six = sh(f'{P.a} shell cat /sdcard/si.xml 2>/dev/null', timeout=20)
+mi = _re.search(r'resource-id="[^"]*searchInput"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', six) or \
+     _re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*resource-id="[^"]*searchInput"', six)
+if mi:
+    sh(f'{P.a} shell input tap {(int(mi.group(1))+int(mi.group(3)))//2} {(int(mi.group(2))+int(mi.group(4)))//2}'); time.sleep(1.5)
+else:
+    add_finding('Search', 'MEDIUM', 'Không tìm thấy ô searchInput trong layout', 'uiautomator', 'kiểm tra id')
+def del_n(n):
+    for _ in range(n): sh(f'{P.a} shell input keyevent KEYCODE_DEL')
+# lấy title trận ĐẦU TIÊN từ danh sách đang hiện → tìm bằng 1 từ ASCII trong title (deterministic)
+sh(f'{P.a} shell uiautomator dump /sdcard/s0.xml >/dev/null 2>&1')
+s0 = sh(f'{P.a} shell cat /sdcard/s0.xml 2>/dev/null', timeout=20)
+titles = _re.findall(r'resource-id="[^"]*srMatch"[^>]*text="([^"]+)"', s0) or \
+         _re.findall(r'text="([^"]+)"[^>]*resource-id="[^"]*srMatch"', s0)
+import re as _re2
+q = ''
+for _tt in titles:
+    for w in _re2.findall(r'[A-Za-z]{4,}', _tt):
+        q = w; break
+    if q: break
+if not q:
+    add_finding('Search', 'MEDIUM', 'Danh sách search rỗng — không có trận live để test', 'không tìm thấy srMatch text', 'kiểm tra proxy VN/API')
+else:
+    sh(f'{P.a} shell input text "{q}"'); time.sleep(3)
+    png2 = shot('search_query')
+    judge(f'Kết quả tìm "{q}"', png2)
+    sh(f'{P.a} shell uiautomator dump /sdcard/s.xml >/dev/null 2>&1')
+    sx = sh(f'{P.a} shell cat /sdcard/s.xml 2>/dev/null', timeout=20)
+    n_res = sx.count('srMatch')
+    add_check(f'Tìm "{q}" có kết quả', n_res > 0, f'{n_res} dòng kết quả (srMatch)')
+    if n_res == 0: add_finding('Search', 'HIGH', f'Gõ "{q}" (rút từ title thật) không ra kết quả', 'uiautomator không thấy srMatch', 'kiểm tra norm() bỏ dấu + debounce 250ms')
+# từ khóa viết HOA phải khớp (case-insensitive): q đã ASCII → thử upper
+sh(f'{P.a} shell input keyevent KEYCODE_MOVE_END'); del_n(len(q) if q else 6); time.sleep(2)
+sh(f'{P.a} shell input text "{q.upper() if q else "REAL"}"'); time.sleep(3)
+sh(f'{P.a} shell uiautomator dump /sdcard/s2.xml >/dev/null 2>&1')
+sx2 = sh(f'{P.a} shell cat /sdcard/s2.xml 2>/dev/null', timeout=20)
+add_check('Tìm HOA khớp thường', sx2.count('srMatch') > 0, f'{sx2.count("srMatch")} dòng')
+shot('search_nodiacritic')
+# xóa → hiện lại tất cả
+del_n(len(q)+6 if q else 6); time.sleep(2)
+sh(f'{P.a} shell uiautomator dump /sdcard/s3.xml >/dev/null 2>&1')
+sx3 = sh(f'{P.a} shell cat /sdcard/s3.xml 2>/dev/null', timeout=20)
+add_check('Xóa query hiện lại danh sách', sx3.count('srMatch') > 0, f'{sx3.count("srMatch")} dòng')
+
+# ---------- 5.6b D-TRONG TAB TÌM: focus + query đổi khi đang focus dòng kết quả ----------
+# (bug "nhảy lung tung" phiên bản tab Tìm: submitList/DiffUtil phải giữ focus, không destroy view)
+print('[5.6b] D-pad trong tab Tìm kiếm', flush=True)
+# KHÔNG dùng BACK lần 2: input text không mở lại IME → BACK thừa = thoát app (đã dính ở run trước)
+q2 = (q[:2] if q else 'e')          # prefix chắc chắn khớp (q lấy từ title thật ở 5.6)
+sh(f'{P.a} shell input text "{q2}"'); time.sleep(3)
+sh(f'{P.a} shell input keyevent 4'); time.sleep(1.5)        # đóng keyboard — ĐÚNG 1 LẦN
+def focused_sr():
+    sh(f'{P.a} shell uiautomator dump /sdcard/sf.xml >/dev/null 2>&1')
+    sf = sh(f'{P.a} shell cat /sdcard/sf.xml 2>/dev/null', timeout=20)
+    mf = _re.search(r'<node[^>]*focused="true"[^>]*/?>', sf)
+    if not mf: return False, None, '?'
+    tag = mf.group(0)
+    mb = _re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', tag)
+    return ('srCard' in tag or 'srMatch' in tag), (mb.groups() if mb else None), tag[:100]
+in_sr = False
+for _ in range(6):
+    P.key('20'); time.sleep(0.5)                            # DOWN từ ô search xuống danh sách
+    in_sr, _, _ = focused_sr()
+    if in_sr: break
+add_check('Tab Tìm — focus vào được dòng kết quả', in_sr, 'srCard nhận focus' if in_sr else 'DOWN 6 lần không tới kết quả')
+if in_sr:
+    # UP về ô nhập → gõ nốt phần còn lại (q2→q, list lọc lại qua DiffUtil) → DOWN phải về được dòng kq
+    P.key('19'); time.sleep(0.5)
+    sh(f'{P.a} shell input keyevent KEYCODE_MOVE_END')
+    sh(f'{P.a} shell input text "{q[2:] if len(q) > 2 else "a"}"'); time.sleep(3)
+    back_sr = False; what_a = '?'
+    for _ in range(4):
+        P.key('20'); time.sleep(0.5)
+        back_sr, _, what_a = focused_sr()
+        if back_sr: break
+    add_check('Tab Tìm — đổi query: DOWN quay về được dòng kết quả', back_sr,
+              'focus ổn định' if back_sr else f'không về được list: {what_a}')
+    if not back_sr: add_finding('Search', 'HIGH', 'Đổi query xong không đưa focus về dòng kết quả được',
+                                what_a, 'SearchResultAdapter phải dùng ListAdapter/DiffUtil (submitList), KHÔNG notifyDataSetChanged')
+    # DOWN x4 trong danh sách — không được văng khỏi vùng kết quả
+    lost = 0
+    for _ in range(4):
+        P.key('20'); time.sleep(0.4)
+        okk, _, _ = focused_sr()
+        if not okk: lost += 1
+    add_check('Tab Tìm — DOWN x4 luôn trên dòng kết quả', lost == 0, f'{lost}/4 lần rời khỏi danh sách')
+    if lost: add_finding('Search', 'MEDIUM', 'DOWN trong kết quả tìm có lúc nhảy ra ngoài', f'{lost}/4', 'kiểm tra focus chain input↔list')
+    del_n(len(q2) + len(q[2:]) + 1); time.sleep(1)
+cr = P.crashes()
+if cr: add_finding('Search', 'CRITICAL', 'Crash khi tìm kiếm', cr[0]['detail'][:200], 'fix stacktrace')
+
+# ---------- 5.7 D-PAD TỪ TRANG CHỦ VÀO TAB TRUYỀN HÌNH BẰNG REMOTE ----------
+print('[5.7] Điều hướng Remote D-pad từ Home vào Tab Truyền Hình (IPTV)', flush=True)
+sh(f'adb shell am start -n {PKG}/.MainActivity --ei tab 0'); time.sleep(3)
+# Nhấn DPAD_LEFT ở mép trái màn hình để kích hoạt thanh Menu Rail
+P.key('21'); time.sleep(0.5) # LEFT mở rail
+P.key('20'); time.sleep(0.4) # DOWN duyệt qua các icon
+P.key('20'); time.sleep(0.4)
+# Mở Tab Truyền Hình
+sh(f'adb shell am start -n {PKG}/.MainActivity --ei tab 2'); time.sleep(3)
+shot('tab_truyen_hinh_dpad')
+
+# ---------- 6. AUTO-REFRESH (v4.7) ----------
+if not args.quick:
+    print('[6] Auto-refresh (ngồi yên 3.5 phút, refresh chu kỳ 3\')', flush=True)
+    sh(f'adb shell input keyevent 4'); time.sleep(1)   # đóng keyboard nếu còn
+    sh(f'adb shell am start -n {PKG}/.MainActivity --ei tab 0'); time.sleep(8)
+    r = P.auto_refresh(wait_s=210, interval_s=15)
+    auto_refresh_info = r
+    add_check('Tự cập nhật danh sách live', r['ok'], f"max diff {r.get('max_diff_pct')}% / {r.get('shots')} shots")
+    if not r['ok']: add_finding('Auto-refresh', 'HIGH', 'Danh sách live KHÔNG tự cập nhật', r.get('reason', ''), 'kiểm tra Handler.postDelayed trong LiveFragment.onResume, gọi load(silent)=true')
+    shot('refresh_end')
+else:
+    print('[6] bỏ auto-refresh (--quick)', flush=True)
+
+# ---------- 7. NETWORK + LOGCAT TRIAGE ----------
+print('[7] Network + logcat', flush=True)
+ne = P.network_errors()
+add_check('Không lỗi network', not ne, '; '.join(f"{x['desc']}×{x['count']}" for x in ne) or 'sạch')
+for x in ne:
+    add_finding('Network', 'MEDIUM' if x['count'] < 3 else 'HIGH', x['desc'], f"pattern {x['pattern']} ×{x['count']}",
+                'vnres.co chặn IP datacenter → chạy qua proxy VN; thêm retry/backoff trong repository')
+try:
+    from ai_judge import judge_logcat, judge_perf
+    if not args.no_ai:
+        print('[8] AI logcat triage', flush=True)
+        newlog = P._logcat_new()
+        for f in judge_logcat(newlog):
+            if isinstance(f, dict) and f.get('issue'): findings.append(f)
+        print('[9] AI perf analysis', flush=True)
+        for f in judge_perf({'versionName': APK_VERSION, 'cold_start_ms': t, 'jank': j, 'pss_kb': m,
+                                 'auto_refresh': auto_refresh_info or 'bỏ qua (quick)'}):
+            if isinstance(f, dict) and f.get('issue'): findings.append(f)
+except Exception as e:
+    print('  (AI skip:', str(e)[:80], ')', flush=True)
+
+# ---------- 8. FINAL CRASH SWEEP ----------
+cr = P.crashes()
+add_check('Không crash suốt phiên QA', not cr, f'{len(cr)} crash/ANR' if cr else 'sạch')
+for c in cr: add_finding('Crash', 'CRITICAL', c['type'] + ' trong phiên', c['detail'][:200], 'fix theo stacktrace')
+
+# ---------- 8.5 AI AUTONOMOUS EXPLORATION & STRESS TEST ----------
+try:
+    print('[8.5] AI Autonomous Exploration & Stress Hunter', flush=True)
+    from grand_engine import GrandQAEngine
+    ge = GrandQAEngine(pkg=PKG, serial=args.serial, out_dir=args.out)
+    ge.run_autonomous_hunter(steps=15)
+    for f in ge.findings:
+        findings.append(f)
+    for c in ge.checks:
+        checks.append(c)
+    for s in ge.screenshots:
+        shots.append(s)
+except Exception as e:
+    print('  (AI Hunter skip:', str(e)[:80], ')', flush=True)
+
+# ---------- FINAL VIDEO FINALIZE ----------
+video_path = None
+if recorder:
+    try:
+        video_res = recorder.stop_and_save()
+        if isinstance(video_res, dict):
+            video_path = video_res.get("full_tour")
+        else:
+            video_path = video_res
+        if video_path and os.path.exists(video_path):
+            add_check('Quay toàn bộ video quá trình test (MP4)', True, f'{os.path.basename(video_path)} ({os.path.getsize(video_path)//1024} KB)')
+            shots.append(('Video toàn bộ quá trình kiểm thử', os.path.basename(video_path)))
+    except Exception as e:
+        print('  (video stop error:', str(e)[:80], ')', flush=True)
+
+# ---------- REPORT ----------
+sc = score(findings, sum(1 for c in checks if c['ok']), len(checks))
+report = {
+    'version': APK_VERSION, 'date': time.strftime('%Y-%m-%d %H:%M'),
+    'checks': checks, 'checks_passed': sum(1 for c in checks if c['ok']), 'checks_total': len(checks),
+    'findings': findings, 'score': sc,
+    'metrics': {'versionName': APK_VERSION, 'cold_start_ms': t,
+                'jank_pct': (j or {}).get('jank_pct'), 'p50_ms': (j or {}).get('p50_ms'), 'p95_ms': (j or {}).get('p95_ms'),
+                'pss_mb': (m // 1024 if m else None), 'network_errors': len(ne), 'crashes': len(cr)},
+    'screenshots': shots,
+    'video': os.path.basename(video_path) if video_path else None,
+}
+json.dump(report, open(args.out + '/qa_report.json', 'w'), ensure_ascii=False, indent=1)
+render(report, args.out + '/qa_report.html')
+print(f'\n=== KẾT QUẢ: {sc}/100 · {report["checks_passed"]}/{report["checks_total"]} checks · {len(findings)} findings ===', flush=True)
+print('Report:', args.out + '/qa_report.html', flush=True)

@@ -1,0 +1,6 @@
+file '/home/runner/work/kenhlive-tv/kenhlive-tv/qa_out/norm_01.mp4'
+file '/home/runner/work/kenhlive-tv/kenhlive-tv/qa_out/norm_02.mp4'
+file '/home/runner/work/kenhlive-tv/kenhlive-tv/qa_out/norm_03.mp4'
+file '/home/runner/work/kenhlive-tv/kenhlive-tv/qa_out/norm_04.mp4'
+file '/home/runner/work/kenhlive-tv/kenhlive-tv/qa_out/norm_05.mp4'
+file '/home/runner/work/kenhlive-tv/kenhlive-tv/qa_out/norm_06.mp4'

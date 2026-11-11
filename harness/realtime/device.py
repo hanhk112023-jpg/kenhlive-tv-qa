@@ -1,0 +1,349 @@
+#!/usr/bin/env python3
+"""KenhLive Realtime QA — tầng thiết bị (device layer, tự chứa).
+
+KHÔNG import autonomous_ai_qa.py (file đó đang bị fix loop 1 sửa song song).
+Các lệnh adb/uiautomator ở đây chép lại từ các pattern đã chứng minh trong
+harness cũ (AndroidTVDevice/Probes) và giữ nguyên ngữ nghĩa.
+"""
+import io
+import json
+import re
+import subprocess
+import time
+import xml.etree.ElementTree as ET
+
+try:
+    from PIL import Image, ImageChops, ImageStat
+except ImportError:  # pragma: no cover
+    Image = ImageChops = ImageStat = None
+
+PKG = "com.kenhlive.tv"
+
+KEY_MAP = {
+    "UP": 19, "DPAD_UP": 19, "DOWN": 20, "DPAD_DOWN": 20,
+    "LEFT": 21, "DPAD_LEFT": 21, "RIGHT": 22, "DPAD_RIGHT": 22,
+    "ENTER": 23, "DPAD_CENTER": 23, "OK": 23,
+    "BACK": 4, "HOME": 3, "MENU": 82,
+    "PLAY_PAUSE": 85, "PLAY": 126, "PAUSE": 127,
+    "REWIND": 89, "FAST_FORWARD": 90,
+    "CHANNEL_UP": 166, "CHANNEL_DOWN": 167,
+    "PAGE_UP": 92, "PAGE_DOWN": 93,
+    "A": 29, "KEY_A": 29, "B": 30, "KEY_B": 30,
+    "RED": 183, "PROG_RED": 183, "GREEN": 184, "PROG_GREEN": 184,
+    "YELLOW": 185, "PROG_YELLOW": 185, "BLUE": 186, "PROG_BLUE": 186,
+    "0": 7, "1": 8, "2": 9, "3": 10, "4": 11, "5": 12, "6": 13,
+    "7": 14, "8": 15, "9": 16,
+}
+
+# Từ khóa fallback xác định tab khi nav-selected không có trong dump.
+TAB_KEYWORDS = [
+    (6, ["herofilmplay", "herofilmsave", "homebillboard", "heropager"]),
+    (5, ["phim", "nguonc", "btnheroplay", "apple pill", "phim bộ", "phim lẻ", "tiếp tục xem", "rạp phim tại gia"]),
+    (4, ["settingslist", "cài đặt", "chất lượng video", "báo lỗi"]),
+    (3, ["searchinput", "resultlist", "tìm kiếm"]),
+    (2, ["iptv", "kênh tv", "channel", "vtv", "htv"]),
+    (1, ["schedlist", "schedcard", "lịch thi đấu", "hôm nay", "ngày mai"]),
+    (0, ["livelist", "cardroot", "socolive", "colatv", "gà vàng", "khán đài", "trực tiếp"]),
+]
+NAV_ID_TO_TAB = {
+    "nav_home": 6, "nav_live": 0, "nav_schedule": 1, "nav_iptv": 2,
+    "nav_search": 3, "nav_settings": 4, "nav_phim": 5,
+}
+
+
+def sh(cmd, timeout=30):
+    try:
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        return (r.stdout or "") + (r.stderr or "")
+    except Exception as e:
+        return "__ERR__ %s" % e
+
+
+class RealtimeDevice:
+    """ADB + uiautomator + screencap, không phụ thuộc model AI."""
+
+    def __init__(self, serial=None, pkg=PKG):
+        self.serial = serial
+        self.adb = "adb -s %s" % serial if serial else "adb"
+        self.pkg = pkg
+        self.action_history = []
+        self._reported_anomaly_keys = set()
+        self._last_logcat_len = 0
+
+    # -- app lifecycle -------------------------------------------------
+    def launch_app(self):
+        t0 = time.time()
+        sh("%s shell am start -n %s/.MainActivity" % (self.adb, self.pkg))
+        while time.time() - t0 < 25:
+            if self.is_app_in_foreground():
+                return round((time.time() - t0) * 1000)
+            time.sleep(0.2)
+        return -1
+
+    def is_app_in_foreground(self):
+        out = sh("%s shell dumpsys window 2>/dev/null | grep -m1 mCurrentFocus" % self.adb)
+        return self.pkg in out
+
+    def current_activity(self):
+        out = sh("%s shell dumpsys activity activities 2>/dev/null | grep -m1 -E 'mResumedActivity|topResumedActivity'" % self.adb)
+        m = re.search(r"([A-Za-z0-9_.]+)/([.A-Za-z0-9_]+)", out)
+        return "%s/%s" % (m.group(1), m.group(2)) if m else "?"
+
+    # -- input ---------------------------------------------------------
+    def _note(self, label):
+        self.action_history.append(label)
+        if len(self.action_history) > 20:
+            self.action_history.pop(0)
+
+    def send_key(self, key_name):
+        code = KEY_MAP.get((key_name or "DPAD_DOWN").upper(), 20)
+        sh("%s shell input keyevent %d" % (self.adb, code))
+        self._note(key_name)
+
+    def send_long_press(self, key_name="OK", duration_ms=1500):
+        code = KEY_MAP.get((key_name or "OK").upper(), 23)
+        res = sh("%s shell input keyevent --longpress %d" % (self.adb, code))
+        if "__ERR__" in res or "unrecognized" in res.lower() or "error" in res.lower():
+            state = self.dump_ui_state()
+            b = state.get("focused_bounds")
+            if b:
+                mm = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                if mm:
+                    x1, y1, x2, y2 = map(int, mm.groups())
+                    sh("%s shell input swipe %d %d %d %d %d" % (self.adb, (x1 + x2) // 2, (y1 + y2) // 2, (x1 + x2) // 2, (y1 + y2) // 2, duration_ms))
+                else:
+                    sh("%s shell input swipe 960 540 960 540 %d" % (self.adb, duration_ms))
+            else:
+                sh("%s shell input swipe 960 540 960 540 %d" % (self.adb, duration_ms))
+        self._note("LONG_PRESS(%s)" % key_name)
+
+    def send_keypad_digits(self, digits_str):
+        for ch in str(digits_str):
+            if ch in KEY_MAP:
+                sh("%s shell input keyevent %d" % (self.adb, KEY_MAP[ch]))
+                time.sleep(0.18)
+        self._note("KEYPAD(%s)" % digits_str)
+
+    def input_text(self, text):
+        safe = re.sub(r"[^a-zA-Z0-9_-]", "", text)
+        sh('%s shell input text "%s"' % (self.adb, safe))
+        self._note("TEXT(%s)" % text)
+
+    def switch_tab(self, tab_index):
+        sh("%s shell am start -n %s/.MainActivity --ei tab %d -f 0x04000000" % (self.adb, self.pkg, int(tab_index)))
+        self._note("SWITCH_TAB(%d)" % int(tab_index))
+
+    def open_home(self):
+        self.switch_tab(6)
+        self._note("OPEN_HOME_HUB")
+
+    def launch_web_player(self):
+        """Deep-link open=webplayer (F44): MainActivity tự resolve tập embed thật."""
+        sh("%s shell am start -n %s/.MainActivity --es open webplayer" % (self.adb, self.pkg))
+        self._note("LAUNCH_WEB_PLAYER")
+
+    def launch_vod_player(self):
+        """Deep-link open=vodplayer: PlayerActivity mặt VOD, tập m3u8 thật."""
+        sh("%s shell am start -n %s/.MainActivity --es open vodplayer" % (self.adb, self.pkg))
+        self._note("LAUNCH_VOD_PLAYER")
+
+    # -- perception inputs ---------------------------------------------
+    def screencap_bytes(self):
+        try:
+            raw = subprocess.run(("%s exec-out screencap -p" % self.adb).split(),
+                                 capture_output=True, timeout=20).stdout
+            return raw if len(raw) > 5000 else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def is_blank(png_bytes):
+        if not png_bytes or not Image or not ImageStat:
+            return False
+        try:
+            im = Image.open(io.BytesIO(png_bytes)).convert("L").resize((64, 64))
+            stat = ImageStat.Stat(im)
+            return stat.stddev[0] < 4.0 or stat.mean[0] < 2.0
+        except Exception:
+            return False
+
+    @staticmethod
+    def pixel_diff(png_a, png_b, size=(160, 90)):
+        """% khác biệt trung bình giữa 2 frame (PIL thuần). -1.0 nếu lỗi."""
+        if not png_a or not png_b or not Image:
+            return -1.0
+        try:
+            a = Image.open(io.BytesIO(png_a)).convert("RGB").resize(size)
+            b = Image.open(io.BytesIO(png_b)).convert("RGB").resize(size)
+            diff = ImageChops.difference(a, b).convert("L")
+            return float(ImageStat.Stat(diff).mean[0] / 255.0 * 100.0)
+        except Exception:
+            return -1.0
+
+    def dump_ui_state(self):
+        """Đọc cây UI qua uiautomator. Trả dict dùng chung cho gate/detector/driver.
+        Gộp rm + dump + cat vào MỘT lần gọi adb (CI-T2: mỗi observe gọi 3 lần
+        adb riêng cho dump, cộng với dumpsys activity — nút thắt tốc độ)."""
+        xml_text = sh("%s shell 'rm -f /sdcard/uidump.xml; uiautomator dump /sdcard/uidump.xml >/dev/null 2>&1; cat /sdcard/uidump.xml' 2>/dev/null" % self.adb, timeout=20)
+        if "<hierarchy" not in xml_text:
+            time.sleep(0.25)
+            xml_text = sh("%s shell 'uiautomator dump --compressed /sdcard/uidump.xml >/dev/null 2>&1; cat /sdcard/uidump.xml' 2>/dev/null" % self.adb, timeout=20)
+
+        focused_sig, focused_text, focused_bounds = "NONE", "", None
+        focusable_nodes, summary_lines, all_visible_texts = [], [], []
+        all_visible_nodes = []  # CI-T5: (id, text, bounds) để driver biết
+        # badge "SẮP ĐÁ"/"LIVE" có nằm trên cùng thẻ với view đang focus không
+        # (chỉ có r_id + text thì không gắn được badge với thẻ).
+        selected_ids, has_dialog = [], False
+        dialog_ids = []
+        # ID dialog đã biết (cập nhật sau CI-T1): btnCloseFeedback = nút đóng
+        # của dialog chào mừng "THÔNG BÁO" lần đầu; dialogBtnClose = nút đóng
+        # của dialog chọn tập. dialog_ids trả về để driver phân biệt dialog
+        # chặn (welcome) với dialog đích (roomList/episodeList/...).
+        dialog_id_set = ("dialogTitle", "roomList", "episodeList", "ivTelegramQr",
+                         "btnOpenTelegram", "alertTitle", "btnCloseFeedback",
+                         "dialogBtnClose")
+        if "<hierarchy" in xml_text:
+            try:
+                start = xml_text.find("<hierarchy")
+                end = xml_text.rfind("</hierarchy>")
+                if start != -1 and end != -1:
+                    xml_text = xml_text[start:end + len("</hierarchy>")]
+                root = ET.fromstring(xml_text.strip())
+                for elem in root.iter("node"):
+                    a = elem.attrib
+                    is_focused = a.get("focused") == "true"
+                    is_focusable = a.get("focusable") == "true"
+                    txt = (a.get("text", "") or a.get("content-desc", "")).strip()
+                    r_id = a.get("resource-id", "").split("/")[-1]
+                    bounds = a.get("bounds", "")
+                    # Lọc node ngoài viewport (CI-T4, reviewer): RecyclerView
+                    # giữ cả node chưa cuộn tới trong dump — text của chúng
+                    # KHÔNG có trên màn hình nhưng vẫn lọt vào
+                    # all_visible_texts, làm (a) fake-score tố giá trị không
+                    # có trên frame trích dẫn, (b) gate PASS nhờ text chỉ
+                    # tồn tại ở node offscreen (VD 'mới cập nhật' chưa cuộn
+                    # tới). Node không parse được bounds thì giữ lại (không
+                    # chứng minh được là ngoài màn hình).
+                    _in_view = True
+                    if bounds:
+                        _m = re.findall(r"-?\d+", bounds)
+                        if len(_m) >= 4:
+                            _x1, _y1, _x2, _y2 = map(int, _m[:4])
+                            _in_view = _x2 > 0 and _y2 > 0 and _x1 < 1920 and _y1 < 1080
+                    if a.get("selected") == "true" and r_id:
+                        selected_ids.append(r_id)
+                    if txt and _in_view:
+                        all_visible_texts.append((r_id, txt))
+                        all_visible_nodes.append({"id": r_id, "text": txt, "bounds": bounds})
+                    if r_id in dialog_id_set:
+                        has_dialog = True
+                        if r_id not in dialog_ids:
+                            dialog_ids.append(r_id)
+                    if is_focusable:
+                        focusable_nodes.append({"id": r_id, "text": txt, "bounds": bounds, "focused": is_focused})
+                        marker = "[FOCUSED] " if is_focused else "          "
+                        summary_lines.append("%s%s ('%s') %s" % (marker, r_id or "view", txt[:25], bounds))
+                    if is_focused:
+                        focused_sig = "%s#%s" % (r_id or "view", bounds)
+                        focused_text = txt
+                        focused_bounds = bounds
+            except Exception:
+                pass
+        return {
+            "focused_sig": focused_sig,
+            "focused_text": focused_text,
+            "focused_bounds": focused_bounds,
+            "focusable_count": len(focusable_nodes),
+            "all_visible_texts": all_visible_texts,
+            "all_visible_nodes": all_visible_nodes,
+            "has_dialog": has_dialog,
+            "dialog_ids": dialog_ids,
+            "selected_ids": selected_ids,
+            "ui_summary": "\n".join(summary_lines[:25]) or "(Không tìm thấy focusable view)",
+        }
+
+    def detect_tab_index(self, ui_state):
+        """Ưu tiên nav-selected, fallback từ khóa nội dung. None = không xác định."""
+        for r_id in (ui_state.get("selected_ids") or []):
+            if r_id in NAV_ID_TO_TAB:
+                return NAV_ID_TO_TAB[r_id]
+        visible_ids = " ".join(r for r, _ in (ui_state.get("all_visible_texts") or []))
+        blob = (ui_state.get("ui_summary", "") + " " + ui_state.get("focused_sig", "")
+                + " " + ui_state.get("focused_text", "") + " " + visible_ids).lower()
+        for t_idx, kws in TAB_KEYWORDS:
+            if any(k in blob for k in kws):
+                return t_idx
+        return None
+
+    def detect_focus_ring(self, png_bytes, focused_bounds_str):
+        """Viền focus cam/amber/trắng/cyan quanh bounds đang focus (PIL thuần)."""
+        if not png_bytes or not Image or not focused_bounds_str:
+            return False, "UNKNOWN", 0.0
+        try:
+            m = re.findall(r"\d+", focused_bounds_str)
+            if len(m) < 4:
+                return False, "INVALID_BOUNDS", 0.0
+            x1, y1, x2, y2 = map(int, m[:4])
+            im = Image.open(io.BytesIO(png_bytes)).convert("RGB")
+            W, H = im.size
+            if not (0 <= x1 < x2 <= W and 0 <= y1 < y2 <= H):
+                return False, "OUT_OF_BOUNDS", 0.0
+            pad = 6
+            crop = im.crop((max(0, x1 - pad), max(0, y1 - pad), min(W, x2 + pad), min(H, y2 + pad)))
+            px = crop.load()
+            cw, ch = crop.size
+            orange = white = cyan = total = 0
+
+            def scan(pxset):
+                nonlocal orange, white, cyan, total
+                for (x, y) in pxset:
+                    total += 1
+                    r, g, b = px[x, y]
+                    if r > 180 and 45 < g < 185 and b < 85:
+                        orange += 1
+                    elif r > 215 and g > 215 and b > 215:
+                        white += 1
+                    elif r < 110 and g > 180 and b > 200:
+                        cyan += 1
+
+            ys = list(range(min(pad + 2, ch))) + list(range(max(0, ch - pad - 2), ch))
+            scan([(x, y) for y in set(ys) for x in range(0, cw, 2)])
+            xs = list(range(min(pad + 2, cw))) + list(range(max(0, cw - pad - 2), cw))
+            scan([(x, y) for x in set(xs) for y in range(0, ch, 2)])
+            matched = orange + white + cyan
+            color = "ORANGE" if orange >= white and orange >= cyan else ("WHITE" if white >= cyan else "CYAN")
+            return matched > (total * 0.12), color, matched / max(1, total)
+        except Exception:
+            return False, "ERR", 0.0
+
+    # -- telemetry -----------------------------------------------------
+    def get_pss_memory_mb(self):
+        out = sh("%s shell dumpsys meminfo %s 2>/dev/null | grep -E 'TOTAL PSS:|TOTAL:' | head -1" % (self.adb, self.pkg))
+        m = re.search(r"(\d+)", out)
+        return round(int(m.group(1)) / 1024.0, 1) if m else -1.0
+
+    def checkpoint_logcat(self):
+        lines = sh("%s logcat -d -v threadtime" % self.adb, timeout=20).splitlines()
+        self._last_logcat_len = len(lines)
+
+    def get_new_logcat_alerts(self):
+        cur = sh("%s logcat -d -v threadtime" % self.adb, timeout=25).splitlines()
+        last_len = getattr(self, "_last_logcat_len", 0)
+        new_lines = cur[last_len:] if len(cur) >= last_len else cur
+        self._last_logcat_len = len(cur)
+        alerts = []
+        for i, line in enumerate(new_lines):
+            if "FATAL EXCEPTION" in line or "AndroidRuntime: FATAL" in line:
+                alerts.append("CRASH: %s" % line[:120])
+            elif "ANR in %s" % self.pkg in line:
+                alerts.append("ANR: %s" % line[:120])
+            elif "OutOfMemoryError" in line:
+                alerts.append("OOM: %s" % line[:120])
+            elif "ExoPlayer" in line and ("error" in line.lower() or "failure" in line.lower()):
+                alerts.append("PLAYER_ERR: %s" % line[:100])
+            elif "Choreographer" in line and "Skipped" in line:
+                mm = re.search(r"Skipped\s+(\d+)\s+frames", line)
+                if mm and int(mm.group(1)) >= 45:
+                    alerts.append("UI_JANK: Bỏ lỡ %s frames" % mm.group(1))
+        return alerts[:5]

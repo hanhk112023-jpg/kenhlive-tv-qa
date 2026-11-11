@@ -1,0 +1,260 @@
+name: QA-Realtime-Trial
+
+# Trial workflow — từ CI-T3 chạy trên main (đã merge 54287ff + QA):
+# `gh workflow run qa-realtime-trial.yml --ref main -f quick=false`
+# cho full 17 mission. Push trigger giữ lại cho nhánh trial (không dùng nữa
+# sau khi merge, không chạm main).
+on:
+  workflow_dispatch:
+    inputs:
+      quick:
+        description: 'Chế độ nhanh (5 mission trọng tâm: Cold Start, Home, IPTV, Phim, Player Settings)'
+        type: boolean
+        default: true
+  push:
+    branches: [qa-realtime-trial]
+
+# Tier 1: job QA chỉ đọc code và upload artifact, không cần ghi contents.
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build debug APK
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          chmod +x gradlew
+          # services.gradle.org hay timeout/504: thu lai toi 3 lan, moi lan cach 30s
+          OK=0
+          for i in 1 2 3; do
+            if ./gradlew assembleDebug --no-daemon; then OK=1; break; else echo "gradle attempt $i that bai, cho 30s roi thu lai"; sleep 30; fi
+          done
+          [ "$OK" = "1" ] || { echo "::error::Gradle build that bai sau 3 lan"; exit 1; }
+          if [ -f app/build/outputs/apk/debug/app-universal-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-universal-debug.apk app/build/outputs/apk/debug/app-debug.apk
+          fi
+
+      # proxy VN — json.vnres.co chặn IP datacenter
+      # ƯU TIÊN node tĩnh YUNA_PROXY_YAML (không phụ thuộc dashboard.yunagrp.com — hay chết)
+      - name: Set up proxy VN
+        env:
+          SUB_URL: ${{ secrets.YUNA_SUB_URL }}
+          STATIC_YAML: ${{ secrets.YUNA_PROXY_YAML }}
+        run: |
+          set -euo pipefail
+          MH=$(ls /usr/local/bin/mihomo 2>/dev/null || true)
+          if [ -z "$MH" ]; then
+            VER=v1.19.30
+            curl -sSL -o /tmp/mihomo.gz "https://github.com/MetaCubeX/mihomo/releases/download/${VER}/mihomo-linux-amd64-${VER}.gz"
+            gunzip -f /tmp/mihomo.gz && install -m 0750 /tmp/mihomo /usr/local/bin/mihomo
+          fi
+          if [ -n "$STATIC_YAML" ]; then
+            echo "dung node tinh YUNA_PROXY_YAML"
+            printf '%s\n' "$STATIC_YAML" > /tmp/mihomo_ci.yaml
+          else
+            OK=0
+            for try in 1 2 3 4; do
+              if curl -sSL -m 40 -H 'User-Agent: clash-verge/1.6.6' -o /tmp/sub_full.yaml "$SUB_URL" && [ -s /tmp/sub_full.yaml ] && grep -q "proxies" /tmp/sub_full.yaml; then OK=1; break; fi
+              echo "sub fetch attempt $try failed, retry in 20s"; sleep 20
+            done
+            [ "$OK" = "1" ] || { echo "::error::Khong tai duoc subscription Yuna sau 4 lan"; exit 1; }
+            python3 qa/ci_sub_to_yaml.py
+          fi
+          nohup mihomo -f /tmp/mihomo_ci.yaml -d /tmp/mihomo_ci > /tmp/mihomo.log 2>&1 &
+          sleep 4
+          echo "exit IP: $(curl -sS -m 15 -x http://127.0.0.1:7891 https://api.ipify.org || echo '?')"
+
+      - name: KVM permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install deps
+        run: |
+          sudo apt-get update -qq -o Acquire::http::Timeout=20 -o Acquire::Retries=3
+          # ffmpeg BẮT BUỘC: CI-T2 chứng minh runner không có ffmpeg/ffprobe
+          # (concat rc=127 'ffmpeg: not found' -> video chỉ còn 1 chunk 175s
+          # dù 13 chunk đã giữ được nhờ fix _dur). ffprobe đi kèm gói ffmpeg.
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg tesseract-ocr tesseract-ocr-vie
+          pip install --quiet pillow pytesseract
+
+      # AI Brain: Ưu tiên Google AI Studio (Gemini free tier) → NVIDIA NIM (free tier,
+      # OpenAI-compatible, có vision) → fallback Meteor gateway.
+      # Preflight chạy trên runner (mạng mở): chọn model vision tốt nhất và bắn thử 1 chat completion
+      # để fail-fast trước khi tốn thời gian dựng emulator.
+      - name: Preflight AI (chọn nhà cung cấp + model + kiểm tra key)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          METEOR_API_KEY: ${{ secrets.METEOR_API_KEY }}
+          METEOR_API_BASE: http://meteor.pikamc.vn:25155/v1
+        run: |
+          set -euo pipefail
+          if [ -n "$NVIDIA_API_KEY" ] && [ -z "$GEMINI_API_KEY" ]; then
+            echo "✅ Dùng NVIDIA NIM (OpenAI-compatible, free tier)"
+            echo "AI_PROVIDER=NVIDIA" >> "$GITHUB_ENV"
+            echo "AI_BASE_URL=https://integrate.api.nvidia.com/v1" >> "$GITHUB_ENV"
+            echo "AI_API_KEY=$NVIDIA_API_KEY" >> "$GITHUB_ENV"
+            curl -sS -m 30 -H "Authorization: Bearer $NVIDIA_API_KEY" \
+              "https://integrate.api.nvidia.com/v1/models" -o /tmp/models.json || true
+            MODEL=$(python3 - << 'PYEOF'
+          import json, sys
+          try:
+              ids = [m.get("id", "") for m in json.load(open("/tmp/models.json")).get("data", [])]
+          except Exception as e:
+              print(f"models parse error: {e}", file=sys.stderr); ids = []
+          print("MODELS: " + ", ".join(ids[:50]), file=sys.stderr)
+          # Ưu tiên model vision cho QA screenshot (test 2026-11-08: nemotron-3.5-super-vl
+          # nhanh nhat trong cac model chay duoc, 22s/anh; step-5 tra content rong nen bo ra)
+          pref = ["nemotron-3.5-super-vl", "gemma-4-31b", "llama-3.2-90b-vision", "llama-4-maverick",
+                  "nemotron-nano", "mistral-large"]
+          # Tra ve FULL model id khop pref (khong tra chuoi pref: "nemotron-3.5-super-vl"
+          # khong phai id hop le, goi API se 404 va brain roi ve LOCAL_REFLEX)
+          picked = next((i for p in pref for i in ids if p in i.lower()), "")
+          if not picked:
+              vis = [i for i in ids if "vision" in i.lower() or "vl" in i.lower()]
+              picked = vis[0] if vis else (ids[0] if ids else "")
+          print(picked)
+          PYEOF
+          )
+            [ -n "$MODEL" ] || MODEL="nvidia/nemotron-3.5-super-vl-120b-a12b"
+            echo "AI_MODEL=$MODEL" >> "$GITHUB_ENV"
+            echo "Model AI QA được chọn: $MODEL"
+            echo "Kiểm tra chat completion..."
+            curl -sS -m 40 -H "Authorization: Bearer $NVIDIA_API_KEY" -H "Content-Type: application/json" \
+              -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Tra loi dung mot tu: OK\"}],\"max_tokens\":256}" \
+              "https://integrate.api.nvidia.com/v1/chat/completions" | head -c 600; echo
+          elif [ -n "$GEMINI_API_KEY" ]; then
+            echo "✅ Dùng Google AI Studio (Gemini free tier, OpenAI-compatible)"
+            echo "AI_PROVIDER=GEMINI" >> "$GITHUB_ENV"
+            echo "AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai" >> "$GITHUB_ENV"
+            echo "AI_API_KEY=$GEMINI_API_KEY" >> "$GITHUB_ENV"
+            # Liệt kê model Gemini khả dụng
+            curl -sS -m 30 -H "Authorization: Bearer $GEMINI_API_KEY" \
+              "https://generativelanguage.googleapis.com/v1beta/openai/models" -o /tmp/models.json || true
+            MODEL=$(python3 - << 'PYEOF'
+          import json, sys
+          try:
+              ids = [m.get("id", "") for m in json.load(open("/tmp/models.json")).get("data", [])]
+          except Exception as e:
+              print(f"models parse error: {e}", file=sys.stderr); ids = []
+          print("MODELS: " + ", ".join(ids), file=sys.stderr)
+          # Ưu tiên Gemini Flash mới nhất (vision tốt, free tier 1500 req/ngày)
+          pref = ["gemini-3-flash", "gemini-2.5-flash", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.0-flash"]
+          # Tra ve FULL model id khop pref (xem ghi chu o nhanh NVIDIA)
+          picked = next((i for p in pref for i in ids if p in i.lower()), "")
+          if not picked:
+              vis = [i for i in ids if "gemini" in i.lower() or "gpt-4o" in i.lower() or "claude" in i.lower()]
+              picked = vis[0] if vis else (ids[0] if ids else "")
+          print(picked)
+          PYEOF
+          )
+            [ -n "$MODEL" ] || MODEL="gemini-2.5-flash"
+            echo "AI_MODEL=$MODEL" >> "$GITHUB_ENV"
+            echo "Model AI QA được chọn: $MODEL"
+            echo "Kiểm tra chat completion..."
+            curl -sS -m 40 -H "Authorization: Bearer $GEMINI_API_KEY" -H "Content-Type: application/json" \
+              -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Tra loi dung mot tu: OK\"}],\"max_tokens\":8}" \
+              "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" | head -c 600; echo
+          else
+            echo "⚠️ Chưa có GEMINI_API_KEY — fallback về Meteor gateway"
+            echo "AI_PROVIDER=METEOR" >> "$GITHUB_ENV"
+            echo "AI_BASE_URL=$METEOR_API_BASE" >> "$GITHUB_ENV"
+            echo "AI_API_KEY=$METEOR_API_KEY" >> "$GITHUB_ENV"
+            echo "Lấy danh sách model từ Meteor..."
+            curl -sS -m 30 -H "Authorization: Bearer $METEOR_API_KEY" "$METEOR_API_BASE/models" -o /tmp/models.json
+            head -c 2000 /tmp/models.json; echo
+            MODEL=$(python3 - << 'PYEOF'
+          import json, sys
+          try:
+              ids = [m.get("id", "") for m in json.load(open("/tmp/models.json")).get("data", [])]
+          except Exception as e:
+              print(f"models parse error: {e}", file=sys.stderr); ids = []
+          print("MODELS: " + ", ".join(ids), file=sys.stderr)
+          g38 = [i for i in ids if "gemini-3.8-flash" in i.lower()]
+          if g38:
+              high = [i for i in g38 if "high" in i.lower()]
+              picked = high[0] if high else g38[0]
+          else:
+              pref = ["gpt-4o", "gpt-4o-mini", "gemini-2.5-flash", "gemini-2.0-flash", "claude-sonnet-4-5", "deepseek-chat"]
+              picked = next((p for p in pref if p in ids), "")
+              if not picked:
+                  vis = [i for i in ids if "gpt-4o" in i or "gemini" in i or "claude" in i]
+                  picked = vis[0] if vis else (ids[0] if ids else "")
+          print(picked)
+          PYEOF
+          )
+            [ -n "$MODEL" ] || { echo "::error::Không chọn được model từ Meteor"; exit 1; }
+            echo "AI_MODEL=$MODEL" >> "$GITHUB_ENV"
+            echo "Model AI QA được chọn: $MODEL"
+            echo "Kiểm tra chat completion..."
+            curl -sS -m 40 -H "Authorization: Bearer $METEOR_API_KEY" -H "Content-Type: application/json" \
+              -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Tra loi dung mot tu: OK\"}],\"max_tokens\":8}" \
+              "$METEOR_API_BASE/chat/completions" | head -c 600; echo
+          fi
+
+      - name: Chạy Realtime Vision QA trên Android TV emulator
+        env:
+          # Meteor là AI Brain DUY NHẤT: các gateway cũ để trống có chủ đích để
+          # AIBrain._detect_provider chọn OPENAI (Meteor) làm engine chính.
+          DEEPSEEK_API_BASE: ""
+          ANTIGRAVITY_API_BASE: ""
+          ANTIGRAVITY_API_KEY: ""
+          KILO_API_KEY: ""
+          OPENAI_API_BASE: ${{ env.AI_BASE_URL }}
+          OPENAI_API_KEY: ${{ env.AI_API_KEY }}
+          OPENAI_MODEL: ${{ env.AI_MODEL }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86
+          target: android-tv
+          profile: tv_1080p
+          script: |
+            adb root
+            adb shell settings put global http_proxy 10.0.2.2:7891
+            adb shell wm size 1920x1080
+            adb shell wm density 320
+            adb shell settings put system accelerometer_rotation 0
+            adb shell settings put system user_rotation 0
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            # Launcher rieng cho test (module :testlauncher): HOME duy nhat, khong
+            # co YouTube de script bam mu lac sang (bai hoc UI-Tour 2026-11-05).
+            adb install -r testlauncher/build/outputs/apk/debug/testlauncher-debug.apk || true
+            adb shell pm disable-user com.google.android.youtube.tv >/dev/null 2>&1 || true
+            adb shell pm disable-user com.google.android.youtube.tv.kids >/dev/null 2>&1 || true
+            adb shell cmd package set-home-activity com.kenhlive.testlauncher/com.kenhlive.testlauncher.TestLauncherActivity >/dev/null 2>&1 || true
+            adb logcat -c
+            # CI-T2: full mode (17 mission) — đo wall time toàn bộ so với
+            # baseline 74m26s. Push dispatch không có inputs.quick nên ARGS=""
+            # là full mode; dispatch tay với quick=true thì chạy --quick.
+            ARGS=""
+            if [ "${{ inputs.quick }}" = "true" ]; then ARGS="--quick"; fi
+            mkdir -p qa_out /tmp/qa_report
+            # Harness mới: realtime (evidence-gated, vision chỉ khi cần).
+            # --quick: 5 mission trọng tâm. Ngân sách vision mặc định 40/run.
+            python3 qa/kenhlive_qa/realtime/run_realtime.py --out qa_out $ARGS || true
+            cp -r qa_out/* /tmp/qa_report/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-report-realtime
+          path: qa_out/
+
+      - name: Kết quả
+        if: always()
+        run: python3 qa/ci_report.py

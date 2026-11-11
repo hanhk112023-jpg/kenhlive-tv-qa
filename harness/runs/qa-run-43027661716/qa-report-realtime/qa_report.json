@@ -1,0 +1,637 @@
+{
+  "engine": "KenhLive Realtime Vision QA",
+  "score": 79,
+  "duration_sec": 887,
+  "missions_passed": "14/17",
+  "missions_unverified": 0,
+  "checks_passed": 14,
+  "checks_total": 17,
+  "checks": [
+    {
+      "name": "Khởi Động Lạnh & Màn Hình Chính",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (3 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "trang chủ"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 3,
+        "frame": "step_004_cold_sta.jpg"
+      }
+    },
+    {
+      "name": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "cola"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 4,
+        "frame": "step_008_sports_m.jpg"
+      }
+    },
+    {
+      "name": "Hộp Thoại Chọn Phòng BLV",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — OK mở PLAYER thay vì dialog đích: bấm OK trên thẻ trận mở com.kenhlive.tv/.PlayerActivity (không thấy dialog chọn phòng) — mission cần dialog, không phải player (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          ".PlayerActivity",
+          "MainActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.MainActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [
+          "blv"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 4,
+        "frame": "step_012_sports_r.jpg"
+      }
+    },
+    {
+      "name": "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (3 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "hôm nay"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 3,
+        "frame": "step_015_sports_d.jpg"
+      }
+    },
+    {
+      "name": "Trình Phát Video ExoPlayer & Phím Tắt",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 8 bước, còn thiếu: activity:PlayerActivity (đã thấy: ['.MainActivity', 'MainActivity', 'com.kenhlive.tv/.MainActivity']); motion: video chưa từng chuyển động; vision: chưa có xác nhận vision (8 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 8,
+        "frame": "step_023_player_s.jpg"
+      }
+    },
+    {
+      "name": "Trang Chủ: Billboard 60% + 6 Hàng (KL8 Task 4)",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "mới cập nhật",
+          "đang phát"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 4,
+        "frame": "step_027_home_bil.jpg"
+      }
+    },
+    {
+      "name": "Lịch Thi Đấu EPG & Chạm Trận Đấu",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (3 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "hôm nay"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 3,
+        "frame": "step_030_schedule.jpg"
+      }
+    },
+    {
+      "name": "Thanh Điều Hướng Sidebar Rail",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 7 bước, còn thiếu: view:railPanel (7 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 7,
+        "frame": "step_037_sidebar_.jpg"
+      }
+    },
+    {
+      "name": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          ".PlayerActivity",
+          "MainActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.MainActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [
+          "kênh"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 4,
+        "frame": "step_041_iptv_cat.jpg"
+      }
+    },
+    {
+      "name": "Hero Preview IPTV, EPG & Nhảy Kênh",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (3 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          ".PlayerActivity",
+          "MainActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.MainActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 3,
+        "frame": "step_044_iptv_epg.jpg"
+      }
+    },
+    {
+      "name": "Kho Phim NguonC & Apple Pills",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (3 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "kho phim"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 3,
+        "frame": "step_047_phim_ngu.jpg"
+      }
+    },
+    {
+      "name": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "tập"
+        ],
+        "views_seen": [],
+        "dialog_seen": true,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 4,
+        "frame": "step_051_phim_epi.jpg"
+      }
+    },
+    {
+      "name": "Trình Phát Web (WebPlayerActivity), Tua JS & Tiếp Tục Xem",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".phim.WebPlayerActivity",
+          "com.kenhlive.tv/.phim.WebPlayerActivity",
+          "phim.WebPlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [
+          {
+            "frame": "step_055_vod_play.jpg",
+            "t": 450.7,
+            "quote": "Tình Yêu Nguy Trang (2026) - Tập 01"
+          }
+        ],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 4,
+        "frame": "step_055_vod_play.jpg"
+      }
+    },
+    {
+      "name": "WebPlayer Có Định Hướng: Phim Embed Thật, Phát/Tạm Dừng/Tua/Tốc Độ",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".phim.WebPlayerActivity",
+          "com.kenhlive.tv/.phim.WebPlayerActivity",
+          "phim.WebPlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [
+          {
+            "frame": "step_059_webplaye.jpg",
+            "t": 511.0,
+            "quote": "Tình Yêu Nguy Trang (2026) - Tập 01 00:20 / 01:05:24"
+          }
+        ],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 4,
+        "frame": "step_059_webplaye.jpg"
+      }
+    },
+    {
+      "name": "Trình Phát Native, Dialog Cài Đặt Thống Nhất",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": true,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 4,
+        "frame": "step_063_player_s.jpg"
+      }
+    },
+    {
+      "name": "Tìm Kiếm & Cài Đặt (Báo Lỗi Telegram QR)",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "tìm kiếm"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 4,
+        "frame": "step_067_search_a.jpg"
+      }
+    },
+    {
+      "name": "Stress Chaos D-pad & Đo RAM PSS",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — stress: đi hết 6 bước, app còn foreground (6 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "playback_status": "unknown",
+        "playback_readings": [],
+        "steps": 6,
+        "frame": "step_073_dpad_cha.jpg"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "severity": "HIGH",
+      "area": "Player tiêu đề",
+      "issue": "Tiêu đề player đè đôi",
+      "detail": "Vision xác nhận chữ chồng trong vùng player_title: Tiêu đề player bên trái bị chồng chữ: 'Tình Yêu Trong Vỏ Bọc / Tình Yêu Ngụy Trang' đè lên 'Tình Yêu Ngụy Trang (2026) · Tập 01'",
+      "suggestion": "Chỉ hiện 1 dòng tiêu đề trong player, bỏ dòng trùng",
+      "evidence": {
+        "frame": "step_059_webplaye.jpg",
+        "video_t": 511.0,
+        "ui_state": ""
+      }
+    },
+    {
+      "severity": "MEDIUM",
+      "area": "Điều hướng Focus TV",
+      "issue": "Nghi vấn kẹt Focus (Focus Trap)",
+      "detail": "Gửi phím DPAD_DOWN liên tiếp nhưng tiêu điểm và nội dung giữ nguyên tại 'searchInput#[128,136][1688,228]'",
+      "suggestion": "Kiểm tra nextFocus hoặc ranh giới cuộn của RecyclerView",
+      "evidence": {
+        "frame": "step_067_search_a.jpg",
+        "video_t": 713.3,
+        "ui_state": "searchInput#[128,136][1688,228]"
+      }
+    }
+  ],
+  "unverified": [],
+  "vision_calls": {
+    "total": 5,
+    "by_reason": {
+      "confirm_target": 2,
+      "stuck_assist": 1,
+      "check_visual": 2
+    },
+    "provider": "OPENAI"
+  },
+  "timings": {
+    "steps": 72,
+    "observe_s": 419.3499999999999,
+    "vision_s": 93.2,
+    "vision_calls": 5,
+    "per_step_p50_s": 3.95,
+    "per_step_p95_s": 17.2,
+    "per_step_mean_s": 5.82,
+    "vision_latency_mean_s": 18.6,
+    "ocr_skipped_frames": 0
+  },
+  "verdict": "PASS",
+  "video": "full_qa_tour.mp4",
+  "video_speed_factor": 4.0,
+  "video_recorded_seconds": 702.8,
+  "vision_checks": [
+    {
+      "kind": "hero",
+      "frame": "step_027_home_bil.jpg",
+      "t": 206.1,
+      "crop": [
+        0,
+        140,
+        1920,
+        850
+      ],
+      "question": "Trong vùng hero này, có dòng giờ (VD '16:17') ĐÈ LÊN hoặc CHỒNG LÊN dòng phụ đề/tiêu đề bên dưới không? Đọc nguyên văn 2 dòng chữ bị chồng nếu có.",
+      "result": "not_found",
+      "detail": "Không thấy dòng giờ chồng lên tiêu đề hero. Văn bản '| PHIM MỚI CẤP NHẬT' hiển thị rõ ràng, không bị che khuất.",
+      "quote": "Bất đắc dĩ... 19:00 | Bất đắc dĩ... 19:00 | Bất đắc dĩ... 19:00 | | PHIM MỚI CẤP NHẬT | 12 phim | 여자친구 | LOG-off"
+    },
+    {
+      "kind": "player_title",
+      "frame": "step_059_webplaye.jpg",
+      "t": 511.0,
+      "crop": [
+        0,
+        0,
+        1920,
+        280
+      ],
+      "question": "Trong vùng tiêu đề player này, có đúng 2 DÒNG TIÊU ĐỀ CHỒNG LÊN NHAU không — dòng tiêu đề trên đè lên dòng tiêu đề dưới (VD 'Tình Yêu Trong Vỏ Bọc / Tình Yêu Ngụy Trang' đè lên 'Tình Yêu Ngụy Trang (2026) · Tập 01'), chữ chen nhau không đọc được? Đọc nguyên văn cả 2 dòng bị chồng nếu có.",
+      "result": "found",
+      "detail": "Tiêu đề player bên trái bị chồng chữ: 'Tình Yêu Trong Vỏ Bọc / Tình Yêu Ngụy Trang' đè lên 'Tình Yêu Ngụy Trang (2026) · Tập 01'",
+      "quote": "Tình Yêu Trong Vỏ Bọc / Tình Yêu Ngụy TrangTình Yêu Ngụy Trang (2026) · Tập 01 | Tập 01 | STREAMC HD"
+    }
+  ],
+  "defect_reel": "defect_reel.mp4",
+  "defect_reel_entries": [
+    {
+      "t": 511.0,
+      "video_t": 127.8,
+      "speed_factor": 4.0,
+      "frame": "step_059_webplaye.jpg",
+      "severity": "HIGH",
+      "issue": "Tiêu đề player đè đôi",
+      "covered": true,
+      "clamped": false,
+      "seg_start": 124.8,
+      "seg_s": 6.0
+    },
+    {
+      "t": 713.3,
+      "video_t": 178.3,
+      "speed_factor": 4.0,
+      "frame": "step_067_search_a.jpg",
+      "severity": "MEDIUM",
+      "issue": "Nghi vấn kẹt Focus (Focus Trap)",
+      "covered": false,
+      "clamped": true,
+      "seg_start": 169.8,
+      "seg_s": 6.0
+    }
+  ],
+  "defect_reel_coverage": {
+    "covered": 1,
+    "total": 2,
+    "clamped": 1,
+    "text": "1/2 finding (1 đoạn bị kẹp do vượt tour)"
+  },
+  "vision_provider": "OPENAI",
+  "vision_endpoint_host": "integrate.api.nvidia.com",
+  "nim_usage": {
+    "requests_used": 5,
+    "retries": 0,
+    "limit_per_min": 30,
+    "effective_limit_per_min": 30,
+    "hit_429": false,
+    "hits_429": 0,
+    "degraded_after_429": false,
+    "throttled_waits": 0,
+    "throttled_wait_s": 0.0,
+    "provider": "OPENAI",
+    "endpoint_host": "integrate.api.nvidia.com"
+  },
+  "screenshots": [
+    [
+      "MISSION_SPORTS_MULTI_SOURCE",
+      "shots/step_006_sports_m.jpg"
+    ],
+    [
+      "MISSION_SPORTS_ROOM_PICKER",
+      "shots/step_011_sports_r.jpg"
+    ],
+    [
+      "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+      "shots/step_016_player_s.jpg"
+    ],
+    [
+      "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+      "shots/step_021_player_s.jpg"
+    ],
+    [
+      "MISSION_HOME_BILLBOARD_6_ROWS",
+      "shots/step_026_home_bil.jpg"
+    ],
+    [
+      "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+      "shots/step_031_sidebar_.jpg"
+    ],
+    [
+      "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+      "shots/step_036_sidebar_.jpg"
+    ],
+    [
+      "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+      "shots/step_041_iptv_cat.jpg"
+    ],
+    [
+      "MISSION_PHIM_NGUONC_AND_CATEGORIES",
+      "shots/step_046_phim_ngu.jpg"
+    ],
+    [
+      "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+      "shots/step_051_phim_epi.jpg"
+    ],
+    [
+      "MISSION_WEBPLAYER_DIRECTED_REAL_FILM",
+      "shots/step_056_webplaye.jpg"
+    ],
+    [
+      "MISSION_PLAYER_SETTINGS_DIALOG",
+      "shots/step_061_player_s.jpg"
+    ],
+    [
+      "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+      "shots/step_066_search_a.jpg"
+    ],
+    [
+      "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+      "shots/step_067_search_a.jpg"
+    ],
+    [
+      "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+      "shots/step_071_dpad_cha.jpg"
+    ]
+  ]
+}

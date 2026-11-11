@@ -1,0 +1,2805 @@
+{
+  "session_id": "RT-1794386630",
+  "duration_sec": 1019,
+  "final_score": 32,
+  "video_tour": "full_qa_tour.mp4",
+  "timeline": [
+    {
+      "step_id": 1,
+      "step_in_mission": 1,
+      "time_offset_sec": 22.0,
+      "mission": {
+        "id": "MISSION_COLD_START",
+        "title": "Khởi Động Lạnh & Màn Hình Chính"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[144,472][590,584]",
+        "focused_text": "",
+        "focused_bounds": "[144,472][590,584]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 1.78,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.7,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 2,
+      "step_in_mission": 2,
+      "time_offset_sec": 25.1,
+      "mission": {
+        "id": "MISSION_COLD_START",
+        "title": "Khởi Động Lạnh & Màn Hình Chính"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,709][787,1080]",
+        "focused_text": "Philippines U17 0 - 0 Indonesia U17, TRỰC TIẾP, [ColaTV] BLV MONSTER",
+        "focused_bounds": "[109,709][787,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.34
+      },
+      "screenshot": "shots/step_003_mission_.jpg",
+      "observe_s": 1.83,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.7,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 3,
+      "step_in_mission": 3,
+      "time_offset_sec": 30.1,
+      "mission": {
+        "id": "MISSION_COLD_START",
+        "title": "Khởi Động Lạnh & Màn Hình Chính"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,709][787,1080]",
+        "focused_text": "Guam U17 vs Palestine U17, 14:30",
+        "focused_bounds": "[109,709][787,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.86
+      },
+      "screenshot": null,
+      "observe_s": 5.8,
+      "observe_breakdown": {
+        "wait": 2.01,
+        "dump": 1.69,
+        "detect": 2.06
+      }
+    },
+    {
+      "step_id": 4,
+      "step_in_mission": 1,
+      "time_offset_sec": 41.6,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,612][787,994]",
+        "focused_text": "Philippines U17 0 - 0 Indonesia U17, TRỰC TIẾP, [ColaTV] BLV MONSTER",
+        "focused_bounds": "[109,612][787,994]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.88
+      },
+      "screenshot": null,
+      "observe_s": 2.78,
+      "observe_breakdown": {
+        "wait": 0.02,
+        "dump": 2.63,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 5,
+      "step_in_mission": 2,
+      "time_offset_sec": 45.0,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,653][787,1035]",
+        "focused_text": "South East Melbourne 15 - 11 Illawarra Hawks, TRỰC TIẾP, [ColaTV] BLV 247",
+        "focused_bounds": "[109,653][787,1035]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.67
+      },
+      "screenshot": "shots/step_006_mission_.jpg",
+      "observe_s": 1.75,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.6,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 6,
+      "step_in_mission": 3,
+      "time_offset_sec": 48.1,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,653][787,1035]",
+        "focused_text": "Philippines U17 vs Indonesia U, TRỰC TIẾP, ZIZOU",
+        "focused_bounds": "[109,653][787,1035]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.66
+      },
+      "screenshot": null,
+      "observe_s": 2.38,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.7,
+        "detect": 0.64
+      }
+    },
+    {
+      "step_id": 7,
+      "step_in_mission": 4,
+      "time_offset_sec": 52.9,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[781,653][1459,1035]",
+        "focused_text": "Guam U17 vs Palestine U, TRỰC TIẾP, RICKHANTER",
+        "focused_bounds": "[781,653][1459,1035]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.62
+      },
+      "screenshot": null,
+      "observe_s": 2.93,
+      "observe_breakdown": {
+        "wait": 1.28,
+        "dump": 1.58,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 8,
+      "step_in_mission": 5,
+      "time_offset_sec": 57.9,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,653][787,1035]",
+        "focused_text": "South East Melbourne vs Illawarra Hawks, TRỰC TIẾP, BLV HENRY",
+        "focused_bounds": "[109,653][787,1035]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.01
+      },
+      "screenshot": null,
+      "observe_s": 3.66,
+      "observe_breakdown": {
+        "wait": 2.03,
+        "dump": 1.56,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 9,
+      "step_in_mission": 6,
+      "time_offset_sec": 61.9,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,78][787,460]",
+        "focused_text": "Philippines U17 vs Indonesia U, TRỰC TIẾP, ZIZOU",
+        "focused_bounds": "[109,78][787,460]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.62
+      },
+      "screenshot": null,
+      "observe_s": 3.7,
+      "observe_breakdown": {
+        "wait": 1.23,
+        "dump": 1.55,
+        "detect": 0.89
+      }
+    },
+    {
+      "step_id": 10,
+      "step_in_mission": 7,
+      "time_offset_sec": 66.8,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[781,78][1459,460]",
+        "focused_text": "Guam U17 vs Palestine U, TRỰC TIẾP, RICKHANTER",
+        "focused_bounds": "[781,78][1459,460]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.53
+      },
+      "screenshot": "shots/step_011_mission_.jpg",
+      "observe_s": 2.95,
+      "observe_breakdown": {
+        "wait": 1.28,
+        "dump": 1.55,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 11,
+      "step_in_mission": 8,
+      "time_offset_sec": 70.9,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,653][787,1035]",
+        "focused_text": "South East Melbourne vs Illawarra Hawks, TRỰC TIẾP, BLV HENRY",
+        "focused_bounds": "[109,653][787,1035]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.61
+      },
+      "screenshot": null,
+      "observe_s": 2.81,
+      "observe_breakdown": {
+        "wait": 1.2,
+        "dump": 1.54,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 12,
+      "step_in_mission": 1,
+      "time_offset_sec": 75.8,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,653][787,1035]",
+        "focused_text": "South East Melbourne vs Illawarra Hawks, TRỰC TIẾP, BLV HENRY",
+        "focused_bounds": "[109,653][787,1035]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 2.45,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.54,
+        "detect": 0.88
+      }
+    },
+    {
+      "step_id": 13,
+      "step_in_mission": 2,
+      "time_offset_sec": 79.6,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "blvCardRoot#[180,408][666,664]",
+        "focused_text": "",
+        "focused_bounds": "[180,408][666,664]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.44
+      },
+      "screenshot": null,
+      "observe_s": 1.66,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.59,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 14,
+      "step_in_mission": 3,
+      "time_offset_sec": 111.2,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "NONE",
+        "focused_text": "",
+        "focused_bounds": null,
+        "has_focus_ring": false,
+        "focus_ring_color": "UNKNOWN"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 30.38,
+      "observe_breakdown": {
+        "wait": 2.47,
+        "dump": 24.86,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 15,
+      "step_in_mission": 4,
+      "time_offset_sec": 118.5,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[272,256][718,368]",
+        "focused_text": "",
+        "focused_bounds": "[272,256][718,368]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 17.92
+      },
+      "screenshot": "shots/step_016_mission_.jpg",
+      "observe_s": 6.23,
+      "observe_breakdown": {
+        "wait": 2.6,
+        "dump": 1.56,
+        "detect": 1.96
+      }
+    },
+    {
+      "step_id": 16,
+      "step_in_mission": 5,
+      "time_offset_sec": 124.7,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "blvCardRoot#[180,408][666,664]",
+        "focused_text": "",
+        "focused_bounds": "[180,408][666,664]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.52
+      },
+      "screenshot": null,
+      "observe_s": 2.93,
+      "observe_breakdown": {
+        "wait": 1.3,
+        "dump": 1.55,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 17,
+      "step_in_mission": 6,
+      "time_offset_sec": 160.8,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "NONE",
+        "focused_text": "",
+        "focused_bounds": null,
+        "has_focus_ring": false,
+        "focus_ring_color": "UNKNOWN"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 34.82,
+      "observe_breakdown": {
+        "wait": 2.61,
+        "dump": 29.14,
+        "detect": 0.07
+      }
+    },
+    {
+      "step_id": 18,
+      "step_in_mission": 1,
+      "time_offset_sec": 183.4,
+      "mission": {
+        "id": "MISSION_SPORTS_DATA_ACCURACY",
+        "title": "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 1
+      },
+      "ui_state": {
+        "focused_view": "schedCard#[78,289][1842,493]",
+        "focused_text": "Guam U17 vs Palestine U17, AFC U17",
+        "focused_bounds": "[78,289][1842,493]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 4.21
+      },
+      "screenshot": null,
+      "observe_s": 6.1,
+      "observe_breakdown": {
+        "wait": 0.6,
+        "dump": 1.84,
+        "detect": 3.62
+      }
+    },
+    {
+      "step_id": 19,
+      "step_in_mission": 2,
+      "time_offset_sec": 191.4,
+      "mission": {
+        "id": "MISSION_SPORTS_DATA_ACCURACY",
+        "title": "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 1
+      },
+      "ui_state": {
+        "focused_view": "schedCard#[78,505][1842,709]",
+        "focused_text": "Maldives U17 vs Hong Kong U17, AFC U17",
+        "focused_bounds": "[78,505][1842,709]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.07
+      },
+      "screenshot": null,
+      "observe_s": 3.18,
+      "observe_breakdown": {
+        "wait": 1.53,
+        "dump": 1.58,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 20,
+      "step_in_mission": 3,
+      "time_offset_sec": 196.3,
+      "mission": {
+        "id": "MISSION_SPORTS_DATA_ACCURACY",
+        "title": "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 1
+      },
+      "ui_state": {
+        "focused_view": "schedCard#[78,721][1842,925]",
+        "focused_text": "Mongolia U17 vs Yemen U17, AFC U17",
+        "focused_bounds": "[78,721][1842,925]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.01
+      },
+      "screenshot": "shots/step_021_mission_.jpg",
+      "observe_s": 3.73,
+      "observe_breakdown": {
+        "wait": 2.06,
+        "dump": 1.56,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 21,
+      "step_in_mission": 1,
+      "time_offset_sec": 202.5,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer & Phím Tắt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,180][787,562]",
+        "focused_text": "South East Melbourne 0 - 0 Illawarra Hawks, TRỰC TIẾP, [Giờ Vàng] BLV DIEC",
+        "focused_bounds": "[109,180][787,562]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.96
+      },
+      "screenshot": "shots/step_022_mission_.jpg",
+      "observe_s": 2.69,
+      "observe_breakdown": {
+        "wait": 0.15,
+        "dump": 1.6,
+        "detect": 0.85
+      }
+    },
+    {
+      "step_id": 22,
+      "step_in_mission": 2,
+      "time_offset_sec": 208.3,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer & Phím Tắt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "blvCardRoot#[180,408][666,664]",
+        "focused_text": "",
+        "focused_bounds": "[180,408][666,664]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.82
+      },
+      "screenshot": null,
+      "observe_s": 3.69,
+      "observe_breakdown": {
+        "wait": 2.08,
+        "dump": 1.54,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 23,
+      "step_in_mission": 3,
+      "time_offset_sec": 238.3,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer & Phím Tắt"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "NONE",
+        "focused_text": "",
+        "focused_bounds": null,
+        "has_focus_ring": false,
+        "focus_ring_color": "UNKNOWN"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 28.84,
+      "observe_breakdown": {
+        "wait": 2.28,
+        "dump": 23.51,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 24,
+      "step_in_mission": 4,
+      "time_offset_sec": 244.8,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer & Phím Tắt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 0
+      },
+      "ui_state": {
+        "focused_view": "blvCardRoot#[98,750][614,1039]",
+        "focused_text": "",
+        "focused_bounds": "[98,750][614,1039]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 6.68
+      },
+      "screenshot": null,
+      "observe_s": 5.53,
+      "observe_breakdown": {
+        "wait": 2.62,
+        "dump": 1.69,
+        "detect": 1.18
+      }
+    },
+    {
+      "step_id": 25,
+      "step_in_mission": 5,
+      "time_offset_sec": 277.5,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer & Phím Tắt"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "NONE",
+        "focused_text": "",
+        "focused_bounds": null,
+        "has_focus_ring": false,
+        "focus_ring_color": "UNKNOWN"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": "shots/step_026_mission_.jpg",
+      "observe_s": 23.03,
+      "observe_breakdown": {
+        "wait": 1.4,
+        "dump": 21.55,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 26,
+      "step_in_mission": 1,
+      "time_offset_sec": 292.2,
+      "mission": {
+        "id": "MISSION_HOME_BILLBOARD_6_ROWS",
+        "title": "Trang Chủ: Billboard 60% + 6 Hàng (KL8 Task 4)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,356][787,738]",
+        "focused_text": "Philippines U17 0 - 0 Indonesia U17, TRỰC TIẾP, [ColaTV] BLV MONSTER",
+        "focused_bounds": "[109,356][787,738]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.35
+      },
+      "screenshot": "shots/step_027_mission_.jpg",
+      "observe_s": 1.69,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.57,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 27,
+      "step_in_mission": 2,
+      "time_offset_sec": 296.5,
+      "mission": {
+        "id": "MISSION_HOME_BILLBOARD_6_ROWS",
+        "title": "Trang Chủ: Billboard 60% + 6 Hàng (KL8 Task 4)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,709][787,1080]",
+        "focused_text": "Guam U17 vs Palestine U17, 14:30",
+        "focused_bounds": "[109,709][787,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.63
+      },
+      "screenshot": null,
+      "observe_s": 3.98,
+      "observe_breakdown": {
+        "wait": 1.42,
+        "dump": 1.56,
+        "detect": 0.96
+      }
+    },
+    {
+      "step_id": 28,
+      "step_in_mission": 3,
+      "time_offset_sec": 301.9,
+      "mission": {
+        "id": "MISSION_HOME_BILLBOARD_6_ROWS",
+        "title": "Trang Chủ: Billboard 60% + 6 Hàng (KL8 Task 4)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "view#[117,331][499,1080]",
+        "focused_text": "",
+        "focused_bounds": "[117,331][499,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 6.04
+      },
+      "screenshot": null,
+      "observe_s": 3.27,
+      "observe_breakdown": {
+        "wait": 1.61,
+        "dump": 1.56,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 29,
+      "step_in_mission": 4,
+      "time_offset_sec": 304.8,
+      "mission": {
+        "id": "MISSION_HOME_BILLBOARD_6_ROWS",
+        "title": "Trang Chủ: Billboard 60% + 6 Hàng (KL8 Task 4)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "view#[509,331][891,1036]",
+        "focused_text": "",
+        "focused_bounds": "[509,331][891,1036]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.95
+      },
+      "screenshot": null,
+      "observe_s": 1.69,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.57,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 30,
+      "step_in_mission": 1,
+      "time_offset_sec": 310.9,
+      "mission": {
+        "id": "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+        "title": "Lịch Thi Đấu EPG & Chạm Trận Đấu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 1
+      },
+      "ui_state": {
+        "focused_view": "schedCard#[78,289][1842,493]",
+        "focused_text": "Guam U17 vs Palestine U17, AFC U17",
+        "focused_bounds": "[78,289][1842,493]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 4.3
+      },
+      "screenshot": "shots/step_031_mission_.jpg",
+      "observe_s": 2.41,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.57,
+        "detect": 0.67
+      }
+    },
+    {
+      "step_id": 31,
+      "step_in_mission": 2,
+      "time_offset_sec": 316.5,
+      "mission": {
+        "id": "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+        "title": "Lịch Thi Đấu EPG & Chạm Trận Đấu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 1
+      },
+      "ui_state": {
+        "focused_view": "schedCard#[78,505][1842,709]",
+        "focused_text": "Maldives U17 vs Hong Kong U17, AFC U17",
+        "focused_bounds": "[78,505][1842,709]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.07
+      },
+      "screenshot": null,
+      "observe_s": 3.65,
+      "observe_breakdown": {
+        "wait": 2.01,
+        "dump": 1.57,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 32,
+      "step_in_mission": 3,
+      "time_offset_sec": 320.5,
+      "mission": {
+        "id": "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+        "title": "Lịch Thi Đấu EPG & Chạm Trận Đấu"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 1
+      },
+      "ui_state": {
+        "focused_view": "schedCard#[78,721][1842,925]",
+        "focused_text": "Mongolia U17 vs Yemen U17, AFC U17",
+        "focused_bounds": "[78,721][1842,925]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.01
+      },
+      "screenshot": null,
+      "observe_s": 2.83,
+      "observe_breakdown": {
+        "wait": 1.21,
+        "dump": 1.55,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 33,
+      "step_in_mission": 1,
+      "time_offset_sec": 327.2,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[144,0][590,112]",
+        "focused_text": "",
+        "focused_bounds": "[144,0][590,112]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 2.44,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.58,
+        "detect": 0.83
+      }
+    },
+    {
+      "step_id": 34,
+      "step_in_mission": 2,
+      "time_offset_sec": 330.8,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "nav_home#[362,0][563,112]",
+        "focused_text": "",
+        "focused_bounds": "[362,0][563,112]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.03
+      },
+      "screenshot": null,
+      "observe_s": 1.62,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.55,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 35,
+      "step_in_mission": 3,
+      "time_offset_sec": 333.6,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "view#[117,331][499,1080]",
+        "focused_text": "",
+        "focused_bounds": "[117,331][499,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 5.35
+      },
+      "screenshot": "shots/step_036_mission_.jpg",
+      "observe_s": 1.69,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.57,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 36,
+      "step_in_mission": 4,
+      "time_offset_sec": 336.6,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "nav_home#[362,0][563,112]",
+        "focused_text": "",
+        "focused_bounds": "[362,0][563,112]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.57
+      },
+      "screenshot": null,
+      "observe_s": 2.83,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.56,
+        "detect": 1.22
+      }
+    },
+    {
+      "step_id": 37,
+      "step_in_mission": 5,
+      "time_offset_sec": 340.6,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "view#[117,331][499,1080]",
+        "focused_text": "",
+        "focused_bounds": "[117,331][499,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.57
+      },
+      "screenshot": null,
+      "observe_s": 1.7,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.6,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 38,
+      "step_in_mission": 6,
+      "time_offset_sec": 343.6,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "nav_home#[362,0][563,112]",
+        "focused_text": "",
+        "focused_bounds": "[362,0][563,112]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.57
+      },
+      "screenshot": null,
+      "observe_s": 1.68,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.59,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 39,
+      "step_in_mission": 7,
+      "time_offset_sec": 346.5,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "view#[117,331][499,1080]",
+        "focused_text": "",
+        "focused_bounds": "[117,331][499,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.57
+      },
+      "screenshot": null,
+      "observe_s": 3.77,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.58,
+        "detect": 2.14
+      }
+    },
+    {
+      "step_id": 40,
+      "step_in_mission": 1,
+      "time_offset_sec": 357.2,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "btnHeroWatch#[536,192][872,304]",
+        "focused_text": "XEM KÊNH",
+        "focused_bounds": "[536,192][872,304]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": "shots/step_041_mission_.jpg",
+      "observe_s": 4.35,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 4.11,
+        "detect": 0.07
+      }
+    },
+    {
+      "step_id": 41,
+      "step_in_mission": 2,
+      "time_offset_sec": 366.1,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "groupTitle#[128,409][276,493]",
+        "focused_text": "VTV",
+        "focused_bounds": "[128,409][276,493]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 5.1,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 4.95,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 42,
+      "step_in_mission": 3,
+      "time_offset_sec": 384.2,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[250,532][758,818]",
+        "focused_text": "",
+        "focused_bounds": "[250,532][758,818]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 17.12,
+      "observe_breakdown": {
+        "wait": 8.07,
+        "dump": 6.38,
+        "detect": 2.63
+      }
+    },
+    {
+      "step_id": 43,
+      "step_in_mission": 4,
+      "time_offset_sec": 394.4,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[746,880][1254,1080]",
+        "focused_text": "",
+        "focused_bounds": "[746,880][1254,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.06
+      },
+      "screenshot": null,
+      "observe_s": 2.97,
+      "observe_breakdown": {
+        "wait": 1.36,
+        "dump": 1.55,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 44,
+      "step_in_mission": 5,
+      "time_offset_sec": 397.5,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[250,871][758,1080]",
+        "focused_text": "",
+        "focused_bounds": "[250,871][758,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.66
+      },
+      "screenshot": null,
+      "observe_s": 1.85,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.78,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 45,
+      "step_in_mission": 6,
+      "time_offset_sec": 402.6,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[250,523][758,809]",
+        "focused_text": "",
+        "focused_bounds": "[250,523][758,809]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.78
+      },
+      "screenshot": "shots/step_046_mission_.jpg",
+      "observe_s": 4.64,
+      "observe_breakdown": {
+        "wait": 2.01,
+        "dump": 1.79,
+        "detect": 0.72
+      }
+    },
+    {
+      "step_id": 46,
+      "step_in_mission": 7,
+      "time_offset_sec": 406.2,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[746,523][1254,809]",
+        "focused_text": "",
+        "focused_bounds": "[746,523][1254,809]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.29
+      },
+      "screenshot": null,
+      "observe_s": 1.64,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.57,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 47,
+      "step_in_mission": 8,
+      "time_offset_sec": 411.4,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[746,532][1254,818]",
+        "focused_text": "",
+        "focused_bounds": "[746,532][1254,818]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.42
+      },
+      "screenshot": "shots/step_048_mission_.jpg",
+      "observe_s": 3.89,
+      "observe_breakdown": {
+        "wait": 2.22,
+        "dump": 1.55,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 48,
+      "step_in_mission": 9,
+      "time_offset_sec": 416.7,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[746,871][1254,929]",
+        "focused_text": "",
+        "focused_bounds": "[746,871][1254,929]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.85
+      },
+      "screenshot": null,
+      "observe_s": 12.19,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 3.89,
+        "detect": 8.22
+      }
+    },
+    {
+      "step_id": 49,
+      "step_in_mission": 10,
+      "time_offset_sec": 432.5,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[1170,871][1678,1080]",
+        "focused_text": "",
+        "focused_bounds": "[1170,871][1678,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 4.7,
+      "observe_breakdown": {
+        "wait": 2.15,
+        "dump": 2.45,
+        "detect": 0.06
+      }
+    },
+    {
+      "step_id": 50,
+      "step_in_mission": 1,
+      "time_offset_sec": 447.5,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, EPG & Nhảy Kênh"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[1170,871][1678,1080]",
+        "focused_text": "",
+        "focused_bounds": "[1170,871][1678,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": "shots/step_051_mission_.jpg",
+      "observe_s": 5.03,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 4.79,
+        "detect": 0.06
+      }
+    },
+    {
+      "step_id": 51,
+      "step_in_mission": 2,
+      "time_offset_sec": 459.1,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, EPG & Nhảy Kênh"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": 4
+      },
+      "ui_state": {
+        "focused_view": "backBtn#[128,32][372,108]",
+        "focused_text": "◀ QUAY LẠI",
+        "focused_bounds": "[128,32][372,108]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 9.11,
+      "observe_breakdown": {
+        "wait": 2.56,
+        "dump": 2.91,
+        "detect": 0.6
+      }
+    },
+    {
+      "step_id": 52,
+      "step_in_mission": 3,
+      "time_offset_sec": 466.9,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, EPG & Nhảy Kênh"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[1170,871][1678,1080]",
+        "focused_text": "",
+        "focused_bounds": "[1170,871][1678,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 5.72,
+      "observe_breakdown": {
+        "wait": 2.65,
+        "dump": 3.0,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 53,
+      "step_in_mission": 4,
+      "time_offset_sec": 479.6,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, EPG & Nhảy Kênh"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": 4
+      },
+      "ui_state": {
+        "focused_view": "backBtn#[128,32][372,108]",
+        "focused_text": "◀ QUAY LẠI",
+        "focused_bounds": "[128,32][372,108]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 9.86,
+      "observe_breakdown": {
+        "wait": 2.59,
+        "dump": 4.05,
+        "detect": 0.1
+      }
+    },
+    {
+      "step_id": 54,
+      "step_in_mission": 5,
+      "time_offset_sec": 488.8,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, EPG & Nhảy Kênh"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[1170,871][1678,1080]",
+        "focused_text": "",
+        "focused_bounds": "[1170,871][1678,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 13.73,
+      "observe_breakdown": {
+        "wait": 2.52,
+        "dump": 5.19,
+        "detect": 5.98
+      }
+    },
+    {
+      "step_id": 55,
+      "step_in_mission": 6,
+      "time_offset_sec": 507.0,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, EPG & Nhảy Kênh"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": 4
+      },
+      "ui_state": {
+        "focused_view": "backBtn#[128,32][372,108]",
+        "focused_text": "◀ QUAY LẠI",
+        "focused_bounds": "[128,32][372,108]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": "shots/step_056_mission_.jpg",
+      "observe_s": 9.68,
+      "observe_breakdown": {
+        "wait": 1.87,
+        "dump": 4.57,
+        "detect": 0.06
+      }
+    },
+    {
+      "step_id": 56,
+      "step_in_mission": 7,
+      "time_offset_sec": 516.3,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, EPG & Nhảy Kênh"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 2
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[1170,871][1678,1080]",
+        "focused_text": "",
+        "focused_bounds": "[1170,871][1678,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 7.74,
+      "observe_breakdown": {
+        "wait": 2.61,
+        "dump": 5.01,
+        "detect": 0.06
+      }
+    },
+    {
+      "step_id": 57,
+      "step_in_mission": 1,
+      "time_offset_sec": 529.4,
+      "mission": {
+        "id": "MISSION_PHIM_NGUONC_AND_CATEGORIES",
+        "title": "Kho Phim NguonC & Apple Pills"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5
+      },
+      "ui_state": {
+        "focused_view": "nav_home#[362,0][563,112]",
+        "focused_text": "",
+        "focused_bounds": "[362,0][563,112]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.51
+      },
+      "screenshot": null,
+      "observe_s": 3.76,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 2.77,
+        "detect": 0.92
+      }
+    },
+    {
+      "step_id": 58,
+      "step_in_mission": 2,
+      "time_offset_sec": 534.5,
+      "mission": {
+        "id": "MISSION_PHIM_NGUONC_AND_CATEGORIES",
+        "title": "Kho Phim NguonC & Apple Pills"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5
+      },
+      "ui_state": {
+        "focused_view": "btnHeroPlay#[134,518][490,602]",
+        "focused_text": "▶  PHÁT",
+        "focused_bounds": "[134,518][490,602]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.42
+      },
+      "screenshot": null,
+      "observe_s": 3.0,
+      "observe_breakdown": {
+        "wait": 1.31,
+        "dump": 1.58,
+        "detect": 0.06
+      }
+    },
+    {
+      "step_id": 59,
+      "step_in_mission": 3,
+      "time_offset_sec": 537.5,
+      "mission": {
+        "id": "MISSION_PHIM_NGUONC_AND_CATEGORIES",
+        "title": "Kho Phim NguonC & Apple Pills"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5
+      },
+      "ui_state": {
+        "focused_view": "tvFilterTitle#[128,769][325,859]",
+        "focused_text": "Tất Cả",
+        "focused_bounds": "[128,769][325,859]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.07
+      },
+      "screenshot": null,
+      "observe_s": 1.77,
+      "observe_breakdown": {
+        "wait": 0.09,
+        "dump": 1.58,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 60,
+      "step_in_mission": 1,
+      "time_offset_sec": 542.5,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5
+      },
+      "ui_state": {
+        "focused_view": "tvFilterTitle#[128,769][325,859]",
+        "focused_text": "Tất Cả",
+        "focused_bounds": "[128,769][325,859]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": "shots/step_061_mission_.jpg",
+      "observe_s": 3.25,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.56,
+        "detect": 1.56
+      }
+    },
+    {
+      "step_id": 61,
+      "step_in_mission": 2,
+      "time_offset_sec": 547.2,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5
+      },
+      "ui_state": {
+        "focused_view": "btnHeroBackHome#[45,45][155,155]",
+        "focused_text": "Về trang chủ",
+        "focused_bounds": "[45,45][155,155]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.04
+      },
+      "screenshot": null,
+      "observe_s": 1.77,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.65,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 62,
+      "step_in_mission": 3,
+      "time_offset_sec": 552.2,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[109,356][787,738]",
+        "focused_text": "Philippines U17 0 - 0 Indonesia U17, TRỰC TIẾP, [ColaTV] BLV MONSTER",
+        "focused_bounds": "[109,356][787,738]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 3.21
+      },
+      "screenshot": "shots/step_063_mission_.jpg",
+      "observe_s": 3.71,
+      "observe_breakdown": {
+        "wait": 1.95,
+        "dump": 1.65,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 63,
+      "step_in_mission": 4,
+      "time_offset_sec": 557.2,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5
+      },
+      "ui_state": {
+        "focused_view": "btnHeroBackHome#[45,45][155,155]",
+        "focused_text": "Về trang chủ",
+        "focused_bounds": "[45,45][155,155]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 3.82
+      },
+      "screenshot": null,
+      "observe_s": 4.71,
+      "observe_breakdown": {
+        "wait": 1.88,
+        "dump": 1.65,
+        "detect": 1.12
+      }
+    },
+    {
+      "step_id": 64,
+      "step_in_mission": 5,
+      "time_offset_sec": 563.5,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[144,0][590,112]",
+        "focused_text": "",
+        "focused_bounds": "[144,0][590,112]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 3.72
+      },
+      "screenshot": null,
+      "observe_s": 3.68,
+      "observe_breakdown": {
+        "wait": 1.97,
+        "dump": 1.64,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 65,
+      "step_in_mission": 6,
+      "time_offset_sec": 568.1,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5
+      },
+      "ui_state": {
+        "focused_view": "btnHeroBackHome#[45,45][155,155]",
+        "focused_text": "Về trang chủ",
+        "focused_bounds": "[45,45][155,155]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 3.72
+      },
+      "screenshot": "shots/step_066_mission_.jpg",
+      "observe_s": 3.42,
+      "observe_breakdown": {
+        "wait": 1.66,
+        "dump": 1.57,
+        "detect": 0.06
+      }
+    },
+    {
+      "step_id": 66,
+      "step_in_mission": 7,
+      "time_offset_sec": 573.0,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[144,0][590,112]",
+        "focused_text": "",
+        "focused_bounds": "[144,0][590,112]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 2.97
+      },
+      "screenshot": null,
+      "observe_s": 4.28,
+      "observe_breakdown": {
+        "wait": 1.92,
+        "dump": 1.57,
+        "detect": 0.75
+      }
+    },
+    {
+      "step_id": 67,
+      "step_in_mission": 8,
+      "time_offset_sec": 576.7,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5
+      },
+      "ui_state": {
+        "focused_view": "btnHeroBackHome#[45,45][155,155]",
+        "focused_text": "Về trang chủ",
+        "focused_bounds": "[45,45][155,155]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 3.72
+      },
+      "screenshot": null,
+      "observe_s": 1.66,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.6,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 68,
+      "step_in_mission": 9,
+      "time_offset_sec": 580.1,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[144,0][590,112]",
+        "focused_text": "",
+        "focused_bounds": "[144,0][590,112]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 3.72
+      },
+      "screenshot": null,
+      "observe_s": 2.19,
+      "observe_breakdown": {
+        "wait": 0.45,
+        "dump": 1.64,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 69,
+      "step_in_mission": 1,
+      "time_offset_sec": 587.3,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua JS & Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.phim.WebPlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "view#[0,0][1920,1080]",
+        "focused_text": "Player",
+        "focused_bounds": "[0,0][1920,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 28.23
+      },
+      "screenshot": null,
+      "observe_s": 4.35,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 2.86,
+        "detect": 1.38
+      }
+    },
+    {
+      "step_id": 70,
+      "step_in_mission": 2,
+      "time_offset_sec": 606.7,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua JS & Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.phim.WebPlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "view#[0,0][1920,1080]",
+        "focused_text": "Player",
+        "focused_bounds": "[0,0][1920,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": "shots/step_071_mission_.jpg",
+      "observe_s": 14.91,
+      "observe_breakdown": {
+        "wait": 0.68,
+        "dump": 14.08,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 71,
+      "step_in_mission": 3,
+      "time_offset_sec": 613.0,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua JS & Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.phim.WebPlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "view#[0,0][1920,1080]",
+        "focused_text": "Player",
+        "focused_bounds": "[0,0][1920,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 12.3
+      },
+      "screenshot": null,
+      "observe_s": 4.98,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 4.86,
+        "detect": 0.06
+      }
+    },
+    {
+      "step_id": 72,
+      "step_in_mission": 4,
+      "time_offset_sec": 617.2,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua JS & Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.phim.WebPlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "view#[0,0][1920,1080]",
+        "focused_text": "Player",
+        "focused_bounds": "[0,0][1920,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 7.68
+      },
+      "screenshot": null,
+      "observe_s": 3.24,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 2.55,
+        "detect": 0.62
+      }
+    },
+    {
+      "step_id": 73,
+      "step_in_mission": 1,
+      "time_offset_sec": 686.6,
+      "mission": {
+        "id": "MISSION_WEBPLAYER_DIRECTED_REAL_FILM",
+        "title": "WebPlayer Có Định Hướng: Phim Embed Thật, Phát/Tạm Dừng/Tua/Tốc Độ"
+      },
+      "activity": "com.kenhlive.tv/.phim.WebPlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "view#[0,0][1920,1080]",
+        "focused_text": "Player",
+        "focused_bounds": "[0,0][1920,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 3.6
+      },
+      "screenshot": null,
+      "observe_s": 3.8,
+      "observe_breakdown": {
+        "wait": 1.42,
+        "dump": 2.29,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 74,
+      "step_in_mission": 2,
+      "time_offset_sec": 690.6,
+      "mission": {
+        "id": "MISSION_WEBPLAYER_DIRECTED_REAL_FILM",
+        "title": "WebPlayer Có Định Hướng: Phim Embed Thật, Phát/Tạm Dừng/Tua/Tốc Độ"
+      },
+      "activity": "com.kenhlive.tv/.phim.WebPlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "view#[0,0][1920,1080]",
+        "focused_text": "Player",
+        "focused_bounds": "[0,0][1920,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 12.3
+      },
+      "screenshot": null,
+      "observe_s": 2.57,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 2.49,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 75,
+      "step_in_mission": 3,
+      "time_offset_sec": 695.5,
+      "mission": {
+        "id": "MISSION_WEBPLAYER_DIRECTED_REAL_FILM",
+        "title": "WebPlayer Có Định Hướng: Phim Embed Thật, Phát/Tạm Dừng/Tua/Tốc Độ"
+      },
+      "activity": "com.kenhlive.tv/.phim.WebPlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "view#[0,0][1920,1080]",
+        "focused_text": "Player",
+        "focused_bounds": "[0,0][1920,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 8.46
+      },
+      "screenshot": "shots/step_076_mission_.jpg",
+      "observe_s": 4.44,
+      "observe_breakdown": {
+        "wait": 1.36,
+        "dump": 2.19,
+        "detect": 0.78
+      }
+    },
+    {
+      "step_id": 76,
+      "step_in_mission": 4,
+      "time_offset_sec": 699.4,
+      "mission": {
+        "id": "MISSION_WEBPLAYER_DIRECTED_REAL_FILM",
+        "title": "WebPlayer Có Định Hướng: Phim Embed Thật, Phát/Tạm Dừng/Tua/Tốc Độ"
+      },
+      "activity": "com.kenhlive.tv/.phim.WebPlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "view#[0,0][1920,1080]",
+        "focused_text": "Player",
+        "focused_bounds": "[0,0][1920,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 6.0
+      },
+      "screenshot": null,
+      "observe_s": 1.77,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.65,
+        "detect": 0.05
+      }
+    },
+    {
+      "step_id": 77,
+      "step_in_mission": 1,
+      "time_offset_sec": 790.1,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native, Dialog Cài Đặt Thống Nhất"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "NONE",
+        "focused_text": "",
+        "focused_bounds": null,
+        "has_focus_ring": false,
+        "focus_ring_color": "UNKNOWN"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 37.42,
+      "observe_breakdown": {
+        "wait": 8.12,
+        "dump": 26.21,
+        "detect": 0.08
+      }
+    },
+    {
+      "step_id": 78,
+      "step_in_mission": 2,
+      "time_offset_sec": 808.6,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native, Dialog Cài Đặt Thống Nhất"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "select_dialog_listview#[432,305][1488,785]",
+        "focused_text": "",
+        "focused_bounds": "[432,305][1488,785]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 20.27,
+      "observe_breakdown": {
+        "wait": 8.13,
+        "dump": 3.38,
+        "detect": 5.7
+      }
+    },
+    {
+      "step_id": 79,
+      "step_in_mission": 3,
+      "time_offset_sec": 831.2,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native, Dialog Cài Đặt Thống Nhất"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "select_dialog_listview#[432,305][1488,785]",
+        "focused_text": "",
+        "focused_bounds": "[432,305][1488,785]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 14.97,
+      "observe_breakdown": {
+        "wait": 8.12,
+        "dump": 3.59,
+        "detect": 0.1
+      }
+    },
+    {
+      "step_id": 80,
+      "step_in_mission": 4,
+      "time_offset_sec": 849.2,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native, Dialog Cài Đặt Thống Nhất"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null
+      },
+      "ui_state": {
+        "focused_view": "select_dialog_listview#[432,305][1488,785]",
+        "focused_text": "",
+        "focused_bounds": "[432,305][1488,785]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": "shots/step_081_mission_.jpg",
+      "observe_s": 15.5,
+      "observe_breakdown": {
+        "wait": 8.15,
+        "dump": 4.01,
+        "detect": 0.1
+      }
+    },
+    {
+      "step_id": 81,
+      "step_in_mission": 1,
+      "time_offset_sec": 868.5,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm & Cài Đặt (Báo Lỗi Telegram QR)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 3
+      },
+      "ui_state": {
+        "focused_view": "searchInput#[128,136][1688,228]",
+        "focused_text": "Tìm trận đấu, kênh, phim, BLV…",
+        "focused_bounds": "[128,136][1688,228]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.3
+      },
+      "screenshot": null,
+      "observe_s": 4.72,
+      "observe_breakdown": {
+        "wait": 1.33,
+        "dump": 1.58,
+        "detect": 1.77
+      }
+    },
+    {
+      "step_id": 82,
+      "step_in_mission": 2,
+      "time_offset_sec": 873.1,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm & Cài Đặt (Báo Lỗi Telegram QR)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 3
+      },
+      "ui_state": {
+        "focused_view": "view#[128,332][356,416]",
+        "focused_text": "AFC U17",
+        "focused_bounds": "[128,332][356,416]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.12
+      },
+      "screenshot": null,
+      "observe_s": 1.62,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.55,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 83,
+      "step_in_mission": 3,
+      "time_offset_sec": 877.5,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm & Cài Đặt (Báo Lỗi Telegram QR)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 3
+      },
+      "ui_state": {
+        "focused_view": "srCard#[78,499][1842,696]",
+        "focused_text": "Philippines U17 vs Indonesia U",
+        "focused_bounds": "[78,499][1842,696]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.53
+      },
+      "screenshot": null,
+      "observe_s": 3.2,
+      "observe_breakdown": {
+        "wait": 1.57,
+        "dump": 1.56,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 84,
+      "step_in_mission": 4,
+      "time_offset_sec": 880.4,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm & Cài Đặt (Báo Lỗi Telegram QR)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 3
+      },
+      "ui_state": {
+        "focused_view": "srCard#[78,499][1842,696]",
+        "focused_text": "Philippines U17 vs Indonesia U",
+        "focused_bounds": "[78,499][1842,696]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 2.43,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.6,
+        "detect": 0.8
+      }
+    },
+    {
+      "step_id": 85,
+      "step_in_mission": 1,
+      "time_offset_sec": 884.5,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Stress Chaos D-pad & Đo RAM PSS"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 3
+      },
+      "ui_state": {
+        "focused_view": "srCard#[78,499][1842,696]",
+        "focused_text": "Philippines U17 vs Indonesia U",
+        "focused_bounds": "[78,499][1842,696]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": "shots/step_086_mission_.jpg",
+      "observe_s": 1.7,
+      "observe_breakdown": {
+        "wait": 0.01,
+        "dump": 1.56,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 86,
+      "step_in_mission": 2,
+      "time_offset_sec": 889.5,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Stress Chaos D-pad & Đo RAM PSS"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 3
+      },
+      "ui_state": {
+        "focused_view": "srCard#[78,700][1842,897]",
+        "focused_text": "Guam U17 vs Palestine U",
+        "focused_bounds": "[78,700][1842,897]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 0.91
+      },
+      "screenshot": null,
+      "observe_s": 3.7,
+      "observe_breakdown": {
+        "wait": 2.06,
+        "dump": 1.56,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 87,
+      "step_in_mission": 3,
+      "time_offset_sec": 893.6,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Stress Chaos D-pad & Đo RAM PSS"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 3
+      },
+      "ui_state": {
+        "focused_view": "srCard#[78,833][1842,1030]",
+        "focused_text": "Cambodia U17 vs Afghanistan U",
+        "focused_bounds": "[78,833][1842,1030]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 1.17
+      },
+      "screenshot": null,
+      "observe_s": 3.6,
+      "observe_breakdown": {
+        "wait": 1.2,
+        "dump": 1.55,
+        "detect": 0.81
+      }
+    },
+    {
+      "step_id": 88,
+      "step_in_mission": 4,
+      "time_offset_sec": 897.2,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Stress Chaos D-pad & Đo RAM PSS"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 3
+      },
+      "ui_state": {
+        "focused_view": "srCard#[78,833][1842,1030]",
+        "focused_text": "Cambodia U17 vs Afghanistan U",
+        "focused_bounds": "[78,833][1842,1030]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "screenshot": null,
+      "observe_s": 1.65,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.58,
+        "detect": 0.03
+      }
+    },
+    {
+      "step_id": 89,
+      "step_in_mission": 5,
+      "time_offset_sec": 900.1,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Stress Chaos D-pad & Đo RAM PSS"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 3
+      },
+      "ui_state": {
+        "focused_view": "srCard#[78,833][1842,1030]",
+        "focused_text": "South East Melbourne vs Illawarra Hawks",
+        "focused_bounds": "[78,833][1842,1030]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.2
+      },
+      "screenshot": null,
+      "observe_s": 1.64,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.57,
+        "detect": 0.04
+      }
+    },
+    {
+      "step_id": 90,
+      "step_in_mission": 6,
+      "time_offset_sec": 903.0,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Stress Chaos D-pad & Đo RAM PSS"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 3
+      },
+      "ui_state": {
+        "focused_view": "srCard#[78,833][1842,1030]",
+        "focused_text": "Pakistan U17 vs Iran U",
+        "focused_bounds": "[78,833][1842,1030]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.22
+      },
+      "screenshot": "shots/step_091_mission_.jpg",
+      "observe_s": 2.47,
+      "observe_breakdown": {
+        "wait": 0.0,
+        "dump": 1.58,
+        "detect": 0.79
+      }
+    }
+  ],
+  "stats": {
+    "total_steps": 90,
+    "defects_count": 5
+  },
+  "ai_brain": {
+    "provider": "OPENAI"
+  }
+}

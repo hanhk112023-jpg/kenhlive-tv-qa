@@ -1,0 +1,4951 @@
+{
+  "session_id": "QA-SESS-20261108-203340-660934",
+  "created_at": "2026-11-08T20:33:40.193306",
+  "duration_sec": 2820.6,
+  "final_score": 66,
+  "video_tour": "full_qa_tour.mp4",
+  "timelapse": "qa_timelapse.mp4",
+  "app": {
+    "package": "com.kenhlive.tv",
+    "version_name": "0.1.12",
+    "version_code": "162"
+  },
+  "git": {
+    "commit": "309926e",
+    "branch": "redesign/netflix"
+  },
+  "ci_run_id": "42520284499",
+  "ai_brain": {
+    "provider": "OPENAI"
+  },
+  "stats": {
+    "total_steps": 127,
+    "tabs_explored": 4,
+    "tabs_total": 7,
+    "tab_coverage_pct": 57.1,
+    "dpad_keypresses_total": 119,
+    "dpad_breakdown": {
+      "OK": 7,
+      "DPAD_UP": 37,
+      "DPAD_RIGHT": 35,
+      "BACK": 2,
+      "DPAD_LEFT": 19,
+      "MENU": 1,
+      "A": 1,
+      "B": 1,
+      "DPAD_DOWN": 16
+    },
+    "action_breakdown": {
+      "KEY": 119,
+      "COMPLETE_MISSION": 5,
+      "SWITCH_TAB": 2,
+      "WAIT": 1
+    },
+    "video_motion_checks": 0,
+    "auto_failovers_observed": 0,
+    "defects_count": 4
+  },
+  "tabs_coverage": [
+    {
+      "tab_index": 0,
+      "name": "Trực Tiếp (Live)",
+      "icon": "⚽",
+      "visits_or_actions": 1,
+      "tested": true
+    },
+    {
+      "tab_index": 1,
+      "name": "Lịch Thi Đấu (Schedule)",
+      "icon": "📅",
+      "visits_or_actions": 0,
+      "tested": false
+    },
+    {
+      "tab_index": 2,
+      "name": "Truyền Hình (IPTV)",
+      "icon": "📺",
+      "visits_or_actions": 1,
+      "tested": true
+    },
+    {
+      "tab_index": 3,
+      "name": "Tìm Kiếm (Search)",
+      "icon": "🔍",
+      "visits_or_actions": 0,
+      "tested": false
+    },
+    {
+      "tab_index": 4,
+      "name": "Cài Đặt (Settings)",
+      "icon": "⚙️",
+      "visits_or_actions": 0,
+      "tested": false
+    },
+    {
+      "tab_index": 5,
+      "name": "Kho Phim (NguonC)",
+      "icon": "🎬",
+      "visits_or_actions": 115,
+      "tested": true
+    },
+    {
+      "tab_index": 6,
+      "name": "Cổng Chọn (Home Hub)",
+      "icon": "🏠",
+      "visits_or_actions": 3,
+      "tested": true
+    }
+  ],
+  "timeline": [
+    {
+      "step_id": 1,
+      "step_in_mission": 1,
+      "time_offset_sec": 23.6,
+      "mission": {
+        "id": "MISSION_COLD_START",
+        "title": "Khởi Động Lạnh, TTI & Hero Banner Rộng Rãi"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": null,
+        "name": "Không rõ",
+        "icon": "📱"
+      },
+      "ui_state": {
+        "focused_view": "btnCloseFeedback#[575,960][888,1048]",
+        "focused_text": "ĐÃ HIỂU / ĐÓNG",
+        "focused_bounds": "[575,960][888,1048]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Feedback dialog 'THÔNG BÁO' đang chặn màn hình chính. Focus hiện tại đang nằm tại btnCloseFeedback ('ĐÃ HIỂU / ĐÓNG'). Để tiếp tục nhiệm vụ MISSION_COLD_START (kiểm tra Hero Banner, đo TTI, đảm bảo màn hình chính không đen), cần đóng dialog này trước. Nhấn OK sẽ kích hoạt nút đóng và exposes nội dung MainActivity phía sau."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "OK",
+        "label": "🆗 OK (OK)",
+        "icon": "🆗"
+      },
+      "defect": null,
+      "screenshot": "shots/step_001_mission_.jpg"
+    },
+    {
+      "step_id": 2,
+      "step_in_mission": 2,
+      "time_offset_sec": 38.3,
+      "mission": {
+        "id": "MISSION_COLD_START",
+        "title": "Khởi Động Lạnh, TTI & Hero Banner Rộng Rãi"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,655][378,1080]",
+        "focused_text": "",
+        "focused_bounds": "[96,655][378,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Dialog đã được đóng thành công. Màn hình chính hiển thị đầy đủ nội dung: phần 'TRẬN CẢU SẮP ĐIỂN RA' với 3 trận đấu, phần 'PHIM ĐANG THỰNG HÀNH' với các bộ phim, và thanh điều hướng dưới. Focus hiện tại đang ở view đầu tiên trong rvTrending (phim đang trình hành). Để kiểm tra Hero Banner đã bỏ thẻ thống kê rác chưa và đảm bảo giao diện không bị đen, cần di chuyển focus lên phần trên cùng (rvNowPlaying/rvUpcoming) để quan sát kỹ các thẻ trận đấu."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_002_mission_.jpg"
+    },
+    {
+      "step_id": 3,
+      "step_in_mission": 3,
+      "time_offset_sec": 53.1,
+      "mission": {
+        "id": "MISSION_COLD_START",
+        "title": "Khởi Động Lạnh, TTI & Hero Banner Rộng Rãi"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,193][748,555]",
+        "focused_text": "Ceara vs America MG, 05:15",
+        "focused_bounds": "[96,193][748,555]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại đang ở cardRoot 'Ceara vs America MG, 05:15' trong phần rvUpcoming (y=193-555). Để kiểm tra Hero Banner ở trên cùng (rvNowPlaying, y=0-93) đã bỏ thẻ thống kê rác chưa, cần di chuyển focus lên phần trên cùng của màn hình. Màn hình không đen, nội dung đã nạp, nhưng có cảnh báo UI_JANK (bỏ lỡ 82 frames) cần ghi nhận."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_003_mission_.jpg"
+    },
+    {
+      "step_id": 4,
+      "step_in_mission": 4,
+      "time_offset_sec": 85.7,
+      "mission": {
+        "id": "MISSION_COLD_START",
+        "title": "Khởi Động Lạnh, TTI & Hero Banner Rộng Rãi"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,0][748,394]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,0][748,394]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại đang ở thẻ đầu tiên của hero banner 'Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI'. Màn hình chính đã nạp đầy đủ, không đen, hero banner hiển thị 3 thẻ trận đấu trực tiếp mà không có thẻ thống kê rác (không có bảng điểm '72:37 AZ 0-2 JUV' hay nội dung từ luồng video truyền hình). Tuy nhiên, theo nguyên tắc kiểm thử sâu, cần thực hiện thêm ít nhất 1-2 thao tác nữa trước khi complete mission để đảm bảo toàn diện. Tôi sẽ di chuyển focus sang thẻ thứ hai trong hero banner để kiểm tra xem có thẻ thống kê rác hay không."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_004_mission_.jpg"
+    },
+    {
+      "step_id": 5,
+      "step_in_mission": 5,
+      "time_offset_sec": 102.5,
+      "mission": {
+        "id": "MISSION_COLD_START",
+        "title": "Khởi Động Lạnh, TTI & Hero Banner Rộng Rãi"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[734,0][1405,394]",
+        "focused_text": "Fiorentina vs Juventus, TRỰC TIẾP, CÔNG CHẤT",
+        "focused_bounds": "[734,0][1405,394]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Đã hoàn thành 5 bước kiểm tra MISSION_COLD_START. Màn hình chính đã nạp đầy đủ dữ liệu, không bị đen màn hình. Hero Banner hiển thị 3 thẻ trận đấu trực tiếp hợp lệ (Atletico Madrid vs FC Barcelona, Fiorentina vs Juventus, RC Lens vs Marseille) với thông tin đúng: tên đội, trạng thái TRỰC TIẾP, số lượt xem, số phòng. Không có thẻ thống kê trận đấu rác (không có bảng điểm '72:37 AZ 0-2 JUV' hay nội dung từ luồng video truyền hình). Focus đã di chuyển qua các thẻ hero banner. Có cảnh báo UI_JANK (bỏ lỡ 82 frames) nhưng đây là vấn đề hiệu năng, không ảnh hưởng chức năng chính của mission."
+      },
+      "action": {
+        "type": "COMPLETE_MISSION",
+        "param": "",
+        "label": "🏁 Hoàn Thành Nhiệm Vụ",
+        "icon": "🏁"
+      },
+      "defect": {
+        "area": "MainActivity - Hero Banner / UI Performance",
+        "severity": "LOW",
+        "issue": "UI_JANK: Bỏ lỡ 82 frames khi khởi động lạnh",
+        "detail": "Logcat cảnh báo UI_JANK: Bỏ lỡ 82 frames trong quá trình nạp màn hình chính. Màn hình vẫn hiển thị đúng nội dung nhưng có thể có giật lag nhẹ khi render lần đầu.",
+        "suggestion": "Tối ưu hóa việc nạp dữ liệu hero banner và render danh sách thẻ trận đấu trên thread chính, sử dụng pagination hoặc lazy loading để giảm gánh nặng UI thread."
+      },
+      "screenshot": "shots/step_005_mission_.jpg"
+    },
+    {
+      "step_id": 6,
+      "step_in_mission": 1,
+      "time_offset_sec": 112.0,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu (Horizontal Rail Deep Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[734,0][1405,394]",
+        "focused_text": "Fiorentina vs Juventus, TRỰC TIẾP, CÔNG CHẤT",
+        "focused_bounds": "[734,0][1405,394]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Đang ở màn hình chính (MainActivity), focus tại thẻ Fiorentina vs Juventus trong hero banner. Để bắt đầu MISSION_SPORTS_MULTI_SOURCE, cần chuyển sang Tab 0 (Trực tiếp/Live) để kiểm tra các hàng đài độc lập (Socolive, ColaTV, Gà Vàng, Khán Đài) và cuộn ngang sâu. Sử dụng SWITCH_TAB để chuyển đến Tab 0."
+      },
+      "action": {
+        "type": "SWITCH_TAB",
+        "param": "0",
+        "label": "🔀 Chuyển ⚽ Trực Tiếp (Live)",
+        "icon": "⚽"
+      },
+      "defect": null,
+      "screenshot": "shots/step_006_mission_.jpg"
+    },
+    {
+      "step_id": 7,
+      "step_in_mission": 2,
+      "time_offset_sec": 132.4,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu (Horizontal Rail Deep Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[77,618][748,1036]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[77,618][748,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Đã chuyển thành công sang Tab 0 Trực tiếp. Focus hiện tại ở card đầu tiên 'Atletico Madrid vs FC Barcelona' trong rowList. Màn hình hiển thị hero section ở trên và danh sách trận đấu dưới. Để kiểm tra cuộn ngang sâu và các hàng đài độc lập, cần di chuyển focus sang phải để xem thêm các thẻ trận đấu khác và kiểm tra xem có emoji rác hay không."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_007_mission_.jpg"
+    },
+    {
+      "step_id": 8,
+      "step_in_mission": 3,
+      "time_offset_sec": 155.5,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu (Horizontal Rail Deep Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[734,618][1405,1036]",
+        "focused_text": "Fiorentina vs Juventus, TRỰC TIẾP, CÔNG CHẤT",
+        "focused_bounds": "[734,618][1405,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở thẻ Fiorentina vs Juventus (vị trí giữa). Để kiểm tra cuộn ngang sâu và biên phải, cần tiếp tục di chuyển sang phải để đến thẻ RC Lens vs Marseille (thẻ cuối cùng có thể thấy) và kiểm tra xem focus có bị kẹt ở biên phải hay không."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_008_mission_.jpg"
+    },
+    {
+      "step_id": 9,
+      "step_in_mission": 4,
+      "time_offset_sec": 167.0,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu (Horizontal Rail Deep Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[892,618][1563,1036]",
+        "focused_text": "RC Lens vs Marseille, TRỰC TIẾP, XUÂN SON",
+        "focused_bounds": "[892,618][1563,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở thẻ RC Lens vs Marseille (vị trí thứ 3). Có thẻ thứ 4 'CF Estrela Amadora SAD vs' đang hiển thị một phần ở biên phải (x=1568-1920). Để kiểm tra cuộn ngang sâu và biên phải, cần tiếp tục nhấn DPAD_RIGHT để xem focus có di chuyển sang thẻ thứ 4 hay bị kẹt, và kiểm tra xem có thêm thẻ nào khác bên ngoài màn hình hay không."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_009_mission_.jpg"
+    },
+    {
+      "step_id": 10,
+      "step_in_mission": 5,
+      "time_offset_sec": 229.1,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu (Horizontal Rail Deep Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[892,618][1563,1036]",
+        "focused_text": "CF Estrela Amadora SAD vs Benfica, TRỰC TIẾP, 5 LỬA",
+        "focused_bounds": "[892,618][1563,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở thẻ CF Estrela Amadora SAD vs Benfica (vị trí thứ 4). Có thẻ thứ 5 'FC Utrecht vs NEC Nijmege' đang hiển thị một phần ở biên phải (x=1568-1920). Để kiểm tra cuộn ngang sâu và biên phải, cần tiếp tục nhấn DPAD_RIGHT để xem focus có di chuyển sang thẻ thứ 5 hay bị kẹt ở biên phải, và kiểm tra xem có thêm thẻ nào khác bên ngoài màn hình hay không."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_010_mission_.jpg"
+    },
+    {
+      "step_id": 11,
+      "step_in_mission": 6,
+      "time_offset_sec": 242.7,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu (Horizontal Rail Deep Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[892,618][1563,1036]",
+        "focused_text": "FC Utrecht vs NEC Nijmegen, TRỰC TIẾP, REDBULL",
+        "focused_bounds": "[892,618][1563,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở thẻ FC Utrecht vs NEC Nijmegen (vị trí thứ 5). Có thẻ 'Rio Ave vs Sporting Braga' đang hiển thị một phần ở biên phải (x=1568-1920). Để kiểm tra cuộn ngang sâu và biên phải, cần tiếp tục nhấn DPAD_RIGHT để xem focus có di chuyển sang thẻ Rio Ave hay bị kẹt ở biên phải, và kiểm tra xem có thêm thẻ nào khác bên ngoài màn hình hay không."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_011_mission_.jpg"
+    },
+    {
+      "step_id": 12,
+      "step_in_mission": 7,
+      "time_offset_sec": 255.1,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu (Horizontal Rail Deep Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[892,618][1563,1036]",
+        "focused_text": "Rio Ave vs Sporting Braga, TRỰC TIẾP, QUỐC KHÁNH",
+        "focused_bounds": "[892,618][1563,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở thẻ Rio Ave vs Sporting Braga (vị trí thứ 6). Có thẻ 'TSG Hoffenheim vs Schalke' đang hiển thị một phần ở biên phải (x=1568-1920). Để kiểm tra cuộn ngang sâu và biên phải, cần tiếp tục nhấn DPAD_RIGHT để xem focus có di chuyển sang thẻ TSG Hoffenheim hay bị kẹt ở biên phải, và kiểm tra xem có thêm thẻ nào khác bên ngoài màn hình hay không."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_012_mission_.jpg"
+    },
+    {
+      "step_id": 13,
+      "step_in_mission": 8,
+      "time_offset_sec": 272.3,
+      "mission": {
+        "id": "MISSION_SPORTS_MULTI_SOURCE",
+        "title": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu (Horizontal Rail Deep Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[892,618][1563,1036]",
+        "focused_text": "TSG Hoffenheim vs Schalke, TRỰC TIẾP, A BỆU",
+        "focused_bounds": "[892,618][1563,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Đã hoàn thành 8 bước kiểm tra MISSION_SPORTS_MULTI_SOURCE. Focus đã di chuyển mượt mà qua 7+ thẻ trận đấu trong rowList (Atletico Madrid → Fiorentina → RC Lens → CF Estrela Amadora → FC Utrecht → Rio Ave → TSG Hoffenheim), với thẻ 'Chicago Bulls vs Philadel' hiển thị một phần ở biên phải. Điều hướng ngang hoạt động tốt, không kẹt focus, không có emoji rác [👁⏳⭐] trong bất kỳ thẻ nào. Viên focus chuẩn màu trắng hiển thị đúng trên mỗi thẻ. Tiêu chí đạt: tab lọc đài phản hồi chuẩn, D-pad di chuyển mượt mà, không có emoji rác."
+      },
+      "action": {
+        "type": "COMPLETE_MISSION",
+        "param": "",
+        "label": "🏁 Hoàn Thành Nhiệm Vụ",
+        "icon": "🏁"
+      },
+      "defect": null,
+      "screenshot": "shots/step_013_mission_.jpg"
+    },
+    {
+      "step_id": 14,
+      "step_in_mission": 1,
+      "time_offset_sec": 280.9,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV & Vòng Đời Dialog (RoomPicker & Tab Switch)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[892,618][1563,1036]",
+        "focused_text": "TSG Hoffenheim vs Schalke, TRỰC TIẾP, A BỆU",
+        "focused_bounds": "[892,618][1563,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại đang ở thẻ trận đấu 'TSG Hoffenheim vs Schalke, TRỰC TIẾP, A BỆU' trong Tab 0 Trực tiếp. Để bắt đầu MISSION_SPORTS_ROOM_PICKER, cần mở RoomPickerDialog bằng cách nhấn OK trên thẻ trận đấu đang focus. Theo mô tả app, chạm trận đấu sẽ mở RoomPicker hoặc thông báo nếu chưa có phòng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "OK",
+        "label": "🆗 OK (OK)",
+        "icon": "🆗"
+      },
+      "defect": null,
+      "screenshot": "shots/step_014_mission_.jpg"
+    },
+    {
+      "step_id": 15,
+      "step_in_mission": 2,
+      "time_offset_sec": 297.4,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV & Vòng Đời Dialog (RoomPicker & Tab Switch)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": null,
+        "name": "Không rõ",
+        "icon": "📱"
+      },
+      "ui_state": {
+        "focused_view": "view#[480,495][1440,672]",
+        "focused_text": "",
+        "focused_bounds": "[480,495][1440,672]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "RoomPickerDialog đã mở thành công hiển thị phòng BLV 'A BỆU (Lv.5)' cho trận TSG Hoffenheim vs Schalke. Focus hiện tại nằm trong dialog tại view phòng. Để kiểm tra vòng đời dialog theo tiêu chí missione (đóng bằng BACK và kiểm tra không rò rỉ focus đè lên các tab khác), cần nhấn BACK để đóng dialog và xác nhận focus quay lại thẻ trận đấu gốc mà không rò rỉ."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "BACK",
+        "label": "🔙 BACK (Back / Quay Lại)",
+        "icon": "🔙"
+      },
+      "defect": null,
+      "screenshot": "shots/step_015_mission_.jpg"
+    },
+    {
+      "step_id": 16,
+      "step_in_mission": 3,
+      "time_offset_sec": 309.0,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV & Vòng Đời Dialog (RoomPicker & Tab Switch)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[892,618][1563,1036]",
+        "focused_text": "TSG Hoffenheim vs Schalke, TRỰC TIẾP, A BỆU",
+        "focused_bounds": "[892,618][1563,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "RoomPickerDialog đã đóng thành công, focus quay lại thẻ trận đấu 'TSG Hoffenheim vs Schalke' trong Tab 0 Trực tiếp, không có rò rỉ focus lên các tab khác. Để hoàn thiện kiểm tra vòng đời dialog theo tiêu chí missione (đóng mở êm ái), cần mở lại RoomPickerDialog một lần nữa bằng OK trên cùng thẻ trận đấu, sau đó đóng bằng BACK để xác nhận tính ổn định của việc mở/đóng dialog."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "OK",
+        "label": "🆗 OK (OK)",
+        "icon": "🆗"
+      },
+      "defect": null,
+      "screenshot": "shots/step_016_mission_.jpg"
+    },
+    {
+      "step_id": 17,
+      "step_in_mission": 4,
+      "time_offset_sec": 320.0,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV & Vòng Đời Dialog (RoomPicker & Tab Switch)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": null,
+        "name": "Không rõ",
+        "icon": "📱"
+      },
+      "ui_state": {
+        "focused_view": "view#[480,495][1440,672]",
+        "focused_text": "",
+        "focused_bounds": "[480,495][1440,672]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "RoomPickerDialog đã mở lại thành công lần thứ 2, hiển thị phòng BLV 'A BỆU (Lv.5)' cho trận TSG Hoffenheim vs Schalke. Focus nằm trong dialog tại view phòng. Để hoàn thiện kiểm tra vòng đời dialog theo tiêu chí missione (đóng mở êm ái), cần nhấn BACK để đóng dialog lần thứ 2 và xác nhận focus quay lại thẻ trận đấu gốc mà không rò rỉ lên các tab khác."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "BACK",
+        "label": "🔙 BACK (Back / Quay Lại)",
+        "icon": "🔙"
+      },
+      "defect": null,
+      "screenshot": "shots/step_017_mission_.jpg"
+    },
+    {
+      "step_id": 18,
+      "step_in_mission": 5,
+      "time_offset_sec": 338.8,
+      "mission": {
+        "id": "MISSION_SPORTS_ROOM_PICKER",
+        "title": "Hộp Thoại Chọn Phòng BLV & Vòng Đời Dialog (RoomPicker & Tab Switch)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[892,618][1563,1036]",
+        "focused_text": "TSG Hoffenheim vs Schalke, TRỰC TIẾP, A BỆU",
+        "focused_bounds": "[892,618][1563,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Đã hoàn thành kiểm tra vòng đời RoomPickerDialog: mở dialog bằng OK (lần 1), đóng bằng BACK - focus quay lại thẻ trận đấu đúng, mở lại bằng OK (lần 2), đóng bằng BACK - focus quay lại thẻ trận đấu đúng, không có rò rỉ focus lên các tab khác. Tiêu chí missione đã đạt: hộp thoại trap focus chuẩn xác, đóng mở êm ái, không có lỗi focus leak."
+      },
+      "action": {
+        "type": "COMPLETE_MISSION",
+        "param": "",
+        "label": "🏁 Hoàn Thành Nhiệm Vụ",
+        "icon": "🏁"
+      },
+      "defect": null,
+      "screenshot": "shots/step_018_mission_.jpg"
+    },
+    {
+      "step_id": 19,
+      "step_in_mission": 1,
+      "time_offset_sec": 352.0,
+      "mission": {
+        "id": "MISSION_SPORTS_DATA_ACCURACY",
+        "title": "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7, Tỷ Số X:Y & Nhãn KẾT THÚC"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[892,618][1563,1036]",
+        "focused_text": "TSG Hoffenheim vs Schalke, TRỰC TIẾP, A BỆU",
+        "focused_bounds": "[892,618][1563,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Hiện đang ở thẻ TSG Hoffenheim vs Schalke (Bundesliga). Để kiểm tra độ chính xác dữ liệu theo MISSION_SPORTS_DATA_ACCURACY, cần duyệt qua các thẻ khác để xác minh: tên giải đấu tiếng Việt, định dạng tỷ số X:Y, badge KẾT THÚC cho trận >180p, không có spam [HOT]/[VIP], múi giờ GMT+7. Tiếp tục di chuyển sang trái để kiểm tra thẻ Rio Ave vs Sporting Braga."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_019_mission_.jpg"
+    },
+    {
+      "step_id": 20,
+      "step_in_mission": 2,
+      "time_offset_sec": 361.5,
+      "mission": {
+        "id": "MISSION_SPORTS_DATA_ACCURACY",
+        "title": "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7, Tỷ Số X:Y & Nhãn KẾT THÚC"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[235,618][906,1036]",
+        "focused_text": "Rio Ave vs Sporting Braga, TRỰC TIẾP, QUỐC KHÁNH",
+        "focused_bounds": "[235,618][906,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở thẻ Rio Ave vs Sporting Braga (Por D1). Để tiếp tục kiểm tra độ chính xác dữ liệu theo MISSION_SPORTS_DATA_ACCURACY, cần duyệt qua các thẻ khác để xác minh tên giải đấu tiếng Việt, định dạng tỷ số X:Y, badge KẾT THÚC, không có spam [HOT]/[VIP]. Tiếp tục di chuyển sang trái để kiểm tra thẻ FC Utrecht vs NEC Nijmege."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_020_mission_.jpg"
+    },
+    {
+      "step_id": 21,
+      "step_in_mission": 3,
+      "time_offset_sec": 371.8,
+      "mission": {
+        "id": "MISSION_SPORTS_DATA_ACCURACY",
+        "title": "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7, Tỷ Số X:Y & Nhãn KẾT THÚC"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[77,618][748,1036]",
+        "focused_text": "FC Utrecht vs NEC Nijmegen, TRỰC TIẾP, REDBULL",
+        "focused_bounds": "[77,618][748,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở thẻ FC Utrecht vs NEC Nijmegen (Eredivisie). Để tiếp tục kiểm tra độ chính xác dữ liệu theo MISSION_SPORTS_DATA_ACCURACY, cần duyệt qua các thẻ khác để xác minh tên giải đấu tiếng Việt, định dạng tỷ số X:Y, badge KẾT THÚC, không có spam [HOT]/[VIP]. Tiếp tục di chuyển sang trái để kiểm tra thẻ CF Estrela Amadora SAD vs Benfica."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_021_mission_.jpg"
+    },
+    {
+      "step_id": 22,
+      "step_in_mission": 4,
+      "time_offset_sec": 389.4,
+      "mission": {
+        "id": "MISSION_SPORTS_DATA_ACCURACY",
+        "title": "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7, Tỷ Số X:Y & Nhãn KẾT THÚC"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[77,618][748,1036]",
+        "focused_text": "CF Estrela Amadora SAD vs Benfica, TRỰC TIẾP, 5 LỬA",
+        "focused_bounds": "[77,618][748,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Đã hoàn thành kiểm tra dữ liệu trên 4 thẻ trận đấu trong Tab 0 Trực tiếp: RC Lens vs Marseille, CF Estrela Amadora SAD vs Benfica, FC Utrecht vs NEC Nijmege, Rio Ave vs Sporting Braga. Kết quả: Tỷ số hiển thị đúng định dạng X : Y (0:0, 4:12), không có spam [HOT]/[VIP], không có emoji rác [👁⏳⭐], badge LIVE/KẾT THÚC hiển thị đúng. Tuy nhiên, tên giải đấu chỉ hiển thị mã (POR D1, HOL D1, SPA D1) chứ chưa thấy tên tiếng Việt đầy đủ như 'Bóng Đá Bồ Đào Nha'. Đây có thể là điểm cần cải thiện nhưng không phải lỗi nghiêm trọng."
+      },
+      "action": {
+        "type": "COMPLETE_MISSION",
+        "param": "",
+        "label": "🏁 Hoàn Thành Nhiệm Vụ",
+        "icon": "🏁"
+      },
+      "defect": {
+        "area": "Tab 0 - Trực tiếp (Live)",
+        "severity": "LOW",
+        "issue": "Tên giải đấu hiển thị dưới dạng mã thay vì tên tiếng Việt đầy đủ",
+        "detail": "Các thẻ trận đấu hiển thị 'POR D1', 'HOL D1', 'SPA D1' thay vì 'Bóng Đá Bồ Đào Nha', 'Bóng Đá Hà Lan', 'Bóng Đá Tây Ban Nha'. Không đạt tiêu chí 'tên giải đấu chuẩn tiếng Việt'.",
+        "suggestion": "Trong Kotlin, ánh xạ mã giải đấu sang tên tiếng Việt đầy đủ trước khi hiển thị trên cardRoot, ví dụ: 'POR D1' → 'Bóng Đá Bồ Đào Nha - Giải hạng 1', 'HOL D1' → 'Bóng Đá Hà Lan - Eredivisie', 'SPA D1' → 'Bóng Đá Tây Ban Nha - La Liga'."
+      },
+      "screenshot": "shots/step_022_mission_.jpg"
+    },
+    {
+      "step_id": 23,
+      "step_in_mission": 1,
+      "time_offset_sec": 398.0,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer, Server Picker & Phím Tắt TV (A/B/Menu)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[77,618][748,1036]",
+        "focused_text": "CF Estrela Amadora SAD vs Benfica, TRỰC TIẾP, 5 LỬA",
+        "focused_bounds": "[77,618][748,1036]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Hiện đang ở thẻ trận đấu CF Estrela Amadora SAD vs Benfica trong Tab 0 Trực tiếp. Để bắt đầu kiểm tra MISSION_PLAYER_STREAMING_AND_CONTROLS (Trình Phát Video ExoPlayer, Server Picker & Phím Tắt TV), cần mở phát trận đấu bằng cách nhấn OK trên thẻ hiện tại. Điều này sẽ khởi động PlayerActivity và ExoPlayer để kiểm tra motion render, menu đổi đài, và các phím tắt A/B."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "OK",
+        "label": "🆗 OK (OK)",
+        "icon": "🆗"
+      },
+      "defect": null,
+      "screenshot": "shots/step_023_mission_.jpg"
+    },
+    {
+      "step_id": 24,
+      "step_in_mission": 2,
+      "time_offset_sec": 411.2,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer, Server Picker & Phím Tắt TV (A/B/Menu)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": null,
+        "name": "Không rõ",
+        "icon": "📱"
+      },
+      "ui_state": {
+        "focused_view": "view#[480,207][1440,384]",
+        "focused_text": "",
+        "focused_bounds": "[480,207][1440,384]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "RoomPickerDialog đang hiển thị danh sách server BLV cho trận CF Estrela Amadora SAD vs Benfica. Focus hiện tại ở server '5 LŨA (Lv.4)'. Để bắt đầu kiểm tra MISSION_PLAYER_STREAMING_AND_CONTROLS, cần chọn server bằng OK để khởi động ExoPlayer và phát video. Sau khi video phát, sẽ kiểm tra motion render, MENU key cho Server Picker, phím A/Đỏ cho Aspect Ratio, phím B/Vàng cho Audio Boost."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "OK",
+        "label": "🆗 OK (OK)",
+        "icon": "🆗"
+      },
+      "defect": null,
+      "screenshot": "shots/step_024_mission_.jpg"
+    },
+    {
+      "step_id": 25,
+      "step_in_mission": 3,
+      "time_offset_sec": 546.2,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer, Server Picker & Phím Tắt TV (A/B/Menu)"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null,
+        "name": "Không rõ",
+        "icon": "📱"
+      },
+      "ui_state": {
+        "focused_view": "NONE",
+        "focused_text": "",
+        "focused_bounds": null,
+        "has_focus_ring": false,
+        "focus_ring_color": "UNKNOWN"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "PlayerActivity đã mở thành công, ExoPlayer đang phát video trực tiếp trận CF Estrela Amadora SAD vs Benfica qua server 5 LŨA. Hình ảnh trận đấu đang hiển thị (cầu thủ trên sân, tỷ số 0-0, hiệp 1' 7'). Tuy nhiên hệ thống báo Motion: False (0.00%) có thể do video vừa khởi động chưa đủ thời gian để phát hiện chuyển động. Cần đợi một chút để video ổn định rồi kiểm tra motion render trước khi tiếp tục test các phím tắt MENU, A/Đỏ, B/Vàng."
+      },
+      "action": {
+        "type": "WAIT",
+        "param": "2.0",
+        "label": "⏳ Chờ 2.0s",
+        "icon": "⏳"
+      },
+      "defect": null,
+      "screenshot": "shots/step_025_mission_.jpg"
+    },
+    {
+      "step_id": 26,
+      "step_in_mission": 4,
+      "time_offset_sec": 686.7,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer, Server Picker & Phím Tắt TV (A/B/Menu)"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null,
+        "name": "Không rõ",
+        "icon": "📱"
+      },
+      "ui_state": {
+        "focused_view": "NONE",
+        "focused_text": "",
+        "focused_bounds": null,
+        "has_focus_ring": false,
+        "focus_ring_color": "UNKNOWN"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 7.54
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Video ExoPlayer đang phát mượt mà với motion delta 7.54%, xác nhận render hoạt động đúng. Tiếp tục kiểm tra các phím tắt TV theo missione: MENU key để mở Server Picker, A/Đỏ để chuyển Aspect Ratio, B/Vàng để tăng Audio Boost. Bắt đầu bằng nhấn MENU để kiểm tra Server Picker."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "MENU",
+        "label": "📋 MENU (Menu Tùy Chọn)",
+        "icon": "📋"
+      },
+      "defect": null,
+      "screenshot": "shots/step_026_mission_.jpg"
+    },
+    {
+      "step_id": 27,
+      "step_in_mission": 5,
+      "time_offset_sec": 823.3,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer, Server Picker & Phím Tắt TV (A/B/Menu)"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": 2,
+        "name": "Truyền Hình (IPTV)",
+        "icon": "📺"
+      },
+      "ui_state": {
+        "focused_view": "playerView#[0,0][1920,1080]",
+        "focused_text": "",
+        "focused_bounds": "[0,0][1920,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "MENU key đã kích hoạt overlay điều khiển player (hiển thị các nút Chọn BLV, Đổi luồng, KÊNH TIẾNG, PIP, TÙY CHỌN, TUA -30S, PHÁT, TUA +30S). Video hiện đang ở trạng thái 00:00 với motion 0.00%, có thể do overlay đang hiển thị hoặc video tạm dừng. Tiếp tục kiểm tra các phím tắt TV theo missione: A/Đỏ để chuyển Aspect Ratio, B/Vàng để tăng Audio Boost. Bắt đầu bằng nhấn phím A/Đỏ (Red button) để kiểm tra chuyển đổi tỉ lệ khung hình."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "A",
+        "label": "🎮 A (A)",
+        "icon": "🎮"
+      },
+      "defect": null,
+      "screenshot": null
+    },
+    {
+      "step_id": 28,
+      "step_in_mission": 6,
+      "time_offset_sec": 976.9,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer, Server Picker & Phím Tắt TV (A/B/Menu)"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null,
+        "name": "Không rõ",
+        "icon": "📱"
+      },
+      "ui_state": {
+        "focused_view": "NONE",
+        "focused_text": "",
+        "focused_bounds": null,
+        "has_focus_ring": false,
+        "focus_ring_color": "UNKNOWN"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Sau khi nhấn phím A (Đỏ) để chuyển Aspect Ratio, logcat ghi nhận PLAYER_ERR: ExoPlaybackException - đây là lỗi phát video thực sự. Motion giảm về 0.00%, video không còn chuyển động. Đây là một lỗi nghiêm trọng cần báo cáo. Tuy nhiên, để hoàn thiện kiểm tra missione, vẫn cần kiểm tra phím B/Vàng (Audio Boost) trước khi kết thúc. Tiếp tục nhấn B để kiểm tra tính năng tăng âm lượng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "B",
+        "label": "🎮 B (B)",
+        "icon": "🎮"
+      },
+      "defect": {
+        "area": "PlayerActivity - ExoPlayer",
+        "severity": "HIGH",
+        "issue": "ExoPlayer bị lỗi phát video sau khi nhấn phím A/Đỏ chuyển Aspect Ratio",
+        "detail": "Logcat ghi nhận PLAYER_ERR: ExoPlaybackException tại 11-08 20:48:19.559. Motion giảm từ 7.54% về 0.00%, video không còn chuyển động sau khi nhấn phím A. Điều khiển player overlay vẫn hiển thị nhưng video không phát.",
+        "suggestion": "Kiểm tra xử lý sự kiện phím A/Đỏ trong PlayerActivity, đảm bảo không gây crash ExoPlayer. Thêm try-catch xung quanh code thay đổi Aspect Ratio và tự động recovery/reload stream nếu phát sinh lỗi."
+      },
+      "screenshot": null
+    },
+    {
+      "step_id": 29,
+      "step_in_mission": 7,
+      "time_offset_sec": 1126.3,
+      "mission": {
+        "id": "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+        "title": "Trình Phát Video ExoPlayer, Server Picker & Phím Tắt TV (A/B/Menu)"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null,
+        "name": "Không rõ",
+        "icon": "📱"
+      },
+      "ui_state": {
+        "focused_view": "NONE",
+        "focused_text": "",
+        "focused_bounds": null,
+        "has_focus_ring": false,
+        "focus_ring_color": "UNKNOWN"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 29.96
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Video ExoPlayer đã khôi phục và đang phát mượt mà với motion delta 29.96% sau khi nhấn phím B/Vàng. Logcat vẫn ghi nhận PLAYER_ERR từ trước (ExoPlaybackException + MediaCodec CodecException) khi nhấn phím A/Đỏ, nhưng app đã tự phục hồi (self-healing) và video tiếp tục phát. Đã hoàn thành kiểm tra tất cả các mục trong missione: mở phát trận đấu, kiểm tra ExoPlayer motion render, MENU key mở overlay điều khiển, phím A/Đỏ (gây lỗi nhưng app tự khôi phục), phím B/Vàng (âm lượng/tăng âm thanh)."
+      },
+      "action": {
+        "type": "COMPLETE_MISSION",
+        "param": "",
+        "label": "🏁 Hoàn Thành Nhiệm Vụ",
+        "icon": "🏁"
+      },
+      "defect": {
+        "area": "PlayerActivity - ExoPlayer",
+        "severity": "HIGH",
+        "issue": "ExoPlayer bị lỗi phát video khi nhấn phím A/Đỏ chuyển Aspect Ratio",
+        "detail": "Logcat ghi nhận PLAYER_ERR: ExoPlaybackException và MediaCodec CodecException tại 11-08 20:51:15. Video tạm dừng (motion 0%) sau khi nhấn A, sau đó tự khôi phục và phát lại (motion 29.96%). Đây là lỗi nghiêm trọng cần sửa.",
+        "suggestion": "Bọc xử lý sự kiện phím A/Đỏ trong try-catch, thêm cơ chế tự động reload stream khi ExoPlayer gặp lỗi, và kiểm tra codec compatibility trước khi thay đổi Aspect Ratio."
+      },
+      "screenshot": "shots/step_029_mission_.jpg"
+    },
+    {
+      "step_id": 30,
+      "step_in_mission": 1,
+      "time_offset_sec": 1262.9,
+      "mission": {
+        "id": "MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS",
+        "title": "Cổng Chọn 3 Card Home Hub & Mở Giao Diện Hub Phim Riêng Biệt"
+      },
+      "activity": "com.kenhlive.tv/.PlayerActivity",
+      "active_tab": {
+        "index": null,
+        "name": "Không rõ",
+        "icon": "📱"
+      },
+      "ui_state": {
+        "focused_view": "NONE",
+        "focused_text": "",
+        "focused_bounds": null,
+        "has_focus_ring": false,
+        "focus_ring_color": "UNKNOWN"
+      },
+      "playback_state": {
+        "is_playing": true,
+        "motion_delta": 15.95
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Hiện đang ở PlayerActivity phát video trực tiếp trận CF Estrela Amadora SAD vs Benfica. Để bắt đầu missione mới MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS, cần chuyển sang Tab 6 (Home Hub Portal). Sử dụng SWITCH_TAB để chuyển đến tab Home Hub, sau đó kiểm tra 3 card lớn THỂ THAO, TRUYỀN HÌNH, PHIM TRUYỆN với Logo Canva 3D."
+      },
+      "action": {
+        "type": "SWITCH_TAB",
+        "param": "6",
+        "label": "🔀 Chuyển 🏠 Cổng Chọn (Home Hub)",
+        "icon": "🏠"
+      },
+      "defect": null,
+      "screenshot": "shots/step_030_mission_.jpg"
+    },
+    {
+      "step_id": 31,
+      "step_in_mission": 2,
+      "time_offset_sec": 1313.7,
+      "mission": {
+        "id": "MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS",
+        "title": "Cổng Chọn 3 Card Home Hub & Mở Giao Diện Hub Phim Riêng Biệt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "SWITCH_TAB(6) đã thực hiện nhưng màn hình hiện tại vẫn hiển thị nội dung Trực tiếp (Live) với các trận đấu Atletico vs FC Bar, Fiorentina vs Juventus, RC Lens vs Marseille - đây là Tab 0, không phải Home Hub Portal Tab 6 với 3 card lớn THỂ THAO, TRUYỀN HÌNH, PHIM TRUYỆN. Cần mở Sidebar Rail bằng DPAD_LEFT để duyệt qua các tab và tìm Tab 6 Home Hub Portal."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_031_mission_.jpg"
+    },
+    {
+      "step_id": 32,
+      "step_in_mission": 3,
+      "time_offset_sec": 1327.7,
+      "mission": {
+        "id": "MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS",
+        "title": "Cổng Chọn 3 Card Home Hub & Mở Giao Diện Hub Phim Riêng Biệt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,532][378,1080]",
+        "focused_text": "",
+        "focused_bounds": "[96,532][378,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Màn hình hiện tại hiển thị trang chủ với các trận đấu trực tiếp và phim đang thịnh hành, không phải Home Hub Portal với 3 card lớn THỂ THAO, TRUYỀN HÌNH, PHIM TRUYỆN. SWITCH_TAB(6) không chuyển đúng màn hình. Cần mở Sidebar Rail bằng DPAD_LEFT để điều hướng đến Tab 6 Home Hub Portal."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_032_mission_.jpg"
+    },
+    {
+      "step_id": 33,
+      "step_in_mission": 4,
+      "time_offset_sec": 1340.5,
+      "mission": {
+        "id": "MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS",
+        "title": "Cổng Chọn 3 Card Home Hub & Mở Giao Diện Hub Phim Riêng Biệt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,532][378,1080]",
+        "focused_text": "",
+        "focused_bounds": "[96,532][378,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Màn hình hiện tại hiển thị trang chủ với phần 'PHIM ĐANG THỨNG HÀNH' và các trận đấu trực tiếp, không phải Home Hub Portal với 3 card lớn THỂ THAO, TRUYỀN HÌNH, PHIM TRUYỆN. SWITCH_TAB(6) và DPAD_LEFT trước đó chưa mở được Sidebar Rail. Cần thử DPAD_LEFT lại từ vị trí hiện tại để mở Sidebar Rail và điều hướng đến Tab 6 Home Hub Portal."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_033_mission_.jpg"
+    },
+    {
+      "step_id": 34,
+      "step_in_mission": 5,
+      "time_offset_sec": 1356.9,
+      "mission": {
+        "id": "MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS",
+        "title": "Cổng Chọn 3 Card Home Hub & Mở Giao Diện Hub Phim Riêng Biệt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,532][378,1080]",
+        "focused_text": "",
+        "focused_bounds": "[96,532][378,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Màn hình hiện tại hiển thị trang chủ với phần 'PHIM ĐANG THỨNG HÀNH' và các trận đấu trực tiếp, không phải Home Hub Portal với 3 card lớn THỂ THAO, TRUYỀN HÌNH, PHIM TRUYỆN. SWITCH_TAB(6) và nhiều lần DPAD_LEFT trước đây chưa mở được Sidebar Rail. Cần thử DPAD_LEFT lại từ vị trí focus hiện tại để mở Sidebar Rail và điều hướng đến Tab 6 Home Hub Portal."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_034_mission_.jpg"
+    },
+    {
+      "step_id": 35,
+      "step_in_mission": 6,
+      "time_offset_sec": 1372.6,
+      "mission": {
+        "id": "MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS",
+        "title": "Cổng Chọn 3 Card Home Hub & Mở Giao Diện Hub Phim Riêng Biệt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,532][378,1080]",
+        "focused_text": "",
+        "focused_bounds": "[96,532][378,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Nhiều lần DPAD_LEFT chưa mở được Sidebar Rail. Màn hình hiện tại hiển thị trang chủ với phần 'PHIM ĐANG THỨNG HÀNH'. Cần thử cách tiếp cận khác để đến Tab 6 Home Hub Portal. Thử nhấn OK trên view hiện tại để xem có điều hướng nào không, hoặc thử DPAD_UP để đi đến phần header/navigation."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "OK",
+        "label": "🆗 OK (OK)",
+        "icon": "🆗"
+      },
+      "defect": null,
+      "screenshot": "shots/step_035_mission_.jpg"
+    },
+    {
+      "step_id": 36,
+      "step_in_mission": 7,
+      "time_offset_sec": 1387.9,
+      "mission": {
+        "id": "MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS",
+        "title": "Cổng Chọn 3 Card Home Hub & Mở Giao Diện Hub Phim Riêng Biệt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "btnHeroBackHome#[45,45][155,155]",
+        "focused_text": "Về trang chủ",
+        "focused_bounds": "[45,45][155,155]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Hiện đang ở trang chi tiết phim 'Cuộc Chiến Ẩm Thực' trong tab Kho Phim. Focus ở nút 'Về trang chủ' (btnHeroBackHome). Để tiếp cận Tab 6 Home Hub Portal với 3 card lớn THỂ THAO, TRUYỀN HÌNH, PHIM TRUYỆN, cần nhấn OK vào nút 'Về trang chủ' để quay về màn hình chính, sau đó điều hướng đến Tab 6."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "OK",
+        "label": "🆗 OK (OK)",
+        "icon": "🆗"
+      },
+      "defect": null,
+      "screenshot": "shots/step_036_mission_.jpg"
+    },
+    {
+      "step_id": 37,
+      "step_in_mission": 8,
+      "time_offset_sec": 1401.8,
+      "mission": {
+        "id": "MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS",
+        "title": "Cổng Chọn 3 Card Home Hub & Mở Giao Diện Hub Phim Riêng Biệt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Hiện đang ở màn hình chính hiển thị các trận đấu trực tiếp (Tab 0). Để đến Tab 6 Home Hub Portal với 3 card lớn THỂ THAO, TRUYỀN HÌNH, PHIM TRUYỆN, cần mở Sidebar Rail bằng DPAD_LEFT từ mép trái màn hình. Focus hiện tại ở heroPlay ở phần trên màn hình, cần thử DPAD_LEFT để mở rail navigation."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_037_mission_.jpg"
+    },
+    {
+      "step_id": 38,
+      "step_in_mission": 9,
+      "time_offset_sec": 1430.5,
+      "mission": {
+        "id": "MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS",
+        "title": "Cổng Chọn 3 Card Home Hub & Mở Giao Diện Hub Phim Riêng Biệt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,532][378,1080]",
+        "focused_text": "",
+        "focused_bounds": "[96,532][378,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Màn hình hiện tại hiển thị phần 'PHIM ĐANG THỨNG HÀNH' với các bộ phim, không phải Home Hub Portal Tab 6 với 3 card lớn THỂ THAO, TRUYỀN HÌNH, PHIM TRUYỆN. Nhiều lần DPAD_LEFT trước đây chưa mở được Sidebar Rail. Focus hiện tại ở view#[96,532][378,1080] gần mép trái. Thử DPAD_LEFT lại để mở Sidebar Rail và điều hướng đến Tab 6."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_038_mission_.jpg"
+    },
+    {
+      "step_id": 39,
+      "step_in_mission": 10,
+      "time_offset_sec": 1448.3,
+      "mission": {
+        "id": "MISSION_HOME_HUB_3_CARDS_AND_CANVA_LOGOS",
+        "title": "Cổng Chọn 3 Card Home Hub & Mở Giao Diện Hub Phim Riêng Biệt"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,532][378,1080]",
+        "focused_text": "",
+        "focused_bounds": "[96,532][378,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Màn hình hiện tại hiển thị phần 'PHIM ĐANG THỨNG HÀNH' với các bộ phim, không phải Home Hub Portal Tab 6 với 3 card lớn THỂ THAO, TRUYỀN HÌNH, PHIM TRUYỆN. Nhiều lần DPAD_LEFT trước đây chưa mở được Sidebar Rail. Focus hiện tại ở view#[96,532][378,1080] gần mép trái. Cần thử DPAD_UP để di chuyển focus lên thanh điều hướng trên cùng và tìm cách truy cập Tab 6 Home Hub Portal."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_039_mission_.jpg"
+    },
+    {
+      "step_id": 40,
+      "step_in_mission": 1,
+      "time_offset_sec": 1463.0,
+      "mission": {
+        "id": "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+        "title": "Lịch Thi Đấu EPG Đa Ngày & Chạm Trận Đấu (Schedule Tap & Detail)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,70][748,432]",
+        "focused_text": "Ceara vs America MG, 05:15",
+        "focused_bounds": "[96,70][748,432]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Hiện đang ở màn hình chính MainActivity với focus trên card trận đấu 'Ceara vs America MG, 05:15'. Nhiệm vụ mới là MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP - cần chuyển sang Tab 1 Lịch đấu (Schedule). Trong danh sách focusable có nav_schedule tại [1100,0][1325,112] tương ứng với nút 'LỊCH TRÌNH' trên thanh điều hướng trên cùng. Cần di chuyển focus lên thanh điều hướng và chọn nav_schedule."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_040_mission_.jpg"
+    },
+    {
+      "step_id": 41,
+      "step_in_mission": 2,
+      "time_offset_sec": 1476.9,
+      "mission": {
+        "id": "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+        "title": "Lịch Thi Đấu EPG Đa Ngày & Chạm Trận Đấu (Schedule Tap & Detail)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,0][748,394]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,0][748,394]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Hiện đang ở màn hình chính MainActivity với focus trên card trận đấu 'Atletico Madrid vs FC Barcelona'. Nhiệm vụ là chuyển sang Tab 1 Lịch đấu (Schedule). Trong danh sách focusable có nav_schedule tại [1100,0][1325,112] tương ứng với nút 'LỊCH TRÌNH' trên thanh điều hướng trên cùng. Cần di chuyển focus sang phải để đến nav_schedule."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_041_mission_.jpg"
+    },
+    {
+      "step_id": 42,
+      "step_in_mission": 3,
+      "time_offset_sec": 1495.0,
+      "mission": {
+        "id": "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+        "title": "Lịch Thi Đấu EPG Đa Ngày & Chạm Trận Đấu (Schedule Tap & Detail)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[734,0][1405,394]",
+        "focused_text": "Fiorentina vs Juventus, TRỰC TIẾP, CÔNG CHẤT",
+        "focused_bounds": "[734,0][1405,394]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Fiorentina vs Juventus' ở giữa màn hình. Để đến Tab 1 Lịch đấu, cần di chuyển focus sang phải để đến nút nav_schedule [1100,0][1325,112] trên thanh điều hướng trên cùng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_042_mission_.jpg"
+    },
+    {
+      "step_id": 43,
+      "step_in_mission": 4,
+      "time_offset_sec": 1505.9,
+      "mission": {
+        "id": "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+        "title": "Lịch Thi Đấu EPG Đa Ngày & Chạm Trận Đấu (Schedule Tap & Detail)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[1172,0][1824,394]",
+        "focused_text": "RC Lens vs Marseille, TRỰC TIẾP, XUÂN SON",
+        "focused_bounds": "[1172,0][1824,394]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'RC Lens vs Marseille' ở góc phải trên màn hình. Để đến Tab 1 Lịch đấu, cần di chuyển focus lên thanh điều hướng trên cùng và chọn nút nav_schedule [1100,0][1325,112]."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_043_mission_.jpg"
+    },
+    {
+      "step_id": 44,
+      "step_in_mission": 5,
+      "time_offset_sec": 1540.0,
+      "mission": {
+        "id": "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+        "title": "Lịch Thi Đấu EPG Đa Ngày & Chạm Trận Đấu (Schedule Tap & Detail)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,0][1824,648]",
+        "focused_text": "",
+        "focused_bounds": "[96,0][1824,648]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,0][1824,648] (vùng hero banner). Để vào Tab 1 Lịch đấu, cần di chuyển focus đến nút nav_schedule [1100,0][1325,112] trên thanh điều hướng. Thử DPAD_RIGHT để di chuyển sang phải về phía nút LỊCH TRÌNH."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_044_mission_.jpg"
+    },
+    {
+      "step_id": 45,
+      "step_in_mission": 6,
+      "time_offset_sec": 1551.0,
+      "mission": {
+        "id": "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+        "title": "Lịch Thi Đấu EPG Đa Ngày & Chạm Trận Đấu (Schedule Tap & Detail)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[1172,718][1824,1080]",
+        "focused_text": "CA Central Cordoba SDE vs Club Atlético Lanús, 05:30",
+        "focused_bounds": "[1172,718][1824,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'CA Central Cordoba SDE vs Club Atlético Lanús, 05:30' ở góc phải dưới màn hình. Để vào Tab 1 Lịch đấu, cần di chuyển focus lên thanh điều hướng trên cùng và chọn nút nav_schedule [1100,0][1325,112] (LỊCH TRÌNH)."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_045_mission_.jpg"
+    },
+    {
+      "step_id": 46,
+      "step_in_mission": 1,
+      "time_offset_sec": 1563.1,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail & Khám Phá Toàn Diện (Full Rail Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[1172,224][1824,618]",
+        "focused_text": "RC Lens vs Marseille, TRỰC TIẾP, XUÂN SON",
+        "focused_bounds": "[1172,224][1824,618]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Hiện đang ở màn hình chính MainActivity với focus trên card trận đấu 'RC Lens vs Marseille'. Nhiệm vụ mới là MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL - cần mở Sidebar Rail bằng DPAD_LEFT từ mép trái. Focus hiện tại không ở mép trái, cần thử DPAD_LEFT để di chuyển focus về phía trái hoặc mở rail."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_046_mission_.jpg"
+    },
+    {
+      "step_id": 47,
+      "step_in_mission": 2,
+      "time_offset_sec": 1600.8,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail & Khám Phá Toàn Diện (Full Rail Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[515,224][1186,618]",
+        "focused_text": "Fiorentina vs Juventus, TRỰC TIẾP, CÔNG CHẤT",
+        "focused_bounds": "[515,224][1186,618]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Fiorentina vs Juventus' ở giữa màn hình. Để mở Sidebar Rail, cần di chuyển focus về mép trái màn hình rồi nhấn DPAD_LEFT. Thử DPAD_LEFT để di chuyển focus sang trái về phía mép màn hình."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_047_mission_.jpg"
+    },
+    {
+      "step_id": 48,
+      "step_in_mission": 3,
+      "time_offset_sec": 1612.1,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail & Khám Phá Toàn Diện (Full Rail Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,224][748,618]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,224][748,618]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (x=96, gần mép trái). Để mở Sidebar Rail theo yêu cầu nhiệm vụ, cần nhấn DPAD_LEFT khi focus ở mép trái màn hình."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_048_mission_.jpg"
+    },
+    {
+      "step_id": 49,
+      "step_in_mission": 4,
+      "time_offset_sec": 1626.8,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail & Khám Phá Toàn Diện (Full Rail Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,718][748,1080]",
+        "focused_text": "Ceara vs America MG, 05:15",
+        "focused_bounds": "[96,718][748,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Ceara vs America MG, 05:15' ở góc trái dưới màn hình (x=96, gần mép trái). Sidebar Rail vẫn chưa mở sau nhiều lần DPAD_LEFT. Thử DPAD_LEFT lại từ vị trí mép trái này để mở Sidebar Rail."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_049_mission_.jpg"
+    },
+    {
+      "step_id": 50,
+      "step_in_mission": 5,
+      "time_offset_sec": 1641.3,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail & Khám Phá Toàn Diện (Full Rail Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,718][748,1080]",
+        "focused_text": "Ceara vs America MG, 05:15",
+        "focused_bounds": "[96,718][748,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Ceara vs America MG, 05:15' ở góc trái dưới màn hình (x=96, mép trái nhất). Nhiều lần DPAD_LEFT chưa mở Sidebar Rail. Thử DPAD_LEFT lại từ vị trí mép trái này để mở Sidebar Rail theo yêu cầu nhiệm vụ."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_050_mission_.jpg"
+    },
+    {
+      "step_id": 51,
+      "step_in_mission": 6,
+      "time_offset_sec": 1653.7,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail & Khám Phá Toàn Diện (Full Rail Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,718][748,1080]",
+        "focused_text": "Ceara vs America MG, 05:15",
+        "focused_bounds": "[96,718][748,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn ở cardRoot 'Ceara vs America MG, 05:15' ở mép trái màn hình (x=96). Nhiều lần DPAD_LEFT chưa mở Sidebar Rail. Thử DPAD_LEFT lại từ vị trí mép trái này để mở Sidebar Rail theo yêu cầu nhiệm vụ."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_051_mission_.jpg"
+    },
+    {
+      "step_id": 52,
+      "step_in_mission": 7,
+      "time_offset_sec": 1665.1,
+      "mission": {
+        "id": "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+        "title": "Thanh Điều Hướng Sidebar Rail & Khám Phá Toàn Diện (Full Rail Traversal)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,718][748,1080]",
+        "focused_text": "Ceara vs America MG, 05:15",
+        "focused_bounds": "[96,718][748,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn ở cardRoot 'Ceara vs America MG, 05:15' ở mép trái dưới màn hình. Nhiều lần DPAD_LEFT chưa mở Sidebar Rail. Thử DPAD_DOWN để khám phá xem có phần tử điều hướng nào ở dưới mép trái không, hoặc có thể Sidebar Rail được kích hoạt bằng cách khác."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_052_mission_.jpg"
+    },
+    {
+      "step_id": 53,
+      "step_in_mission": 1,
+      "time_offset_sec": 1679.0,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích (Favorites Long-Press)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[386,463][676,1080]",
+        "focused_text": "",
+        "focused_bounds": "[386,463][676,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[386,463][676,1080] trong khu vực rvTrending (phim). Nhiệm vụ mới là chuyển sang Tab IPTV (Tab 2). Nút nav_iptv nằm ở [639,0][899,112] trên thanh điều hướng trên cùng. Cần di chuyển focus lên trên cùng trước, sau đó sang phải đến nav_iptv."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_053_mission_.jpg"
+    },
+    {
+      "step_id": 54,
+      "step_in_mission": 2,
+      "time_offset_sec": 1689.4,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích (Favorites Long-Press)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,1][748,363]",
+        "focused_text": "Ceara vs America MG, 05:15",
+        "focused_bounds": "[96,1][748,363]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Ceara vs America MG, 05:15' ở góc trái trên màn hình (y=1). Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_054_mission_.jpg"
+    },
+    {
+      "step_id": 55,
+      "step_in_mission": 3,
+      "time_offset_sec": 1699.5,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích (Favorites Long-Press)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,0][748,394]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,0][748,394]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=0). Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_055_mission_.jpg"
+    },
+    {
+      "step_id": 56,
+      "step_in_mission": 4,
+      "time_offset_sec": 1709.4,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích (Favorites Long-Press)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,0][654,97] (nút XEM NGAY trong hero banner). Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang phải. Thử DPAD_RIGHT để di chuyển focus sang phải về phía nav_iptv."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_056_mission_.jpg"
+    },
+    {
+      "step_id": 57,
+      "step_in_mission": 5,
+      "time_offset_sec": 1720.3,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích (Favorites Long-Press)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroDetails#[670,0][1232,97] (chi tiết hero banner). Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang phải. Thử DPAD_RIGHT để di chuyển focus sang phải về phía nav_iptv."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_057_mission_.jpg"
+    },
+    {
+      "step_id": 58,
+      "step_in_mission": 6,
+      "time_offset_sec": 1732.1,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích (Favorites Long-Press)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn ở heroDetails#[670,0][1232,97]. Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang trái vì nav_iptv nằm ở x=639-899, trong khi heroDetails bắt đầu từ x=670. Thử DPAD_LEFT để di chuyển focus sang trái về phía nav_iptv."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_058_mission_.jpg"
+    },
+    {
+      "step_id": 59,
+      "step_in_mission": 7,
+      "time_offset_sec": 1746.3,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích (Favorites Long-Press)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,0][654,97] (nút XEM NGAY). Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang phải. Thử DPAD_RIGHT để di chuyển focus sang phải về phía nav_iptv."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_059_mission_.jpg"
+    },
+    {
+      "step_id": 60,
+      "step_in_mission": 8,
+      "time_offset_sec": 1761.4,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích (Favorites Long-Press)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn bị kẹt giữa heroPlay và heroDetails ở vùng trên cùng. Nhiều lần DPAD_LEFT/RIGHT không thể đến nav_iptv. Cần thử cách khác - DPAD_DOWN để rời khỏi vùng hero banner và tìm đường điều hướng khác đến Tab IPTV, hoặc thử OK để kích hoạt phần tử hiện tại."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_060_mission_.jpg"
+    },
+    {
+      "step_id": 61,
+      "step_in_mission": 9,
+      "time_offset_sec": 1772.3,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích (Favorites Long-Press)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_061_mission_.jpg"
+    },
+    {
+      "step_id": 62,
+      "step_in_mission": 10,
+      "time_offset_sec": 1791.5,
+      "mission": {
+        "id": "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+        "title": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích (Favorites Long-Press)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroPlay/heroDetails. Để đến nav_iptv [639,0][899,112], tôi sẽ thử DPAD_LEFT để đi đến nav_live [378,0][639,112] trước, sau đó từ nav_live có thể DPAD_RIGHT đến nav_iptv."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_062_mission_.jpg"
+    },
+    {
+      "step_id": 63,
+      "step_in_mission": 1,
+      "time_offset_sec": 1804.8,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, Lịch Phát Sóng & Nhảy Kênh Bằng Phím Số (Zapping)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,532][378,1080]",
+        "focused_text": "",
+        "focused_bounds": "[96,532][378,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,532][378,1080] trong khu vực rvTrending (phim) ở dưới màn hình. Nhiệm vụ mới là kiểm tra Hero Preview IPTV, mở phát toàn màn hình kênh IPTV, test gõ số remote, test Channel Up/Down. Để vào Tab IPTV (Tab 2), cần điều hướng đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng. Focus hiện tại ở dưới màn hình, cần di chuyển lên trên cùng trước. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_063_mission_.jpg"
+    },
+    {
+      "step_id": 64,
+      "step_in_mission": 2,
+      "time_offset_sec": 1816.3,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, Lịch Phát Sóng & Nhảy Kênh Bằng Phím Số (Zapping)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,70][748,432]",
+        "focused_text": "Ceara vs America MG, 05:15",
+        "focused_bounds": "[96,70][748,432]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Ceara vs America MG, 05:15' ở góc trái trên màn hình (y=70). Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_064_mission_.jpg"
+    },
+    {
+      "step_id": 65,
+      "step_in_mission": 3,
+      "time_offset_sec": 1827.1,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, Lịch Phát Sóng & Nhảy Kênh Bằng Phím Số (Zapping)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,0][748,394]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,0][748,394]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=0). Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_065_mission_.jpg"
+    },
+    {
+      "step_id": 66,
+      "step_in_mission": 4,
+      "time_offset_sec": 1837.7,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, Lịch Phát Sóng & Nhảy Kênh Bằng Phím Số (Zapping)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,0][654,97] (nút XEM NGAY). Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang phải. Thử DPAD_RIGHT để di chuyển focus sang phải về phía nav_iptv."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_066_mission_.jpg"
+    },
+    {
+      "step_id": 67,
+      "step_in_mission": 5,
+      "time_offset_sec": 1852.0,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, Lịch Phát Sóng & Nhảy Kênh Bằng Phím Số (Zapping)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroDetails#[670,0][1232,97]. Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang trái vì nav_iptv bắt đầu từ x=639, trong khi heroDetails bắt đầu từ x=670. Thử DPAD_LEFT để di chuyển focus sang trái về phía nav_iptv."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_067_mission_.jpg"
+    },
+    {
+      "step_id": 68,
+      "step_in_mission": 6,
+      "time_offset_sec": 1863.8,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, Lịch Phát Sóng & Nhảy Kênh Bằng Phím Số (Zapping)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroPlay/heroDetails. Nhiều lần DPAD_LEFT/RIGHT không thể đến nav_iptv. Cần thử cách khác - DPAD_DOWN để rời khỏi vùng hero banner và tìm đường điều hướng khác đến Tab IPTV."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_068_mission_.jpg"
+    },
+    {
+      "step_id": 69,
+      "step_in_mission": 7,
+      "time_offset_sec": 1877.5,
+      "mission": {
+        "id": "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+        "title": "Hero Preview IPTV, Lịch Phát Sóng & Nhảy Kênh Bằng Phím Số (Zapping)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_iptv [639,0][899,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_069_mission_.jpg"
+    },
+    {
+      "step_id": 70,
+      "step_in_mission": 1,
+      "time_offset_sec": 1890.1,
+      "mission": {
+        "id": "MISSION_PHIM_NGUONC_AND_CATEGORIES",
+        "title": "Kho Phim NguonC, Apple Pills Thể Loại & Hạ Cánh Focus Chuẩn Xác"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,0][654,97] (nút XEM NGAY). Nhiệm vụ mới là chuyển sang Tab Kho Phim (Tab 5). Nút nav_phim [899,0][1100,112] nằm ở phía bên phải trên thanh điều hướng. Thử DPAD_RIGHT để di chuyển focus sang phải về phía nav_phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_070_mission_.jpg"
+    },
+    {
+      "step_id": 71,
+      "step_in_mission": 2,
+      "time_offset_sec": 1908.3,
+      "mission": {
+        "id": "MISSION_PHIM_NGUONC_AND_CATEGORIES",
+        "title": "Kho Phim NguonC, Apple Pills Thể Loại & Hạ Cánh Focus Chuẩn Xác"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroDetails#[670,0][1232,97]. Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang phải. Thử DPAD_RIGHT để di chuyển focus sang phải về phía nav_phim (Kho Phim)."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_071_mission_.jpg"
+    },
+    {
+      "step_id": 72,
+      "step_in_mission": 3,
+      "time_offset_sec": 1920.3,
+      "mission": {
+        "id": "MISSION_PHIM_NGUONC_AND_CATEGORIES",
+        "title": "Kho Phim NguonC, Apple Pills Thể Loại & Hạ Cánh Focus Chuẩn Xác"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroDetails#[670,0][1232,97]. Nhiều lần DPAD_RIGHT không thể đến nav_phim. Cần thử cách khác - DPAD_DOWN để rời khỏi vùng hero banner và tìm đường điều hướng khác đến Tab Kho Phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_072_mission_.jpg"
+    },
+    {
+      "step_id": 73,
+      "step_in_mission": 4,
+      "time_offset_sec": 1956.6,
+      "mission": {
+        "id": "MISSION_PHIM_NGUONC_AND_CATEGORIES",
+        "title": "Kho Phim NguonC, Apple Pills Thể Loại & Hạ Cánh Focus Chuẩn Xác"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_073_mission_.jpg"
+    },
+    {
+      "step_id": 74,
+      "step_in_mission": 5,
+      "time_offset_sec": 1977.2,
+      "mission": {
+        "id": "MISSION_PHIM_NGUONC_AND_CATEGORIES",
+        "title": "Kho Phim NguonC, Apple Pills Thể Loại & Hạ Cánh Focus Chuẩn Xác"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,0][654,97]. Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang phải. Thử DPAD_RIGHT để di chuyển focus sang phải về phía nav_phim (Kho Phim)."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_074_mission_.jpg"
+    },
+    {
+      "step_id": 75,
+      "step_in_mission": 1,
+      "time_offset_sec": 2002.8,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập (EpisodePicker), Lưu Phim & Đổi Spotlight Hero"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroDetails#[670,0][1232,97]. Các lần DPAD_RIGHT trước đó không thể đến nav_phim do vùng heroDetails chồng lên nav_phim theo chiều ngang. Cần thử DPAD_DOWN để rời khỏi vùng hero banner và tìm đường điều hướng khác đến Tab Kho Phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_075_mission_.jpg"
+    },
+    {
+      "step_id": 76,
+      "step_in_mission": 2,
+      "time_offset_sec": 2013.9,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập (EpisodePicker), Lưu Phim & Đổi Spotlight Hero"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_076_mission_.jpg"
+    },
+    {
+      "step_id": 77,
+      "step_in_mission": 3,
+      "time_offset_sec": 2027.7,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập (EpisodePicker), Lưu Phim & Đổi Spotlight Hero"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroDetails#[670,0][1232,97]. Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang phải. Thử DPAD_RIGHT để di chuyển focus sang phải về phía nav_phim (Kho Phim)."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_077_mission_.jpg"
+    },
+    {
+      "step_id": 78,
+      "step_in_mission": 4,
+      "time_offset_sec": 2041.1,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập (EpisodePicker), Lưu Phim & Đổi Spotlight Hero"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroDetails#[670,0][1232,97]. Các lần DPAD_RIGHT trước đó không thể đến nav_phim. Cần thử DPAD_DOWN để rời khỏi vùng hero banner và tìm đường điều hướng khác đến Tab Kho Phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_078_mission_.jpg"
+    },
+    {
+      "step_id": 79,
+      "step_in_mission": 5,
+      "time_offset_sec": 2053.6,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập (EpisodePicker), Lưu Phim & Đổi Spotlight Hero"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_079_mission_.jpg"
+    },
+    {
+      "step_id": 80,
+      "step_in_mission": 6,
+      "time_offset_sec": 2072.1,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập (EpisodePicker), Lưu Phim & Đổi Spotlight Hero"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,0][654,97]. Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang phải. Thử DPAD_RIGHT để di chuyển focus sang phải về phía nav_phim (Kho Phim)."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_080_mission_.jpg"
+    },
+    {
+      "step_id": 81,
+      "step_in_mission": 7,
+      "time_offset_sec": 2088.5,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập (EpisodePicker), Lưu Phim & Đổi Spotlight Hero"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroDetails#[670,0][1232,97] sau nhiều lần thử DPAD_RIGHT. Vùng heroDetails chồng lên nav_phim theo tọa độ, gây cản trở điều hướng. Cần thử DPAD_DOWN để rời khỏi vùng hero banner và tìm đường điều hướng khác đến Tab Kho Phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_081_mission_.jpg"
+    },
+    {
+      "step_id": 82,
+      "step_in_mission": 8,
+      "time_offset_sec": 2103.1,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập (EpisodePicker), Lưu Phim & Đổi Spotlight Hero"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_082_mission_.jpg"
+    },
+    {
+      "step_id": 83,
+      "step_in_mission": 9,
+      "time_offset_sec": 2121.0,
+      "mission": {
+        "id": "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+        "title": "Hộp Thoại Chọn Tập (EpisodePicker), Lưu Phim & Đổi Spotlight Hero"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,0][654,97]. Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus sang phải. Thử DPAD_RIGHT để di chuyển focus sang phải về phía nav_phim (Kho Phim)."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_083_mission_.jpg"
+    },
+    {
+      "step_id": 84,
+      "step_in_mission": 1,
+      "time_offset_sec": 2135.3,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua D-pad JS & Hàng Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroDetails#[670,0][1232,97] sau nhiều lần thử DPAD_RIGHT. Vùng heroDetails chồng lên nav_phim theo tọa độ Y (cả hai ở y=0-97/112), gây cản trở điều hướng sang phải. Cần thử DPAD_DOWN để rời khỏi vùng hero banner và tìm đường điều hướng khác đến Tab Kho Phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_084_mission_.jpg"
+    },
+    {
+      "step_id": 85,
+      "step_in_mission": 2,
+      "time_offset_sec": 2148.0,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua D-pad JS & Hàng Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_085_mission_.jpg"
+    },
+    {
+      "step_id": 86,
+      "step_in_mission": 3,
+      "time_offset_sec": 2165.1,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua D-pad JS & Hàng Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,0][654,97]. Đã bị kẹt trong vòng lặp giữa heroPlay và heroDetails nhiều lần. Cần thử DPAD_DOWN để rời khỏi vùng hero banner hoàn toàn và di chuyển đến vùng nội dung dưới (rvNowPlaying hoặc cardRoot), từ đó tìm đường đến nav_phim (Kho Phim) để vào Tab 5 và bắt đầu kiểm tra WebPlayerActivity."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_086_mission_.jpg"
+    },
+    {
+      "step_id": 87,
+      "step_in_mission": 4,
+      "time_offset_sec": 2177.0,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua D-pad JS & Hàng Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_087_mission_.jpg"
+    },
+    {
+      "step_id": 88,
+      "step_in_mission": 5,
+      "time_offset_sec": 2192.0,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua D-pad JS & Hàng Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroPlay#[208,0][654,97] sau nhiều lần thử di chuyển. Vùng hero banner đang gây cản trở việc điều hướng đến nav_phim (Kho Phim). Cần thử DPAD_DOWN để rời khỏi vùng hero banner hoàn toàn và di chuyển đến vùng nội dung dưới (cardRoot hoặc rvNowPlaying), từ đó tìm đường mới đến Tab Kho Phim để bắt đầu kiểm tra WebPlayerActivity."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_088_mission_.jpg"
+    },
+    {
+      "step_id": 89,
+      "step_in_mission": 6,
+      "time_offset_sec": 2204.5,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua D-pad JS & Hàng Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_089_mission_.jpg"
+    },
+    {
+      "step_id": 90,
+      "step_in_mission": 7,
+      "time_offset_sec": 2216.5,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua D-pad JS & Hàng Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroPlay#[208,0][654,97] sau nhiều lần thử di chuyển lên/xuống. Vùng hero banner đang chồng lên thanh điều hướng trên cùng (cùng Y range 0-112), gây cản trở việc điều hướng sang phải đến nav_phim. Cần thử DPAD_RIGHT từ heroPlay để di chuyển sang phải về phía nav_phim (Kho Phim) trên thanh điều hướng trên cùng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_090_mission_.jpg"
+    },
+    {
+      "step_id": 91,
+      "step_in_mission": 8,
+      "time_offset_sec": 2228.1,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua D-pad JS & Hàng Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroDetails#[670,0][1232,97] sau nhiều lần thử di chuyển. Vùng hero banner chồng lên thanh điều hướng trên cùng (cùng Y range 0-112), gây cản trở việc điều hướng sang phải đến nav_phim. Cần thử DPAD_DOWN để rời khỏi vùng hero banner hoàn toàn và di chuyển đến vùng nội dung dưới (cardRoot hoặc rvNowPlaying), từ đó tìm đường mới đến Tab Kho Phim để bắt đầu kiểm tra WebPlayerActivity."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_091_mission_.jpg"
+    },
+    {
+      "step_id": 92,
+      "step_in_mission": 9,
+      "time_offset_sec": 2244.2,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua D-pad JS & Hàng Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_092_mission_.jpg"
+    },
+    {
+      "step_id": 93,
+      "step_in_mission": 10,
+      "time_offset_sec": 2255.8,
+      "mission": {
+        "id": "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+        "title": "Trình Phát Web (WebPlayerActivity), Tua D-pad JS & Hàng Tiếp Tục Xem"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroPlay#[208,0][654,97] sau nhiều lần thử di chuyển lên/xuống. Vùng hero banner đang chồng lên thanh điều hướng trên cùng (cùng Y range 0-112), gây cản trở việc điều hướng sang phải đến nav_phim. Cần thử DPAD_RIGHT từ heroPlay để di chuyển sang phải về phía nav_phim (Kho Phim) trên thanh điều hướng trên cùng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_093_mission_.jpg"
+    },
+    {
+      "step_id": 94,
+      "step_in_mission": 1,
+      "time_offset_sec": 2272.5,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroDetails#[670,0][1232,97]. Vùng hero banner đang chồng lên thanh điều hướng trên cùng. Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) và bắt đầu kiểm tra PlayerActivity theo nhiệm vụ mới MISSION_PLAYER_SETTINGS_DIALOG, cần di chuyển focus sang phải trên thanh điều hướng. Thử DPAD_RIGHT từ heroDetails để đến nav_phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_094_mission_.jpg"
+    },
+    {
+      "step_id": 95,
+      "step_in_mission": 2,
+      "time_offset_sec": 2288.5,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroDetails#[670,0][1232,97]. Vùng hero banner chồng lên thanh điều hướng trên cùng. Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) và bắt đầu kiểm tra PlayerActivity theo nhiệm vụ MISSION_PLAYER_SETTINGS_DIALOG, cần rời khỏi vùng hero banner. Thử DPAD_DOWN để di chuyển xuống vùng nội dung dưới (cardRoot hoặc rvNowPlaying), từ đó tìm đường mới đến Tab Kho Phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_095_mission_.jpg"
+    },
+    {
+      "step_id": 96,
+      "step_in_mission": 3,
+      "time_offset_sec": 2299.6,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_096_mission_.jpg"
+    },
+    {
+      "step_id": 97,
+      "step_in_mission": 4,
+      "time_offset_sec": 2312.8,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,0][654,97]. Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) và bắt đầu kiểm tra PlayerActivity theo nhiệm vụ MISSION_PLAYER_SETTINGS_DIALOG, cần di chuyển focus sang phải trên thanh điều hướng trên cùng. Thử DPAD_RIGHT từ heroPlay để đến nav_phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_097_mission_.jpg"
+    },
+    {
+      "step_id": 98,
+      "step_in_mission": 5,
+      "time_offset_sec": 2327.4,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroDetails#[670,0][1232,97]. Vùng hero banner chồng lên thanh điều hướng trên cùng. Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) và bắt đầu kiểm tra PlayerActivity theo nhiệm vụ MISSION_PLAYER_SETTINGS_DIALOG, cần rời khỏi vùng hero banner. Thử DPAD_DOWN để di chuyển xuống vùng nội dung dưới (cardRoot hoặc rvNowPlaying), từ đó tìm đường mới đến Tab Kho Phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_098_mission_.jpg"
+    },
+    {
+      "step_id": 99,
+      "step_in_mission": 6,
+      "time_offset_sec": 2339.8,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' ở góc trái trên màn hình (y=245). Để đến nút nav_phim [899,0][1100,112] trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_099_mission_.jpg"
+    },
+    {
+      "step_id": 100,
+      "step_in_mission": 7,
+      "time_offset_sec": 2352.2,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,0][654,97]",
+        "focused_text": "",
+        "focused_bounds": "[208,0][654,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,0][654,97]. Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) và bắt đầu kiểm tra PlayerActivity theo nhiệm vụ MISSION_PLAYER_SETTINGS_DIALOG, cần di chuyển focus sang phải trên thanh điều hướng trên cùng. Thử DPAD_RIGHT từ heroPlay để đến nav_phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_100_mission_.jpg"
+    },
+    {
+      "step_id": 101,
+      "step_in_mission": 8,
+      "time_offset_sec": 2365.3,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,0][1232,97]",
+        "focused_text": "",
+        "focused_bounds": "[670,0][1232,97]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus vẫn kẹt ở heroDetails#[670,0][1232,97] sau nhiều lần thử di chuyển. Vùng hero banner chồng lên thanh điều hướng trên cùng gây cản trở. Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) và bắt đầu kiểm tra PlayerActivity theo nhiệm vụ MISSION_PLAYER_SETTINGS_DIALOG, cần rời khỏi vùng hero banner hoàn toàn. Thử DPAD_DOWN để di chuyển xuống vùng nội dung dưới (cardRoot hoặc rvNowPlaying), từ đó tìm đường mới đến Tab Kho Phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_101_mission_.jpg"
+    },
+    {
+      "step_id": 102,
+      "step_in_mission": 9,
+      "time_offset_sec": 2381.4,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,245][748,639]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,245][748,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona' (y=245-639). Vùng hero banner (heroPlay, heroDetails) đang chồng lên thanh điều hướng trên cùng (y=0-112), gây cản trở việc điều hướng lên nav_phim. Đã thử nhiều lần DPAD_UP/DPAD_RIGHT từ heroPlay/heroDetails nhưng focus vẫn kẹt trong vòng lặp. Cần thử di chuyển ngang sang phải qua các cardRoot để tìm đường mới đến nav_phim (Kho Phim) trên thanh điều hướng trên cùng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_102_mission_.jpg"
+    },
+    {
+      "step_id": 103,
+      "step_in_mission": 10,
+      "time_offset_sec": 2399.6,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[734,245][1405,639]",
+        "focused_text": "Fiorentina vs Juventus, TRỰC TIẾP, CÔNG CHẤT",
+        "focused_bounds": "[734,245][1405,639]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Fiorentina vs Juventus' (y=245-639). Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_103_mission_.jpg"
+    },
+    {
+      "step_id": 104,
+      "step_in_mission": 11,
+      "time_offset_sec": 2426.9,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,0][1824,648]",
+        "focused_text": "",
+        "focused_bounds": "[96,0][1824,648]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,0][1824,648] - view lớn bao phủ toàn bộ màn hình trên cùng. Thanh điều hướng trên cùng hiện hiển thị rõ với các nút nav_live, nav_iptv, nav_phim, nav_schedule, nav_search, nav_settings. Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) và bắt đầu kiểm tra PlayerActivity theo nhiệm vụ MISSION_PLAYER_SETTINGS_DIALOG, cần di chuyển focus sang phải trên thanh điều hướng trên cùng. Thử DPAD_RIGHT từ view hiện tại để đến nav_phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_104_mission_.jpg"
+    },
+    {
+      "step_id": 105,
+      "step_in_mission": 12,
+      "time_offset_sec": 2438.8,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[1172,686][1824,1080]",
+        "focused_text": "RC Lens vs Marseille, TRỰC TIẾP, XUÂN SON",
+        "focused_bounds": "[1172,686][1824,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'RC Lens vs Marseille' (y=686-1080). Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_105_mission_.jpg"
+    },
+    {
+      "step_id": 106,
+      "step_in_mission": 13,
+      "time_offset_sec": 2449.0,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,0][1824,648]",
+        "focused_text": "",
+        "focused_bounds": "[96,0][1824,648]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,0][1824,648] - view lớn bao phủ toàn bộ màn hình trên cùng. Thanh điều hướng trên cùng hiện hiển thị rõ với các nút nav_live, nav_iptv, nav_phim, nav_schedule, nav_search, nav_settings. Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) và bắt đầu kiểm tra PlayerActivity theo nhiệm vụ MISSION_PLAYER_SETTINGS_DIALOG, cần di chuyển focus sang phải trên thanh điều hướng trên cùng. Thử DPAD_RIGHT từ view hiện tại để đến nav_phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_106_mission_.jpg"
+    },
+    {
+      "step_id": 107,
+      "step_in_mission": 14,
+      "time_offset_sec": 2462.3,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[1172,718][1824,1080]",
+        "focused_text": "CA Central Cordoba SDE vs Club Atlético Lanús, 05:30",
+        "focused_bounds": "[1172,718][1824,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'CA Central Cordoba SDE vs Club Atlético Lanús, 05:30' ở góc phải dưới màn hình (y=718-1080). Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_107_mission_.jpg"
+    },
+    {
+      "step_id": 108,
+      "step_in_mission": 15,
+      "time_offset_sec": 2472.4,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[1172,224][1824,618]",
+        "focused_text": "RC Lens vs Marseille, TRỰC TIẾP, XUÂN SON",
+        "focused_bounds": "[1172,224][1824,618]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'RC Lens vs Marseille' (y=224-618). Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_108_mission_.jpg"
+    },
+    {
+      "step_id": 109,
+      "step_in_mission": 16,
+      "time_offset_sec": 2485.4,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,0][1824,648]",
+        "focused_text": "",
+        "focused_bounds": "[96,0][1824,648]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,0][1824,648] - view lớn bao phủ toàn bộ màn hình trên cùng. Thanh điều hướng trên cùng hiện hiển thị rõ với các nút nav_live, nav_iptv, nav_phim, nav_schedule, nav_search, nav_settings. Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) và bắt đầu kiểm tra PlayerActivity theo nhiệm vụ MISSION_PLAYER_SETTINGS_DIALOG, cần di chuyển focus sang phải trên thanh điều hướng trên cùng. Thử DPAD_RIGHT từ view hiện tại để đến nav_phim."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_109_mission_.jpg"
+    },
+    {
+      "step_id": 110,
+      "step_in_mission": 17,
+      "time_offset_sec": 2497.9,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[1542,463][1824,1080]",
+        "focused_text": "",
+        "focused_bounds": "[1542,463][1824,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[1542,463][1824,1080] - view lớn ở góc phải dưới màn hình. Thanh điều hướng trên cùng hiện hiển thị rõ với các nút nav_live, nav_iptv, nav_phim, nav_schedule, nav_search, nav_settings. Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) và bắt đầu kiểm tra PlayerActivity theo nhiệm vụ MISSION_PLAYER_SETTINGS_DIALOG, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_110_mission_.jpg"
+    },
+    {
+      "step_id": 111,
+      "step_in_mission": 18,
+      "time_offset_sec": 2510.0,
+      "mission": {
+        "id": "MISSION_PLAYER_SETTINGS_DIALOG",
+        "title": "Trình Phát Native (PlayerActivity), Dialog Cài Đặt Thống Nhất & Toàn Bộ Chức Năng"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[1172,1][1824,363]",
+        "focused_text": "CA Central Cordoba SDE vs Club Atlético Lanús, 05:30",
+        "focused_bounds": "[1172,1][1824,363]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'CA Central Cordoba SDE vs Club Atlético Lanús, 05:30' (y=1-363). Để vào Tab Kho Phim (nav_phim tại [899,0][1100,112]) trên thanh điều hướng trên cùng, cần di chuyển focus lên trên cùng rồi sang phải. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_111_mission_.jpg"
+    },
+    {
+      "step_id": 112,
+      "step_in_mission": 1,
+      "time_offset_sec": 2523.9,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm Thông Minh & Cài Đặt (Hộp Thoại Báo Lỗi Telegram QR @kenhlivetv)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[1172,0][1824,394]",
+        "focused_text": "RC Lens vs Marseille, TRỰC TIẾP, XUÂN SON",
+        "focused_bounds": "[1172,0][1824,394]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'RC Lens vs Marseille' (y=0-394). Để vào Tab Tìm kiếm (nav_search tại [1325,0][1515,112]) theo nhiệm vụ mới MISSION_SEARCH_AND_SETTINGS_FEEDBACK, cần di chuyển focus lên thanh điều hướng trên cùng rồi sang phải đến nav_search. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_112_mission_.jpg"
+    },
+    {
+      "step_id": 113,
+      "step_in_mission": 2,
+      "time_offset_sec": 2535.0,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm Thông Minh & Cài Đặt (Hộp Thoại Báo Lỗi Telegram QR @kenhlivetv)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,0][1824,648]",
+        "focused_text": "",
+        "focused_bounds": "[96,0][1824,648]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,0][1824,648] - view lớn bao phủ toàn bộ màn hình trên cùng. Thanh điều hướng trên cùng hiện hiển thị rõ với các nút nav_live, nav_iptv, nav_phim, nav_schedule, nav_search, nav_settings. Để vào Tab Tìm kiếm (nav_search tại [1325,0][1515,112]) theo nhiệm vụ mới MISSION_SEARCH_AND_SETTINGS_FEEDBACK, cần di chuyển focus sang phải trên thanh điều hướng trên cùng. Thử DPAD_RIGHT từ view hiện tại để đến nav_search."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_113_mission_.jpg"
+    },
+    {
+      "step_id": 114,
+      "step_in_mission": 3,
+      "time_offset_sec": 2547.7,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm Thông Minh & Cài Đặt (Hộp Thoại Báo Lỗi Telegram QR @kenhlivetv)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6,
+        "name": "Cổng Chọn (Home Hub)",
+        "icon": "🏠"
+      },
+      "ui_state": {
+        "focused_view": "cardIptvRoot#[1542,921][1824,1080]",
+        "focused_text": "",
+        "focused_bounds": "[1542,921][1824,1080]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardIptvRoot#[1542,921][1824,1080] - kênh IPTV ở góc phải dưới màn hình. Để vào Tab Tìm kiếm (nav_search tại [1325,0][1515,112]) theo nhiệm vụ MISSION_SEARCH_AND_SETTINGS_FEEDBACK, cần di chuyển focus lên thanh điều hướng trên cùng rồi sang phải đến nav_search. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_114_mission_.jpg"
+    },
+    {
+      "step_id": 115,
+      "step_in_mission": 4,
+      "time_offset_sec": 2560.8,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm Thông Minh & Cài Đặt (Hộp Thoại Báo Lỗi Telegram QR @kenhlivetv)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 6,
+        "name": "Cổng Chọn (Home Hub)",
+        "icon": "🏠"
+      },
+      "ui_state": {
+        "focused_view": "view#[1542,185][1824,818]",
+        "focused_text": "",
+        "focused_bounds": "[1542,185][1824,818]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[1542,185][1824,818] - view trong phần trending bên phải màn hình. Để vào Tab Tìm kiếm (nav_search tại [1325,0][1515,112]) theo nhiệm vụ MISSION_SEARCH_AND_SETTINGS_FEEDBACK, cần di chuyển focus lên thanh điều hướng trên cùng rồi sang phải đến nav_search. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_115_mission_.jpg"
+    },
+    {
+      "step_id": 116,
+      "step_in_mission": 5,
+      "time_offset_sec": 2572.2,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm Thông Minh & Cài Đặt (Hộp Thoại Báo Lỗi Telegram QR @kenhlivetv)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[1172,0][1824,362]",
+        "focused_text": "CA Central Cordoba SDE vs Club Atlético Lanús, 05:30",
+        "focused_bounds": "[1172,0][1824,362]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'CA Central Cordoba SDE vs Club Atlético Lanús, 05:30' (y=0-362). Để vào Tab Tìm kiếm (nav_search tại [1325,0][1515,112]) theo nhiệm vụ MISSION_SEARCH_AND_SETTINGS_FEEDBACK, cần di chuyển focus lên thanh điều hướng trên cùng rồi sang phải đến nav_search. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_116_mission_.jpg"
+    },
+    {
+      "step_id": 117,
+      "step_in_mission": 6,
+      "time_offset_sec": 2584.4,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm Thông Minh & Cài Đặt (Hộp Thoại Báo Lỗi Telegram QR @kenhlivetv)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[1172,0][1824,394]",
+        "focused_text": "RC Lens vs Marseille, TRỰC TIẾP, XUÂN SON",
+        "focused_bounds": "[1172,0][1824,394]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'RC Lens vs Marseille, TRỰC TIẾP, XUÂN SON' (y=0-394). Để vào Tab Tìm kiếm (nav_search tại [1325,0][1515,112]) theo nhiệm vụ MISSION_SEARCH_AND_SETTINGS_FEEDBACK, cần di chuyển focus lên thanh điều hướng trên cùng rồi sang phải đến nav_search. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_117_mission_.jpg"
+    },
+    {
+      "step_id": 118,
+      "step_in_mission": 7,
+      "time_offset_sec": 2597.6,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm Thông Minh & Cài Đặt (Hộp Thoại Báo Lỗi Telegram QR @kenhlivetv)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,0][1824,648]",
+        "focused_text": "",
+        "focused_bounds": "[96,0][1824,648]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,0][1824,648] - view lớn bao phủ toàn bộ màn hình trên cùng. Thanh điều hướng trên cùng hiện hiển thị rõ với các nút nav_live, nav_iptv, nav_phim, nav_schedule, nav_search, nav_settings. Để vào Tab Tìm kiếm (nav_search tại [1325,0][1515,112]) theo nhiệm vụ MISSION_SEARCH_AND_SETTINGS_FEEDBACK, cần di chuyển focus sang phải trên thanh điều hướng trên cùng. Thử DPAD_RIGHT từ view hiện tại để đến nav_search."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_118_mission_.jpg"
+    },
+    {
+      "step_id": 119,
+      "step_in_mission": 8,
+      "time_offset_sec": 2613.0,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm Thông Minh & Cài Đặt (Hộp Thoại Báo Lỗi Telegram QR @kenhlivetv)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,0][1824,648]",
+        "focused_text": "",
+        "focused_bounds": "[96,0][1824,648]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,0][1824,648] - view lớn bao phủ toàn bộ màn hình trên cùng. Thanh điều hướng trên cùng hiện hiển thị rõ với các nút nav_live, nav_iptv, nav_phim, nav_schedule, nav_search, nav_settings. Để vào Tab Tìm kiếm (nav_search tại [1325,0][1515,112]) theo nhiệm vụ MISSION_SEARCH_AND_SETTINGS_FEEDBACK, cần di chuyển focus sang phải trên thanh điều hướng trên cùng. Thử DPAD_RIGHT từ view hiện tại để đến nav_search."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_119_mission_.jpg"
+    },
+    {
+      "step_id": 120,
+      "step_in_mission": 9,
+      "time_offset_sec": 2629.0,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm Thông Minh & Cài Đặt (Hộp Thoại Báo Lỗi Telegram QR @kenhlivetv)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,0][1824,648]",
+        "focused_text": "",
+        "focused_bounds": "[96,0][1824,648]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,0][1824,648] - view lớn bao phủ toàn bộ màn hình trên cùng. Nhiều lần thử DPAD_RIGHT chưa di chuyển focus được đến nav_search. Cần thử cách khác để di chuyển focus ra khỏi view lớn này và đến thanh điều hướng. Thử DPAD_DOWN để di chuyển focus xuống dưới, có thể đến các nút điều hướng hoặc phần nội dung dưới."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_120_mission_.jpg"
+    },
+    {
+      "step_id": 121,
+      "step_in_mission": 10,
+      "time_offset_sec": 2638.9,
+      "mission": {
+        "id": "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+        "title": "Tìm Kiếm Thông Minh & Cài Đặt (Hộp Thoại Báo Lỗi Telegram QR @kenhlivetv)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[515,686][1186,1080]",
+        "focused_text": "Fiorentina vs Juventus, TRỰC TIẾP, CÔNG CHẤT",
+        "focused_bounds": "[515,686][1186,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Fiorentina vs Juventus, TRỰC TIẾP, CÔNG CHẤT' (y=686-1080). Để vào Tab Tìm kiếm (nav_search tại [1325,0][1515,112]) theo nhiệm vụ MISSION_SEARCH_AND_SETTINGS_FEEDBACK, cần di chuyển focus lên thanh điều hướng trên cùng rồi sang phải đến nav_search. Thử DPAD_UP để di chuyển focus lên thanh điều hướng."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_121_mission_.jpg"
+    },
+    {
+      "step_id": 122,
+      "step_in_mission": 1,
+      "time_offset_sec": 2650.8,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Thử Thách Stress Chaos D-pad & Đo Đạc Bộ Nhớ RAM (Memory Leak Audit)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,0][1824,648]",
+        "focused_text": "",
+        "focused_bounds": "[96,0][1824,648]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,0][1824,648] - view lớn bao phủ toàn bộ màn hình trên cùng. Nhiệm vụ hiện tại là MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY (Bước 1/6) - cần nhồi phím liên tục 4 hướng để kiểm tra độ bền, mép màn hình, khả năng giữ focus / auto recovery. Thử DPAD_RIGHT để di chuyển focus sang phải trên thanh điều hướng trên cùng, hướng về phía nav_search hoặc nav_settings."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_122_mission_.jpg"
+    },
+    {
+      "step_id": 123,
+      "step_in_mission": 2,
+      "time_offset_sec": 2662.6,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Thử Thách Stress Chaos D-pad & Đo Đạc Bộ Nhớ RAM (Memory Leak Audit)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "view#[96,0][1824,648]",
+        "focused_text": "",
+        "focused_bounds": "[96,0][1824,648]",
+        "has_focus_ring": false,
+        "focus_ring_color": "ORANGE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở view#[96,0][1824,648] - view lớn bao phủ toàn bộ màn hình trên cùng. Nhiều lần thử DPAD_RIGHT chưa di chuyển focus được. Nhiệm vụ hiện tại là MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY (Bước 2/6) - cần nhồi phím liên tục 4 hướng để kiểm tra độ bền. Thử DPAD_LEFT để kiểm tra mép trái và xem focus có thể thoát khỏi view lớn này không."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_LEFT",
+        "label": "⬅️ DPAD_LEFT (D-pad Trái)",
+        "icon": "⬅️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_123_mission_.jpg"
+    },
+    {
+      "step_id": 124,
+      "step_in_mission": 3,
+      "time_offset_sec": 2674.2,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Thử Thách Stress Chaos D-pad & Đo Đạc Bộ Nhớ RAM (Memory Leak Audit)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,686][748,1080]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,686][748,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI' (y=686-1080). Nhiệm vụ hiện tại là MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY (Bước 3/6) - cần nhồi phím liên tục 4 hướng để kiểm tra độ bền, mép màn hình, khả năng giữ focus / auto recovery. Thử DPAD_UP để di chuyển focus lên thanh điều hướng trên cùng, có thể đến nav_live hoặc các nút điều hướng khác."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_UP",
+        "label": "⬆️ DPAD_UP (D-pad Lên)",
+        "icon": "⬆️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_124_mission_.jpg"
+    },
+    {
+      "step_id": 125,
+      "step_in_mission": 4,
+      "time_offset_sec": 2685.4,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Thử Thách Stress Chaos D-pad & Đo Đạc Bộ Nhớ RAM (Memory Leak Audit)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroPlay#[208,441][654,538]",
+        "focused_text": "",
+        "focused_bounds": "[208,441][654,538]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroPlay#[208,441][654,538] - nút 'XEM NGAY' màu đỏ. Nhiệm vụ hiện tại là MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY (Bước 4/6) - cần nhồi phím liên tục 4 hướng để kiểm tra độ bền, mép màn hình, khả năng giữ focus / auto recovery. Thử DPAD_RIGHT để di chuyển focus sang phải, có thể đến heroDetails hoặc các phần tử khác trên màn hình."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_125_mission_.jpg"
+    },
+    {
+      "step_id": 126,
+      "step_in_mission": 5,
+      "time_offset_sec": 2697.2,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Thử Thách Stress Chaos D-pad & Đo Đạc Bộ Nhớ RAM (Memory Leak Audit)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "heroDetails#[670,441][1232,538]",
+        "focused_text": "",
+        "focused_bounds": "[670,441][1232,538]",
+        "has_focus_ring": true,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở heroDetails#[670,441][1232,538] - phần chi tiết hero. Nhiệm vụ hiện tại là MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY (Bước 5/6) - cần nhồi phím liên tục 4 hướng để kiểm tra độ bền, mép màn hình, khả năng giữ focus / auto recovery. Thử DPAD_DOWN để di chuyển focus xuống dưới, có thể đến rvNowPlaying hoặc các cardRoot để tiếp tục kiểm tra stress D-pad."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_DOWN",
+        "label": "⬇️ DPAD_DOWN (D-pad Xuống)",
+        "icon": "⬇️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_126_mission_.jpg"
+    },
+    {
+      "step_id": 127,
+      "step_in_mission": 6,
+      "time_offset_sec": 2714.6,
+      "mission": {
+        "id": "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+        "title": "Thử Thách Stress Chaos D-pad & Đo Đạc Bộ Nhớ RAM (Memory Leak Audit)"
+      },
+      "activity": "com.kenhlive.tv/.MainActivity",
+      "active_tab": {
+        "index": 5,
+        "name": "Kho Phim (NguonC)",
+        "icon": "🎬"
+      },
+      "ui_state": {
+        "focused_view": "cardRoot#[96,686][748,1080]",
+        "focused_text": "Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI",
+        "focused_bounds": "[96,686][748,1080]",
+        "has_focus_ring": false,
+        "focus_ring_color": "WHITE"
+      },
+      "playback_state": {
+        "is_playing": false,
+        "motion_delta": 0.0
+      },
+      "ai_cognition": {
+        "provider": "OPENAI",
+        "thought": "Focus hiện tại ở cardRoot 'Atletico Madrid vs FC Barcelona, TRỰC TIẾP, BÒ TƯƠI' (y=686-1080). Nhiệm vụ hiện tại là MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY (Bước 6/6 - bước cuối cùng) - cần nhồi phím liên tục 4 hướng để kiểm tra độ bền, mép màn hình, khả năng giữ focus / auto recovery. Thử DPAD_RIGHT để di chuyển focus sang phải đến card tiếp theo (Fiorentina vs Juventus) để tiếp tục kiểm tra stress D-pad và khả năng giữ focus khi di chuyển giữa các card."
+      },
+      "action": {
+        "type": "KEY",
+        "param": "DPAD_RIGHT",
+        "label": "➡️ DPAD_RIGHT (D-pad Phải)",
+        "icon": "➡️"
+      },
+      "defect": null,
+      "screenshot": "shots/step_127_mission_.jpg"
+    }
+  ]
+}
