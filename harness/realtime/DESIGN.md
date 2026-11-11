@@ -672,7 +672,76 @@ transport trong `vision._post` vẫn là lưới an toàn đúng).
 Bảng này ghi từng mục CI-T7 khi xong (1 mục = 1 commit trên main, Build APK
 xanh từng commit, mock + replay giữ nguyên). Mock baseline trước CI-T7: 33/33.
 Replay baseline trước CI-T7 (R7, run 43027661716): 8/8 P0, 0 false pass.
+Baseline R8 (chạy lại bởi coordinator trên code gồm mục 1+2, artifact
+run-42950738729): có vision 6/8 P0 (thiếu P0-3, P0-7 do lỗi transport vision),
+0 false pass — dùng 6/8 làm baseline của vòng này, xem kết quả cuối vòng ở
+§15.12.
 
 | Mục | Sửa | Kiểm chứng |
 |---|---|---|
 | 1 | Nhận diện dialog: thêm 13 id của MatchDetailPanel (`panelLeague`, `panelBadge`, `panelHostName`, `panelHostIcon`, `panelScore`, `panelClock`, `panelGuestIcon`, `panelGuestName`, `panelBlvTitle`, `panelBlvList`, `panelSameTimeTitle`, `panelSameTimeList`, `panelPlay` — grep layout `dialog_match_detail.xml`, chỉ đọc) vào `dialog_id_set` (`device.py`); ngoài ra coi mọi id bắt đầu bằng `"panel"` hoặc `"blvCardRoot"` (card phòng trong panel, focus lúc panel mở — step_011 CI-T6) là dialog đang mở. An toàn: không id layout nào khác bắt đầu bằng `"panel"` (`channelCarouselPanel`/`sportOptionsPanel` đều kết thúc bằng `"Panel"`). | Mock N9 (XML dump thật): panel mở (`panelBlvList` + `blvCardRoot` focus) -> `has_dialog` True, `dialog_ids` đủ panel; `panelScore` đơn độc -> True; dialog cũ (`dialogTitle`/`btnCloseFeedback`) vẫn True; màn thường có `channelCarouselPanel` -> False. Mock 34/34 PASS. |
+| 2 | Driver: cấm `goto_live_card` khi dialog/panel đang mở — gate rule 0c2 bằng `not has_dialog` (+ guard trong chính `_goto_live_card_action`, trả None khi `has_dialog`) và panel không bị dismiss bằng BACK khi mission cần player (đường vào player là OK trên phòng đang focus). | Mock N10: panel mở + badge LIVE sau overlay -> `KEY OK` rule `open_player`; `_goto_live_card_action` trực tiếp trả None khi `has_dialog`; panel đóng -> `goto_live_card` `DPAD_DOWN`; rule driver ghi vào timeline (COLD_START: 2 bước đầu `explore:down`). Mock 35/35 PASS, EXIT=0 (kiểm chứng bởi coordinator, không làm lại). |
+| 3 | Focus-trap + keyboard theo ẢNH/pixel, không theo dump (`detectors.detect_keyboard_from_image` + `detect_focus_trap(..., frame_png)`): bàn phím QWERTY in-app không có node nào trong dump nên guard đếm ký tự trong dump mù. Chữ ký pixel: ≥3 dải ngang dày đặc pixel 'xám phím' (độ sáng 40–70) ở nửa dưới màn hình, cao 20–45px (theo H/540), cách đều nhau (tỉ lệ khoảng cách max/min ≤ 1.5) = 4 hàng phím QWERTY. Chỉ downscale tối đa về 960 rộng (về 480 làm mờ phím, mất tín hiệu — đã kiểm). Check ảnh chỉ chạy lazy khi sắp tố kẹt; kết quả cache theo frame_hash, ghi `keyboard_open_image` vào obs + timeline. | Mock N11: ảnh bàn phím tổng hợp (4 hàng phím xám) -> True; ảnh thường -> False; frame THẬT CI-T6: 066/067/071 (có bàn phím) -> True, 011/026/051/055 (không) -> False; dump KHÔNG có node phím + ảnh bàn phím, 3 quan sát khác nhau cùng sig + DPAD_DOWN -> KHÔNG tố, `keyboard_open_image` True; cùng dump + ảnh thường -> tố 1 MEDIUM như cũ. Kiểm trên 29 frame CI-T6: 3/3 bắt, 0 FP. Mock 37/37 PASS, EXIT=0. |
+| 4 | `playback_readings` nối vào nguồn thật (`runner._extract_playback_s` + `gate.playback_monotonic` + quote vision): gốc rễ CI-T6 là dump WebView không có text -> `osd_visible=False` -> detector band dưới skip -> cache OCR trống -> luôn None. Sửa: cache trống thì OCR ÉP band dưới TRỰC TIẾP TỪ ẢNH (không qua `osd_visible`), ghi vào cache để detector dùng chung; parse thêm cặp 'elapsed / total' từ quote vision (`_playback_seconds_from_text`, dùng chung cho dump + quote). Gate: `unknown` sau ≥2 quan sát thành missing (không PASS tự do — live FAIL ở max_steps, replay downgrade UNVERIFIED); thêm kiểm tra tăng đơn điệu (lùi > 2s giữa 2 lần đọc liên tiếp -> missing), miễn lùi ngay sau tua NGƯỢC (`gate.note_seek`, chỉ DPAD_LEFT/REWIND trong player — tua TỚI DPAD_RIGHT không miễn). | Mock N6 (cập nhật luật): đóng băng 00:20 x10 -> FAIL; tăng 20->65 -> PASS; unknown x10 -> FAIL (luật mới, CI-T6 cũ cho PASS); dãy mắt đọc CI-T6 20->0->30->20 -> `playback_monotonic` False -> FAIL (status cũ `increasing` vì max-min=35s là lỗ hổng); tăng đơn điệu thật vẫn PASS; lùi ngay sau tua ngược được miễn; nhiễu OCR lùi ≤ 2s không tố. Mock N12: ảnh PIL vẽ '00:20' + '24:14' ở band dưới, dump rỗng + `osd_visible` False -> trích được 20, OCR ép ghi vào cache; ảnh đen -> None (không bịa); parse quote '00:20 / 01:05:24' -> 20, quote không có cặp giờ -> None. Mock 36/36 PASS, EXIT=0 (sau mục này). |
+| 5 | Video chunk cuối (`video_recorder.py` — CHỈ THÊM attr/method mới, KHÔNG đổi chữ ký `__init__`/`start()`/`stop_and_save()`, giữ kỷ luật dùng chung với harness cũ): (a) `request_graceful_stop()` — xin dừng mềm, worker để chunk hiện tại hết hạn 175s tự nhiên (moov đầy đủ) thay vì SIGINT cắt giữa chừng; runner gọi TRƯỚC giai đoạn post-processing dài (vision check cuối run), `stop_and_save()` join sau; quá hạn (175s+10s) thì SIGINT fallback. (b) Xác minh process screenrecord đã chết thật bằng `pidof` TRƯỚC khi chờ moov (`stop_and_save` + retry SIGINT tối đa 3 lần trong `_record_loop`, kết quả ghi vào `screenrecord_exited` + dict trả về + report `video_screenrecord_exited`). (c) Runner `run()`: `request_graceful_stop()` trước `_vision_overlap_checks()`, `stop_and_save()` sau. | Mock N13: (a) worker dừng mềm — chunk tự thoát (poll -> 0) thì 0 lệnh SIGINT/pkill, thread thoát, `screenrecord_exited` True; (b) `stop_and_save` dừng mềm với chunk thật 5s -> recorded 5.0s, `screenrecord_exited` True, `graceful_stop` True; (c) pidof vẫn thấy process -> `screenrecord_exited` False, xong trong 7.7s (< 20s, không treo). Mock B8 cũ (chunk cuối finalize sau 1.5s + pull cắt ngắn -> ~9s, 2 chunk; chunk hỏng -> giữ chunk đầu ~5s) và N3 (moov wait) vẫn PASS. Mock 39/39 PASS, EXIT=0 (sau mục này). Kiểm chứng live (phủ video > 95% + reel cover 2/2) còn lại cho trial trực tiếp — offline không có emulator. |
+| 6 | Dedup shot trùng (`runner._save_frame` + `_finish_mission`): `_save_frame` dedup theo sha256 PNG (cùng ảnh -> trả lại path đã lưu, không ghi trùng) cho cả `_observe` lẫn `_finish_mission` và giữa các mission; `_finish_mission` ghi rõ `evidence_frame_duplicate_of` khi frame cuối trùng shot đã lưu. | Mock N14: lưu cùng PNG 2 lần -> cùng 1 path; ảnh khác -> file riêng; chạy thật 2 mission COLD_START với device trả cùng 1 frame -> shots chỉ có 1 file (`step_004_cold_sta.jpg`), mission 2 ghi `evidence_frame_duplicate_of` đúng file đó, cả 2 vẫn PASS. Mock 40/40 PASS, EXIT=0 (sau mục này). Lưu ý test: dọn sạch out_dir trước khi chạy (file sót từ lần chạy trước làm mission 1 bỏ qua lưu vì file đã tồn tại, hash không được ghi). |
+| 7 | Đồng bộ screenshot/dump (`runner._observe`): dump TRƯỚC, chụp SAU (wait_stable), rồi dump kiểm chứng — (activity, focused_sig, has_dialog) phải giống dump đầu; lệch thì chụp lại (timeout 3s) + dump lại 1 lần, dùng bộ sau. Số lần retry ghi vào `timings.sync_retries` + report. Tốn thêm 1 lần dump/bước (~1-3s) nhưng screenshot và dump phải là cùng 1 trạng thái thì bằng chứng mới khớp. | Mock N15: device scripted — dump 1: màn thường, dump 2+: dialog 'Tập 1' mở -> observation ghi đúng dialog (`has_dialog` True, focused 'Tập 1'), retry đúng 1 lần, 3 lần dump; dump tĩnh -> 0 retry, không chụp lại. Mock 41/41 PASS, EXIT=0 (sau mục này). |
+| 8 | IPTV_EPG cần vision_confirm EPG text trong frame (`missions.py`: `MISSION_IPTV_EPG_AND_ZAPPING_PLAYER` thêm `needs_vision=True`, `target_desc` yêu cầu thấy tên kênh + thông tin EPG/lịch phát sóng của chương trình đang phát). Không PASS cứng khi chỉ thấy list. | Mock N16: spec `needs_vision` True, `target_desc` chứa 'EPG' + 'tên kênh'; gate đủ tín hiệu rẻ (PlayerActivity + motion, 4 bước) mà chưa vision -> `VISION_PENDING` (không PASS); vision xác nhận kèm quote EPG thì PASS. Mock 42/42 PASS, EXIT=0 (sau mục này). |
+| 9 | Detector điểm số trực tiếp ở Schedule (`detectors.detect_schedule_live_no_score`, chạy mọi observation, chỉ dump — không OCR): gom node theo HÀNG (tâm dọc bounds ±60px); hàng có badge LIVE + token giờ kickoff 'HH:MM' (không khoảng trắng — tỉ số app render dạng 'X : Y' có khoảng trắng) mà KHÔNG có token tỉ số -> tố HIGH (cần thấy 2 lần quan sát). Hàng 'SẮP ĐÁ' hiện giờ kickoff là đúng nên loại; chỉ chạy khi dump có ngữ cảnh lịch (id chứa 'sched'). | Mock N17: hàng LIVE 18:30 -> lần 1 ghi nhận, lần 2 tố 1 HIGH đúng '18:30'; hàng LIVE đã có tỉ số '2 : 1' không tố; hàng SẮP ĐÁ 19:00 không tố; lần 3 không tố trùng; màn không có id 'sched' không chạy. Mock 43/43 PASS, EXIT=0 (sau mục này). |
+| 10 | App (CHỈ GHI vào DESIGN.md §15.11, không sửa code app). | §15.11: 7 lỗi app đã phát hiện qua các vòng (từ §15.9 + VISUAL-REVIEW.md §9), ghi cho fix loop sau. |
+
+### 15.11. CI-T7 — lỗi app ghi cho fix loop (CHỈ GHI, không sửa code app)
+
+Danh sách này là đầu vào cho fix loop sau, không phải sửa của vòng QA này.
+Nguồn: §15.9 + VISUAL-REVIEW.md §9 (run 43027661716) và các vòng trước.
+
+| # | Lỗi app | Bằng chứng |
+|---|---|---|
+| A1 | WebPlayer đè đôi tiêu đề (2 dòng tiêu đề chồng lên nhau, chữ chen nhau không đọc được) | Vision xác nhận HIGH ở step_059 CI-T6 (mục 2 CI-T6 bắt được lần đầu); lỗi tồn tại từ CI-T3+, vision check cuối run soi đúng frame cuối WebPlayer |
+| A2 | Spinner loading đè nút ▶ PHÁT + loading vô hạn ở player native | Step_012 CI-T6 (ROOM_PICKER): mở player từ thẻ trận [SẮP ĐÁ] vào trạng thái 'Đang tải luồng...' vô hạn, spinner đè lên nút phát; cùng gốc với CI-T5 step_013/014 |
+| A3 | Schedule: hàng LIVE hiện giờ kickoff thay vì tỉ số | Hàng LIVE hiện '18:30'/'18:35' (giờ đá) thay vì tỉ số đang diễn ra; còn từ CI-T3, mắt thấy lại ở step_030 CI-T6; nay có detector riêng (CI-T7 mục 9) để tố tự động |
+| A4 | Hàng "Địa Phương — 66 kênh" vượt giới hạn (1 hàng chứa quá nhiều kênh, không duyệt nổi) | P0-7: 1 hàng TV360 chứa 75 kênh (run 42950738729, step_057); detector `row_overflow` tố khi ≥ 30 kênh/hàng |
+| A5 | Rail sidebar không mở (DPAD_LEFT không mở được thanh điều hướng) | Mission NAV_RAIL FAIL ở CI-T6 (rail không mở — lỗi app, không phải driver) |
+| A6 | Detail trận LIVE hiện "VS" thay vì tỉ số | Trận đang diễn ra nhưng panel chi tiết chỉ hiện 'VS', không có tỉ số (mắt thấy CI-T6); luật plausibility vẫn áp (tỉ số phi lý -> 'VS', không bịa) — lỗi ở đây là thiếu dữ liệu tỉ số thật, phải sửa plumbing dữ liệu, không được giấu bằng 'VS' |
+| A7 | Nút "ÂM THANH & PHỤ ĐỀ" bị cắt ở mép phải khi focus (player native) | MỚI ở CI-T6: step_061/063, tour_160/165 — nút bị cắt cụt khi focus, chữ chạm mép phải |
+
+### 15.12. Kết quả cuối vòng CI-T7 (offline — mock + replay, 2026-11-11)
+
+- **Mock cuối vòng: 43/43 PASS, EXIT=0** (`python3 mock_test.py`, ~120s). Baseline
+  trước CI-T7: 33/33; + N9/N10 (mục 1+2) = 35; + N11..N17 (mục 3–9) = 43.
+- **Replay cuối vòng trên artifact run-42950738729** (code CI-T7 đầy đủ 9 mục):
+  - Có vision (`/tmp/qa_replay_R8_final/replay_report.json`, 288.7s):
+    **P0 recall 6/8** (bắt P0-1, P0-2, P0-4, P0-5, P0-6, P0-8; thiếu P0-3,
+    P0-7), **0 false pass**, 7 vision calls (provider OPENAI qua
+    integrate.api.nvidia.com), 13 requests, 0×429, mission 2 PASS / 4 FAIL /
+    11 UNVERIFIED, score 2/100.
+  - Không vision (`/tmp/qa_replay_R8_final_novision/replay_report.json`, 3.4s):
+    **P0 recall 5/8** (thiếu thêm P0-8), 0 false pass, 0 vision call,
+    mission 1 PASS / 3 FAIL / 13 UNVERIFIED, score 12/100.
+- **So với baseline R8 trước code CI-T7** (coordinator chạy, code gồm mục 1+2):
+  có vision 6/8 P0 (thiếu P0-3, P0-7), 0 false pass, 6 vision calls, 304.9s,
+  14 requests, 0×429, mission 2/4/11, score 2; không vision 5/8. **Mục tiêu
+  "giữ hoặc vượt 6/8" ĐẠT: P0 recall giữ nguyên 6/8 cả hai bản, mission
+  totals và score giữ nguyên.**
+- **Trung thực về 2 flip mission giữa 2 lần chạy (đều do vision, không phải
+  code):** (a) PLAYER_STREAMING FAIL -> PASS — lần này vision-confirm trên
+  frame cuối trả confirmed (lần trước không); (b) IPTV_EPG PASS -> FAIL —
+  call vision-confirm MỚI của mục 8 trúng lỗi transport `Connection reset by
+  peer` (giống hệt P0-3/P0-7 ở cả 2 lần chạy), report ghi `vision lỗi:
+  error:[Errno 104] Connection reset by peer` ở frame step_071 — đây là lỗi
+  hạ tầng, KHÔNG phải vision chối và KHÔNG phải lỗi app; lần chạy tới có thể
+  flip lại. Tổng vision calls 7 (baseline 6) — đúng +1 call của mục 8.
+- **P0-3/P0-7 vẫn thiếu ở cả 2 lần chạy vì cùng 1 nguyên nhân:** vision
+  check_visual lỗi transport (`Connection reset by peer`), không phải detector
+  hay code mới — NIM qua surrogate chập chờn theo thời điểm (đã ghi ở §15.10
+  phần đầu). Không có P0 nào bị mất do code CI-T7 (P0-4/P0-5 vẫn bắt bằng
+  OCR, P0-1/P0-2/P0-6 bằng gate/detector, P0-8 bằng vision).
+- **Còn lại cho trial trực tiếp (cần secret AI brain + live run, không làm
+  offline được):** CI-T7 live trial — kiểm chứng (a) video phủ > 95% + reel
+  cover 2/2 (mục 5: dừng mềm + pidof); (b) playback_readings đọc được từ
+  ảnh thật trên WebPlayer + đơn điệu (mục 4); (c) focus-trap không còn tố oan
+  khi bàn phím mở (mục 3); (d) IPTV_EPG vision-confirm EPG text thật (mục 8);
+  (e) Schedule detector tố hàng LIVE thiếu tỉ số trên màn thật (mục 9);
+  (f) số liệu tốc độ run (< 30 phút) + số vision call thực tế. Repo QA chưa
+  có secret AI brain (NVIDIA_API_KEY / GEMINI_API_KEY / METEOR_API_KEY) nên
+  preflight sẽ fail — KHÔNG dispatch trial trong vòng này.
