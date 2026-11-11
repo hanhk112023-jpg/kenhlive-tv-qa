@@ -29,10 +29,8 @@ Chưa có **bản release có ký** — cần keystore, chỉ chủ repo giữ.
 
 ## Vì sao repo này công khai mà mã nguồn vẫn riêng tư?
 
-Mã nguồn app nằm ở 2 repo **riêng tư**, chỉ có mã nguồn:
-
-- Android TV: `hanhk112023-jpg/kenhlive-tv`
-- iOS: `hanhk112023-jpg/kenhlive-ios`
+Mã nguồn app nằm ở 2 repo **riêng tư**, chỉ có mã nguồn (Android TV và iOS).
+Tên 2 kho đó không ghi ở đây nữa.
 
 Repo này chỉ chứa: workflow build, code QA, tài liệu và bằng chứng chạy.
 Lúc build, workflow kéo mã nguồn về bằng deploy key chỉ-đọc
@@ -48,9 +46,9 @@ không ra ngoài. Muốn hết hẳn thì chỉ có 1 cách: mở công khai lu�
 Chạy tay ở **Actions → Build KenhLive TV & iOS → Run workflow**, hoặc tự
 chạy mỗi khi push lên repo này:
 
-- **APK Android**: build bản debug từ `kenhlive-tv@main` → artifact
+- **APK Android**: build bản debug từ mã nguồn Android (nhánh main) → artifact
   `kenhlive-tv-debug` (kèm file `.sha256`).
-- **IPA iOS**: build không ký từ `kenhlive-ios@main` (XcodeGen + xcodebuild
+- **IPA iOS**: build không ký từ mã nguồn iOS (nhánh main) (XcodeGen + xcodebuild
   archive, `CODE_SIGNING_ALLOWED=NO`) → artifact `KenhLive-iOS-ipa`.
 
 ## QA làm gì?
@@ -85,8 +83,3 @@ Số liệu từng vòng xem ở `harness/realtime/DESIGN.md` §15.
   - `YUNA_PROXY_YAML` / `YUNA_SUB_URL` — proxy VN, **tùy chọn** (không có
     thì workflow chạy không qua proxy; một số API VN có thể chặn IP
     datacenter).
-
-## Liên kết
-
-- Mã nguồn Android: https://github.com/hanhk112023-jpg/kenhlive-tv (riêng tư)
-- Mã nguồn iOS: https://github.com/hanhk112023-jpg/kenhlive-ios (riêng tư)
