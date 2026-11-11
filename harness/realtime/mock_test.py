@@ -476,6 +476,11 @@ def main():
     # cuối mission nếu file chưa tồn tại, không so nội dung). Sửa: _save_frame
     # dedup theo sha256 PNG (trả lại path đã lưu), _finish_mission ghi rõ
     # shot nào được dùng lại (evidence_frame_duplicate_of).
+    # Dọn thư mục out trước: file sót từ lần chạy mock trước sẽ làm mission 1
+    # bỏ qua lưu (file đã tồn tại) khiến hash không được ghi, dedup sai lệch.
+    import shutil as _shutil14
+    _shutil14.rmtree("/tmp/qa_mock_dedup", ignore_errors=True)
+    _shutil14.rmtree("/tmp/qa_mock_dedup2", ignore_errors=True)
     _png_dup14 = _fake_png(0)
     r14 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_dedup", serial=None,
                                     vision_budget=0, no_vision=True)
@@ -509,6 +514,67 @@ def main():
     assert all(m["outcome"] == "PASS" for m in r14b.mission_results), \
         "dedup không được làm đổi outcome mission"
     print("DEDUP_FINISH_MISSION_OK")
+
+    # --- Test N15: đồng bộ screenshot/dump (CI-T7 mục 7) ---
+    # CI-T6 EPISODE_PICKER: frame step_051 không thấy dialog dù dump ghi
+    # 'Tập 1' — chụp trước, dump sau, dialog mở giữa hai lần lấy mẫu.
+    # Sửa: dump -> chụp -> dump kiểm chứng; lệch thì chụp lại + dump lại.
+    _DUMP_A15 = dict(FakeDevice.HOME_DUMP)
+    _DUMP_B15 = {
+        "focused_sig": "episodeList#[100,300][800,900]",
+        "focused_text": "Tập 1",
+        "focused_bounds": "[100,300][800,900]",
+        "focusable_count": 5,
+        "all_visible_texts": [("episodeList", "Tập 1"), ("episodeList", "Tập 2")],
+        "all_visible_nodes": [{"id": "episodeList", "text": "Tập 1",
+                               "bounds": "[100,300][800,900]"}],
+        "has_dialog": True,
+        "dialog_ids": ["episodeList"],
+        "selected_ids": [],
+        "ui_summary": "[FOCUSED] episodeList ('Tập 1') [100,300][800,900]",
+        "osd_visible": False,
+    }
+
+    class _ScriptedDevice15(FakeDevice):
+        # dump lần 1: màn thường (chưa dialog); dump 2+ : dialog đã mở.
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            self._dumps = 0
+
+        def dump_ui_state(self):
+            self._dumps += 1
+            return dict(_DUMP_B15 if self._dumps >= 2 else _DUMP_A15)
+
+    _orig_dev15 = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = _ScriptedDevice15
+    try:
+        r15 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_sync", serial=None,
+                                        vision_budget=0, no_vision=True)
+        r15.device._activity = "com.kenhlive.tv/.MainActivity"
+        r15.watcher._latest_png = _fake_png(0)
+        r15.watcher._stable_streak = 5
+        _o15 = r15._observe("MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE")
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev15
+    print("observe lệch dump/chụp -> has_dialog:", _o15["ui_state"]["has_dialog"],
+          "| focused:", _o15["ui_state"]["focused_text"],
+          "| sync_retries:", getattr(r15, "_sync_retries", 0),
+          "| dump calls:", r15.device._dumps)
+    assert _o15["ui_state"]["has_dialog"] is True, \
+        "dialog mở giữa dump đầu và lúc chụp thì observation phải ghi dialog (bộ sau)"
+    assert _o15["ui_state"]["focused_text"] == "Tập 1"
+    assert getattr(r15, "_sync_retries", 0) == 1, "lệch 1 lần thì retry đúng 1 lần"
+    assert r15.device._dumps == 3, "dump đầu + kiểm chứng + dump lại = 3 lần"
+    # Không lệch thì không retry (dump tĩnh như cũ).
+    r15b = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_sync2", serial=None,
+                                     vision_budget=0, no_vision=True)
+    r15b.device._activity = "com.kenhlive.tv/.MainActivity"
+    r15b.watcher._latest_png = _fake_png(0)
+    r15b.watcher._stable_streak = 5
+    _o15b = r15b._observe("MISSION_COLD_START")
+    assert getattr(r15b, "_sync_retries", 0) == 0, "dump ổn định thì không chụp lại"
+    assert _o15b["ui_state"]["has_dialog"] is False
+    print("SYNC_SHOT_DUMP_OK")
 
     # --- Test N6: bằng chứng thời gian phát tăng (CI-T6 mục 8) ---
     # CI-T5 WebPlayer đóng băng 00:20 qua 3 quan sát mà vẫn PASS — giờ phải

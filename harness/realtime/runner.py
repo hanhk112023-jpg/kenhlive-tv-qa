@@ -123,14 +123,50 @@ class RealtimeRunner:
     def _observe(self, mission_name):
         """Một observation: chờ stable frame + UI dump + detectors. Trả dict.
         Ghi breakdown thời gian (wait/dump/detect) để biết nút thắt tốc độ —
-        CI-T2 observe p50 13.5s mà không rõ phần nào chậm."""
+        CI-T2 observe p50 13.5s mà không rõ phần nào chậm.
+        CI-T7 mục 7: DUMP TRƯỚC, CHỤP SAU, rồi dump kiểm chứng. Trước đây
+        chụp screenshot trước rồi dump sau (dump uiautomator mất vài giây)
+        nên dialog có thể mở/đóng giữa hai lần lấy mẫu: frame step_051
+        không thấy dialog dù dump ghi 'Tập 1' (EPISODE_PICKER PASS mềm).
+        Dump lại sau khi chụp: (activity, focused_sig, has_dialog) phải
+        giống dump đầu — khác thì chụp lại + dump lại 1 lần, dùng bộ sau
+        (trạng thái ổn định quanh lúc chụp). Tốn thêm 1 lần dump/bước
+        (~1-3s) nhưng screenshot và dump phải là cùng 1 trạng thái thì
+        bằng chứng mới khớp nhau."""
         t0 = time.time()
-        png, waited, timed_out = self.watcher.wait_stable(timeout_s=8.0)
-        t_wait = round(time.time() - t0, 2)
         t1 = time.time()
         ui_state = self.device.dump_ui_state()
         activity = self.device.current_activity()
         t_dump = round(time.time() - t1, 2)
+        t2 = time.time()
+        png, waited, timed_out = self.watcher.wait_stable(timeout_s=8.0)
+        t_wait = round(time.time() - t2, 2)
+        t3 = time.time()
+        ui_state2 = self.device.dump_ui_state()
+        activity2 = self.device.current_activity()
+        t_dump = round(t_dump + (time.time() - t3), 2)
+
+        def _sync_sig(us, act):
+            return (act, us.get("focused_sig"), bool(us.get("has_dialog")))
+
+        if _sync_sig(ui_state2, activity2) != _sync_sig(ui_state, activity):
+            # Trạng thái đổi ngay quanh lúc chụp — chụp lại + dump lại 1 lần.
+            self._sync_retries = getattr(self, "_sync_retries", 0) + 1
+            print("      🔄 [Observe] dump/chụp lệch (%s -> %s) — chụp lại + dump lại"
+                  % (_sync_sig(ui_state, activity), _sync_sig(ui_state2, activity2)),
+                  flush=True)
+            t4 = time.time()
+            png2, waited2, timed_out2 = self.watcher.wait_stable(timeout_s=3.0)
+            t_wait = round(t_wait + (time.time() - t4), 2)
+            if png2:
+                png, waited, timed_out = png2, waited2, timed_out2
+            t5 = time.time()
+            ui_state = self.device.dump_ui_state()
+            activity = self.device.current_activity()
+            t_dump = round(t_dump + (time.time() - t5), 2)
+        else:
+            ui_state = ui_state2
+            activity = activity2
         # OSD đang hiện? = dump có nút điều khiển player (id btn* hoặc nhãn
         # control quen thuộc). Dùng cho detect_player_focus_loss (P0-6).
         _ctrl = {"kênh trước", "kênh kế", "epg", "yêu thích", "cài đặt",
@@ -828,6 +864,7 @@ class RealtimeRunner:
             timings["per_step_p95_s"] = s[int(len(s) * 0.95)] if len(s) > 1 else s[0]
             timings["per_step_mean_s"] = round(sum(s) / len(s), 2)
         timings["vision_calls"] = self.vision.calls_total
+        timings["sync_retries"] = getattr(self, "_sync_retries", 0)  # CI-T7 mục 7
         timings["vision_s"] = round(sum(self.vision.latencies), 1)  # tổng mọi
         # loại vision call (confirm + stuck_assist + check); CI-T2 ghi 7.7s vì
         # chỉ cộng confirm — thực tế 7 call × 12.4s ≈ 87s.
