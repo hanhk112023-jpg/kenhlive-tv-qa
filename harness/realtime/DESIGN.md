@@ -710,20 +710,22 @@ Nguồn: §15.9 + VISUAL-REVIEW.md §9 (run 43027661716) và các vòng trước
 - **Mock cuối vòng: 43/43 PASS, EXIT=0** (`python3 mock_test.py`, ~120s). Baseline
   trước CI-T7: 33/33; + N9/N10 (mục 1+2) = 35; + N11..N17 (mục 3–9) = 43.
 - **Replay cuối vòng trên artifact run-42950738729** (code CI-T7 đầy đủ 9 mục):
-  - Có vision (`/tmp/qa_replay_R8_final/replay_report.json`, 288.7s):
-    **P0 recall 6/8** (bắt P0-1, P0-2, P0-4, P0-5, P0-6, P0-8; thiếu P0-3,
-    P0-7), **0 false pass**, 7 vision calls (provider OPENAI qua
-    integrate.api.nvidia.com), 13 requests, 0×429, mission 2 PASS / 4 FAIL /
-    11 UNVERIFIED, score 2/100.
+  - Có vision (`/tmp/qa_replay_R8_final/replay_report.json`, file mới nhất
+    22:13, 216.4s): **P0 recall 7/8** (bắt P0-1, P0-2, P0-4, P0-5, P0-6,
+    P0-7, P0-8; chỉ thiếu P0-3), **0 false pass**, 7 vision calls (provider
+    OPENAI qua integrate.api.nvidia.com), 11 requests, 0×429, mission 2 PASS
+    / 3 FAIL / 11 UNVERIFIED, score 0/100. (Lần chạy trước của cùng file này:
+    288.7s, 6/8 — thiếu thêm P0-7 do lỗi transport, score 2, 2/4/11, 13
+    requests; file bị ghi đè bởi lần chạy cuối nên bảng này lấy số lần cuối.
+    P0-7 bắt được ở lần cuối nhờ vision trên step_057.)
   - Không vision (`/tmp/qa_replay_R8_final_novision/replay_report.json`, 3.4s):
     **P0 recall 5/8** (thiếu thêm P0-8), 0 false pass, 0 vision call,
     mission 1 PASS / 3 FAIL / 13 UNVERIFIED, score 12/100.
 - **So với baseline R8 trước code CI-T7** (coordinator chạy, code gồm mục 1+2):
   có vision 6/8 P0 (thiếu P0-3, P0-7), 0 false pass, 6 vision calls, 304.9s,
   14 requests, 0×429, mission 2/4/11, score 2; không vision 5/8. **Mục tiêu
-  "giữ hoặc vượt 6/8" ĐẠT: P0 recall giữ nguyên 6/8 ở cả hai lần chạy có
-  vision (baseline R8 và cuối vòng), mission totals và score giữ nguyên
-  (bản không vision giữ 5/8 ở cả hai lần).**
+  "giữ hoặc vượt 6/8" VƯỢT: P0 recall lần cuối 7/8 (baseline 6/8), bản không
+  vision giữ 5/8 ở cả hai lần.**
 - **Trung thực về 2 flip mission giữa 2 lần chạy (đều do vision, không phải
   code):** (a) PLAYER_STREAMING FAIL -> PASS — lần này vision-confirm trên
   frame cuối trả confirmed (lần trước không); (b) IPTV_EPG PASS -> FAIL —
@@ -732,10 +734,11 @@ Nguồn: §15.9 + VISUAL-REVIEW.md §9 (run 43027661716) và các vòng trước
   error:[Errno 104] Connection reset by peer` ở frame step_071 — đây là lỗi
   hạ tầng, KHÔNG phải vision chối và KHÔNG phải lỗi app; lần chạy tới có thể
   flip lại. Tổng vision calls 7 (baseline 6) — đúng +1 call của mục 8.
-- **P0-3/P0-7 vẫn thiếu ở cả 2 lần chạy vì cùng 1 nguyên nhân:** vision
-  check_visual lỗi transport (`Connection reset by peer`), không phải detector
+- **P0-3 vẫn thiếu ở lần chạy cuối vì lỗi transport:** vision
+  check_visual lỗi (`Connection reset by peer`), không phải detector
   hay code mới — NIM qua surrogate chập chờn theo thời điểm (đã ghi ở §15.10
-  phần đầu). Không có P0 nào bị mất do code CI-T7 (P0-4/P0-5 vẫn bắt bằng
+  phần đầu). P0-7 (thiếu ở lần chạy trước vì cùng lỗi đó) đã bắt được ở lần
+  cuối bằng vision trên step_057. Không có P0 nào bị mất do code CI-T7 (P0-4/P0-5 vẫn bắt bằng
   OCR, P0-1/P0-2/P0-6 bằng gate/detector, P0-8 bằng vision).
 - **Còn lại cho trial trực tiếp (cần secret AI brain + live run, không làm
   offline được):** CI-T7 live trial — kiểm chứng (a) video phủ > 95% + reel
