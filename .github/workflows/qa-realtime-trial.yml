@@ -238,7 +238,7 @@ jobs:
             adb shell wm density 320
             adb shell settings put system accelerometer_rotation 0
             adb shell settings put system user_rotation 0
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb install -r app/app/build/outputs/apk/debug/app-debug.apk
             # Launcher rieng cho test (module :testlauncher): HOME duy nhat, khong
             # co YouTube de script bam mu lac sang (bai hoc UI-Tour 2026-11-05).
             adb install -r app/testlauncher/build/outputs/apk/debug/testlauncher-debug.apk || true
