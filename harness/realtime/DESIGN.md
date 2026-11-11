@@ -764,6 +764,11 @@ Artifact `qa-report-realtime` 9 MB, 29 ảnh. Chi tiết mắt kiểm:
   check_visual 2), provider **OPENAI** qua integrate.api.nvidia.com,
   **23 request, 0×429**, limit 30/phút, vision latency trung bình **57,9s**/call,
   observe 721,8s, vision 637,2s, per-step p50 5,38s / p95 21,95s / mean 9,61s,
+  sync_retries 0. Lưu ý (reviewer độc lập phát hiện, đã tính lại từ `observe_s`):
+  p95 21,95 / mean 9,61 không khớp session (tính lại p95 = 20,01, mean = 8,91;
+  p50 = 5,38 khớp) — 2 số này hoặc sai hoặc đo theo định nghĩa khác không ghi
+  trong file. (Tên file step_NNN = step_id NNN−1: step_014 = step_id 13,
+  step_057 = step_id 56.)
   sync_retries 0. Video ghi **1691,0s** / 2057s = **82,2%**, tour 360,07s @ 4,7×,
   graceful_stop true. Reel 12,17s, 2 entries, report tự tính covered 2/2.
   Findings **2 HIGH**. Vision lỗi **3 call** (1 timeout + 2× HTTP 503).
@@ -793,21 +798,29 @@ Artifact `qa-report-realtime` 9 MB, 29 ảnh. Chi tiết mắt kiểm:
 
 **Kiểm chứng 6 mục live của §15.12:**
 - (a) Video phủ >95% + reel 2/2 — **KHÔNG ĐẠT.** Phủ 82,2%. Reel: report tự
-  tính 2/2, nhưng **theo nội dung là 0/2** — seg1 (tour 40,2–46,2s) chiếu màn
-  Lịch Thi Đấu (không phải cảnh panel rò focus), seg2 (tour 248,4–254,4s)
-  chiếu màn "Đang tải..." (không seekbar, không 00:00, không viền focus).
+  tính 2/2, nhưng **theo nội dung mỗi đoạn chỉ ~25% đúng cảnh** — seg1
+  (tour 40,2–46,2s) có ~1,5s đầu ĐÚNG cảnh panel rò focus (diff 0,25 so với
+  step_014), còn lại là màn Lịch; seg2 (tour 248,4–254,4s) ~4,5s "Đang tải..."
+  + ~1,5s cuối là OSD placeholder (00:00/00:00 + double title) nhưng không
+  thấy rõ viền vàng ở độ phân giải tour → làm bằng chứng cho finding #1 vẫn
+  FAIL. (Bản đầu ghi "0/2 theo nội dung" là nói quá — reviewer độc lập đo
+  lại cả đoạn, đã kiểm lại bằng output-seek.)
   Nguyên nhân: `video_t = QA_t / 4,7` giả định tour đều 4,7×, nhưng timebase
   tour **không đều** — ranh giới cảnh lệch sớm ~10–17 tour-giây so với mapping
-  naive (đo bằng 3 neo: Lịch, WebPlayer, Search). Dialog chọn tập chớp đúng
-  1 lần ở tour 292,55s (<2s tour), lệch ~76 tour-giây so với vị trí session —
-  fragment lạc (có thể dialog chưa bao giờ đóng, chớp lại lúc chuyển activity
-  WebPlayer → Player ở bước 69→70).
+  naive (đo bằng 3 neo: Lịch, WebPlayer, Search). Dialog chọn tập xuất hiện
+  **2 lần**: đúng vị trí tour ~203,75–204,75s (≥1s, lệch ~13 tour-giây, khớp
+  drift chung) + flash lạc ~0,2s ở 292,55s (lệch ~76 tour-giây nếu tính riêng
+  flash; có thể dialog chưa bao giờ đóng, chớp lại lúc chuyển activity
+  WebPlayer → Player ở bước 69→70). Tour ~295s có toast "Mạng chập chờn — tự
+  thử lại lần 2..." (reviewer ghi nhận — ủng hộ giả thuyết embed bị chặn khi
+  không có proxy).
 - (b) playback_readings từ ảnh + tăng đơn điệu — **CHƯA CHỨNG MINH ĐƯỢC.** OCR tốt
   (tesseract đọc "00:00 / 00:00" từ band dưới step_057; harness đọc đúng 0,0
   ở bước 51/60) nhưng readings chỉ là singleton `[[1046.2, 0.0]]`,
   `[[1246.1, 0.0]]` — đóng băng ở 0,0 vì video không bao giờ phát (placeholder
   xám + "Đang tải..." loop; 5 khung WebPlayer 056/057/060/066/070 mean diff
-  0,05–0,10). Không phải harness đọc sai — tiền đề (phát thật) không xảy ra.
+  0,01–0,14 (đủ 10 cặp, grayscale 160×90)). Không phải harness đọc sai — tiền
+  đề (phát thật) không xảy ra.
 - (c) Focus-trap không tố oan khi bàn phím mở — **ĐẠT HẸP, mong manh.** Không có
   finding trap nào; `keyboard_open_image=True` ở đúng 5 bước [77–81]. Nhưng
   dump `keyboard_open=False` ở **cả 81 bước** (dump mù với bàn phím), detector
@@ -832,9 +845,11 @@ Artifact `qa-report-realtime` 9 MB, 29 ảnh. Chi tiết mắt kiểm:
 - **Ngày Lịch cũ (MỚI):** "Thứ Bảy, 03/10, 37 trận" trong khi run 12/11 (lệch
   ~40 ngày); đồng hồ launcher trong video đọc 7:10 — chưa rõ do đồng hồ
   emulator hay dữ liệu API cũ, cần kiểm riêng.
-- **A7 (cũ):** "ÂM THANH & PHỤ ĐỀ" bị cắt ở mép phải khi focus (071/074, crop
-  phóng to xác nhận). **A5 (cũ):** rail không mở. Nhỏ: pill IPTV thứ 4 chỉ còn
-  "T"; logo đội là vòng tròn xám placeholder.
+- **A7 (cũ, đã sửa cách diễn đạt sau review):** hàng nút OSD native TRÀN màn
+  hình — nút thứ 6 bị cắt ở mép phải, một nút bị cắt ở mép trái; riêng nút
+  "ÂM THANH & PHỤ ĐỀ" KHÔNG bị cắt (viền trắng đóng kín x=739–940/960, còn
+  thừa 20px, glyph "Ề" đủ nét). **A5 (cũ):** rail không mở. Nhỏ: pill IPTV
+  thứ 4 chỉ còn "T"; logo đội là vòng tròn xám placeholder.
 - **Run này KHÔNG có proxy VN** (annotation: "Khong co proxy VN
   (YUNA_PROXY_YAML/YUNA_SUB_URL) — chay khong qua proxy") — embed có thể bị
   chặn geo khi không proxy; F63 chỉ kiểm được khi có proxy hoặc trên máy thật.
@@ -850,7 +865,7 @@ thời gian tour — tên trường gây nhầm với `defect_reel_entries[].vid
 đối nhưng 2 PASS mềm thiếu bằng chứng mắt; WebPlayer tới đích + vision thấy OSD
 CHƯA (tới activity, OSD thấy bằng mắt, vision 503, phát không chạy); 0×429
 ≤40 PASS (23, 0×429); frame bằng chứng FAIL (step_035, step_042 thiếu); reel
-khớp báo cáo FAIL (0/2 đúng cảnh theo nội dung); 0 HIGH giả FAIL (finding #1
+khớp báo cáo FAIL (mỗi đoạn chỉ ~25% đúng cảnh theo nội dung); 0 HIGH giả FAIL (finding #1
 giả); mắt khớp báo cáo MỘT PHẦN.
 
 **Danh sách sửa CI-T8 (harness):**
@@ -858,7 +873,9 @@ giả); mắt khớp báo cáo MỘT PHẦN.
    OSD), không tin dump NONE — dump mù bên trong WebView (finding #1 giả).
 2. Timebase tour không đều: ghi timestamp QA theo từng chunk (hoặc nhúng QA
    t vào video), tính video_t từ map đó thay vì /4,7 đều; verify reel theo
-   NỘI DUNG (frame-match với shot trích dẫn), không chỉ theo timestamp.
+   NỘI DUNG (frame-match với shot trích dẫn), không chỉ theo timestamp; reel
+   phải tránh cắt trúng khoảng loading (tour 248–252) và phải verify viền vàng
+   bằng ảnh, không chỉ scene-match.
 3. Frame bằng chứng thiếu phải FAIL ồn ào (step_035/step_042 class); đồng bộ
    shot/dump ở `_finish_mission` (step_051 không thấy dialog dù dialog đã mở).
 4. Tốc độ 2057s → <1800s: vision latency 57,9s/call là nút thắt (11 call =
@@ -872,3 +889,6 @@ giả); mắt khớp báo cáo MỘT PHẦN.
    (không im lặng); thêm mission directed chờ hàng LIVE thật.
 8. WebPlayer phát thật (F63): trial sau cần proxy VN (YUNA secrets) hoặc máy
    thật — embed 00:00/00:00 trong emulator không proxy không chứng minh được gì.
+9. Per-step p95/mean trong report không khớp session — ghi rõ định nghĩa đo
+   hoặc sửa cách tính (p50 = 5,38 khớp; p95 tính lại 20,01 vs report 21,95;
+   mean tính lại 8,91 vs report 9,61).
