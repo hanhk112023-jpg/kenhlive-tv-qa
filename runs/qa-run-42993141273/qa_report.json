@@ -1,0 +1,563 @@
+{
+  "engine": "KenhLive Realtime Vision QA",
+  "score": 65,
+  "duration_sec": 1534,
+  "missions_passed": "8/17",
+  "missions_unverified": 0,
+  "checks_passed": 8,
+  "checks_total": 17,
+  "checks": [
+    {
+      "name": "Khởi Động Lạnh & Màn Hình Chính",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (3 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "trang chủ"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 3,
+        "frame": "step_004_cold_sta.jpg"
+      }
+    },
+    {
+      "name": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 8 bước, còn thiếu: text:'socolive' (8 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 8,
+        "frame": "step_012_sports_m.jpg"
+      }
+    },
+    {
+      "name": "Hộp Thoại Chọn Phòng BLV",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 6 bước, còn thiếu: dialog: chưa thấy dialog nào mở (6 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          ".PlayerActivity",
+          "MainActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.MainActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [
+          "blv"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 6,
+        "frame": "step_018_sports_r.jpg"
+      }
+    },
+    {
+      "name": "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 4 bước, còn thiếu: text:'hôm nay' (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 4,
+        "frame": "step_022_sports_d.jpg"
+      }
+    },
+    {
+      "name": "Trình Phát Video ExoPlayer & Phím Tắt",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — Kẹt cấp 2: luân phiên qua lại cùng trạng thái (A-B-A-B), màn hình không tiến triển (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          ".PlayerActivity",
+          "MainActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.MainActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 4,
+        "frame": "step_026_player_s.jpg"
+      }
+    },
+    {
+      "name": "Trang Chủ: Billboard 60% + 6 Hàng (KL8 Task 4)",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (5 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "mới cập nhật",
+          "đang phát"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 5,
+        "frame": "step_031_home_bil.jpg"
+      }
+    },
+    {
+      "name": "Lịch Thi Đấu EPG & Chạm Trận Đấu",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 6 bước, còn thiếu: text:'hôm nay' (6 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 6,
+        "frame": "step_037_schedule.jpg"
+      }
+    },
+    {
+      "name": "Thanh Điều Hướng Sidebar Rail",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 7 bước, còn thiếu: view:railPanel (7 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 7,
+        "frame": "step_044_sidebar_.jpg"
+      }
+    },
+    {
+      "name": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 10 bước, còn thiếu: text:'tv360' (10 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 10,
+        "frame": "step_054_iptv_cat.jpg"
+      }
+    },
+    {
+      "name": "Hero Preview IPTV, EPG & Nhảy Kênh",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (3 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          ".PlayerActivity",
+          "MainActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.MainActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 3,
+        "frame": "step_057_iptv_epg.jpg"
+      }
+    },
+    {
+      "name": "Kho Phim NguonC & Apple Pills",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (3 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "kho phim"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 3,
+        "frame": "step_060_phim_ngu.jpg"
+      }
+    },
+    {
+      "name": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 9 bước, còn thiếu: dialog: chưa thấy dialog nào mở (9 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "tập"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 9,
+        "frame": "step_069_phim_epi.jpg"
+      }
+    },
+    {
+      "name": "Trình Phát Web (WebPlayerActivity), Tua JS & Tiếp Tục Xem",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — Kẹt cấp 2: 3 bước liên tiếp không đổi trạng thái (9 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".phim.WebPlayerActivity",
+          "com.kenhlive.tv/.phim.WebPlayerActivity",
+          "phim.WebPlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 9,
+        "frame": "step_078_vod_play.jpg"
+      }
+    },
+    {
+      "name": "WebPlayer Có Định Hướng: Phim Embed Thật, Phát/Tạm Dừng/Tua/Tốc Độ",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".phim.WebPlayerActivity",
+          "com.kenhlive.tv/.phim.WebPlayerActivity",
+          "phim.WebPlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [
+          {
+            "frame": "step_082_webplaye.jpg",
+            "t": 1150.3,
+            "quote": "Mau biến đi cho khỏi mắt!"
+          }
+        ],
+        "vision_denials": 0,
+        "steps": 4,
+        "frame": "step_082_webplaye.jpg"
+      }
+    },
+    {
+      "name": "Trình Phát Native, Dialog Cài Đặt Thống Nhất",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": true,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 4,
+        "frame": "step_086_player_s.jpg"
+      }
+    },
+    {
+      "name": "Tìm Kiếm & Cài Đặt (Báo Lỗi Telegram QR)",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "tìm kiếm"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 4,
+        "frame": "step_090_search_a.jpg"
+      }
+    },
+    {
+      "name": "Stress Chaos D-pad & Đo RAM PSS",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — stress: đi hết 6 bước, app còn foreground (6 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 6,
+        "frame": "step_096_dpad_cha.jpg"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "severity": "HIGH",
+      "area": "Toàn vẹn tỷ số thể thao",
+      "issue": "Tỷ số phi lý hiển thị trên thẻ trận: '54 : 71'",
+      "detail": "View cardScore hiển thị '54 : 71' — một đội > 9 hoặc tổng > 12 (ổn định qua 2 lần quan sát)",
+      "suggestion": "Ẩn tỉ số, hiện VS theo luật plausibility (Task 5)",
+      "evidence": {
+        "frame": "step_012_sports_m.jpg",
+        "video_t": 83.6,
+        "ui_state": "cardScore"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Truyền hình IPTV",
+      "issue": "Một hàng chứa 66 kênh (quá tải, không duyệt nổi): '66 kênh'",
+      "detail": "Row header '66 kênh' — hàng vượt ngưỡng 30 kênh",
+      "suggestion": "Tách hàng theo nhóm đài (F21: nhánh tên đài trước nhánh URL)",
+      "evidence": {
+        "frame": "step_052_iptv_cat.jpg",
+        "video_t": 593.7,
+        "ui_state": "rowCount"
+      }
+    }
+  ],
+  "unverified": [],
+  "vision_calls": {
+    "total": 5,
+    "by_reason": {
+      "stuck_assist": 4,
+      "confirm_target": 1
+    },
+    "provider": "OPENAI"
+  },
+  "timings": {
+    "steps": 95,
+    "observe_s": 1018.9399999999997,
+    "vision_s": 48.6,
+    "vision_calls": 5,
+    "per_step_p50_s": 3.76,
+    "per_step_p95_s": 39.06,
+    "per_step_mean_s": 10.73,
+    "vision_latency_mean_s": 9.7,
+    "ocr_skipped_frames": 0
+  },
+  "verdict": "NEEDS_FIX",
+  "video": "full_qa_tour.mp4",
+  "video_speed_factor": 4.0,
+  "video_recorded_seconds": 1225.1,
+  "defect_reel": "defect_reel.mp4",
+  "defect_reel_entries": [
+    {
+      "t": 83.6,
+      "video_t": 20.9,
+      "speed_factor": 4.0,
+      "frame": "step_012_sports_m.jpg",
+      "severity": "HIGH",
+      "issue": "Tỷ số phi lý hiển thị trên thẻ trận: '54 : 71'"
+    },
+    {
+      "t": 593.7,
+      "video_t": 148.4,
+      "speed_factor": 4.0,
+      "frame": "step_052_iptv_cat.jpg",
+      "severity": "HIGH",
+      "issue": "Một hàng chứa 66 kênh (quá tải, không duyệt nổi): '66 kênh'"
+    }
+  ],
+  "nim_usage": {
+    "requests_used": 5,
+    "retries": 0,
+    "limit_per_min": 30,
+    "effective_limit_per_min": 30,
+    "hit_429": false,
+    "hits_429": 0,
+    "degraded_after_429": false,
+    "throttled_waits": 0,
+    "throttled_wait_s": 0.0,
+    "provider": "OPENAI"
+  },
+  "screenshots": [
+    [
+      "MISSION_SPORTS_MULTI_SOURCE",
+      "shots/step_006_sports_m.jpg"
+    ],
+    [
+      "MISSION_SPORTS_MULTI_SOURCE",
+      "shots/step_011_sports_m.jpg"
+    ],
+    [
+      "MISSION_SPORTS_MULTI_SOURCE",
+      "shots/step_012_sports_m.jpg"
+    ],
+    [
+      "MISSION_SPORTS_ROOM_PICKER",
+      "shots/step_016_sports_r.jpg"
+    ],
+    [
+      "MISSION_SPORTS_DATA_ACCURACY",
+      "shots/step_021_sports_d.jpg"
+    ],
+    [
+      "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+      "shots/step_026_player_s.jpg"
+    ],
+    [
+      "MISSION_HOME_BILLBOARD_6_ROWS",
+      "shots/step_031_home_bil.jpg"
+    ],
+    [
+      "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+      "shots/step_036_schedule.jpg"
+    ],
+    [
+      "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+      "shots/step_041_sidebar_.jpg"
+    ],
+    [
+      "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+      "shots/step_046_iptv_cat.jpg"
+    ],
+    [
+      "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+      "shots/step_051_iptv_cat.jpg"
+    ],
+    [
+      "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+      "shots/step_052_iptv_cat.jpg"
+    ],
+    [
+      "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+      "shots/step_056_iptv_epg.jpg"
+    ],
+    [
+      "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+      "shots/step_061_phim_epi.jpg"
+    ],
+    [
+      "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+      "shots/step_066_phim_epi.jpg"
+    ],
+    [
+      "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+      "shots/step_071_vod_play.jpg"
+    ],
+    [
+      "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+      "shots/step_076_vod_play.jpg"
+    ],
+    [
+      "MISSION_WEBPLAYER_DIRECTED_REAL_FILM",
+      "shots/step_081_webplaye.jpg"
+    ],
+    [
+      "MISSION_PLAYER_SETTINGS_DIALOG",
+      "shots/step_086_player_s.jpg"
+    ],
+    [
+      "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+      "shots/step_091_dpad_cha.jpg"
+    ],
+    [
+      "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+      "shots/step_096_dpad_cha.jpg"
+    ]
+  ]
+}

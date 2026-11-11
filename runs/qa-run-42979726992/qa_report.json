@@ -1,0 +1,731 @@
+{
+  "engine": "KenhLive Realtime Vision QA",
+  "score": 0,
+  "duration_sec": 2277,
+  "missions_passed": "4/17",
+  "missions_unverified": 0,
+  "checks_passed": 4,
+  "checks_total": 17,
+  "checks": [
+    {
+      "name": "Khởi Động Lạnh & Màn Hình Chính",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (3 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [
+          "trang chủ"
+        ],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 3,
+        "frame": "step_004_mission_.jpg"
+      }
+    },
+    {
+      "name": "Thể Thao Đa Nguồn & Cuộn Ngang Sâu",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 8 bước, còn thiếu: text:'socolive' (8 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          "MainActivity",
+          "com.kenhlive.tv/.MainActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 8,
+        "frame": "step_012_mission_.jpg"
+      }
+    },
+    {
+      "name": "Hộp Thoại Chọn Phòng BLV",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 6 bước, còn thiếu: text:'blv'; dialog: chưa thấy dialog nào mở (6 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          ".PlayerActivity",
+          "MainActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.MainActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 6,
+        "frame": "step_018_mission_.jpg"
+      }
+    },
+    {
+      "name": "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 4 bước, còn thiếu: activity:MainActivity (đã thấy: ['.PlayerActivity', 'PlayerActivity', 'com.kenhlive.tv/.PlayerActivity']); text:'hôm nay' (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 4,
+        "frame": "step_022_mission_.jpg"
+      }
+    },
+    {
+      "name": "Trình Phát Video ExoPlayer & Phím Tắt",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — Kẹt cấp 2: 3 bước liên tiếp không đổi trạng thái (7 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 7,
+        "frame": "step_029_mission_.jpg"
+      }
+    },
+    {
+      "name": "Trang Chủ: Billboard 60% + 6 Hàng (KL8 Task 4)",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 8 bước, còn thiếu: activity:MainActivity (đã thấy: ['.PlayerActivity', 'PlayerActivity', 'com.kenhlive.tv/.PlayerActivity']); text:'đang phát'; text:'mới cập nhật' (8 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 8,
+        "frame": "step_037_mission_.jpg"
+      }
+    },
+    {
+      "name": "Lịch Thi Đấu EPG & Chạm Trận Đấu",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 6 bước, còn thiếu: activity:MainActivity (đã thấy: ['.PlayerActivity', 'PlayerActivity', 'com.kenhlive.tv/.PlayerActivity']); text:'hôm nay' (6 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 6,
+        "frame": "step_043_mission_.jpg"
+      }
+    },
+    {
+      "name": "Thanh Điều Hướng Sidebar Rail",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 7 bước, còn thiếu: activity:MainActivity (đã thấy: ['.PlayerActivity', 'PlayerActivity', 'com.kenhlive.tv/.PlayerActivity']); view:railPanel (7 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 7,
+        "frame": "step_050_mission_.jpg"
+      }
+    },
+    {
+      "name": "Truyền Hình IPTV, Lưới Kênh & Kênh Yêu Thích",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 10 bước, còn thiếu: activity:MainActivity (đã thấy: ['.PlayerActivity', 'PlayerActivity', 'com.kenhlive.tv/.PlayerActivity']); text:'tv360' (10 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 10,
+        "frame": "step_060_mission_.jpg"
+      }
+    },
+    {
+      "name": "Hero Preview IPTV, EPG & Nhảy Kênh",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 7 bước, còn thiếu: motion: video chưa từng chuyển động (7 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 7,
+        "frame": "step_067_mission_.jpg"
+      }
+    },
+    {
+      "name": "Kho Phim NguonC & Apple Pills",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 5 bước, còn thiếu: activity:MainActivity (đã thấy: ['.PlayerActivity', 'PlayerActivity', 'com.kenhlive.tv/.PlayerActivity']); text:'kho phim' (5 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 5,
+        "frame": "step_072_mission_.jpg"
+      }
+    },
+    {
+      "name": "Hộp Thoại Chọn Tập, Lưu Phim & Đổi Spotlight",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 9 bước, còn thiếu: text:'tập'; dialog: chưa thấy dialog nào mở (9 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".MainActivity",
+          ".PlayerActivity",
+          "MainActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.MainActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 9,
+        "frame": "step_081_mission_.jpg"
+      }
+    },
+    {
+      "name": "Trình Phát Web (WebPlayerActivity), Tua JS & Tiếp Tục Xem",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".phim.WebPlayerActivity",
+          "com.kenhlive.tv/.phim.WebPlayerActivity",
+          "phim.WebPlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": true,
+        "vision_confirmations": [
+          {
+            "frame": "step_085_mission_.jpg",
+            "t": 1349.0,
+            "quote": "00:20 / 24:14"
+          }
+        ],
+        "vision_denials": 0,
+        "steps": 4,
+        "frame": "step_085_mission_.jpg"
+      }
+    },
+    {
+      "name": "WebPlayer Có Định Hướng: Phim Embed Thật, Phát/Tạm Dừng/Tua/Tốc Độ",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — Kẹt cấp 2: 3 bước liên tiếp không đổi trạng thái (8 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".phim.WebPlayerActivity",
+          "com.kenhlive.tv/.phim.WebPlayerActivity",
+          "phim.WebPlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": false,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 8,
+        "frame": "step_093_mission_.jpg"
+      }
+    },
+    {
+      "name": "Trình Phát Native, Dialog Cài Đặt Thống Nhất",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — đủ mọi tín hiệu áp dụng (4 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": true,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 4,
+        "frame": "step_097_mission_.jpg"
+      }
+    },
+    {
+      "name": "Tìm Kiếm & Cài Đặt (Báo Lỗi Telegram QR)",
+      "ok": false,
+      "outcome": "FAIL",
+      "detail": "FAIL — hết 10 bước, còn thiếu: activity:MainActivity (đã thấy: ['.PlayerActivity', 'PlayerActivity', 'com.kenhlive.tv/.PlayerActivity']); text:'tìm kiếm' (10 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": true,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 10,
+        "frame": "step_107_mission_.jpg"
+      }
+    },
+    {
+      "name": "Stress Chaos D-pad & Đo RAM PSS",
+      "ok": true,
+      "outcome": "PASS",
+      "detail": "PASS — stress: đi hết 6 bước, app còn foreground (6 bước)",
+      "evidence": {
+        "activities_seen": [
+          ".PlayerActivity",
+          "PlayerActivity",
+          "com.kenhlive.tv/.PlayerActivity"
+        ],
+        "texts_seen": [],
+        "views_seen": [],
+        "dialog_seen": true,
+        "motion_seen": false,
+        "vision_confirmations": [],
+        "vision_denials": 0,
+        "steps": 6,
+        "frame": "step_113_mission_.jpg"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "severity": "HIGH",
+      "area": "Chữ bị cắt",
+      "issue": "Chữ bị cắt cụt: '7.1111...'",
+      "detail": "Từ '7.1111...' kết thúc bằng '…' tại (60,1079)-(173,1079) — trong hàng nút dưới",
+      "suggestion": "Cân lại hàng nút / cho nút đủ chỗ, không để chữ chạm mép",
+      "evidence": {
+        "frame": "step_052_mission_.jpg",
+        "video_t": 744.7,
+        "ui_state": "btnTvNextChannel#[408,944][672,1056]"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Chữ bị cắt",
+      "issue": "Chữ bị cắt cụt: '1a...'",
+      "detail": "Từ '1a...' kết thúc bằng '…' tại (0,1020)-(1920,1079) — sát mép phải",
+      "suggestion": "Cân lại hàng nút / cho nút đủ chỗ, không để chữ chạm mép",
+      "evidence": {
+        "frame": "step_082_mission_.jpg",
+        "video_t": 1322.7,
+        "ui_state": "view#[0,0][1920,1080]"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Chữ đè chữ (seekbar/hàng nút)",
+      "issue": "Chữ 'Maldiv..' đè lên '‹©' (chồng 87%)",
+      "detail": "Vùng seekbar/hàng nút: box Maldiv.. (841, 866, 1042, 914) vs ‹© (991, 864, 1023, 919)",
+      "suggestion": "Chừa top inset/scrim cho hero; neo phụ đề lên trên seekbar + hàng nút khi OSD hiện",
+      "evidence": {
+        "frame": "step_004_mission_.jpg",
+        "video_t": 25.5,
+        "ui_state": "cardRoot#[109,709][787,1080]"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Chữ đè chữ (seekbar/hàng nút)",
+      "issue": "Chữ '1Ì' đè lên '¬c:' (chồng 42%)",
+      "detail": "Vùng seekbar/hàng nút: box 1Ì (566, 852, 588, 890) vs ¬c: (394, 874, 653, 921)",
+      "suggestion": "Chừa top inset/scrim cho hero; neo phụ đề lên trên seekbar + hàng nút khi OSD hiện",
+      "evidence": {
+        "frame": "step_025_mission_.jpg",
+        "video_t": 240.6,
+        "ui_state": "btnTvEpg#[688,944][952,1056]"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Chữ đè chữ (seekbar/hàng nút)",
+      "issue": "Chữ '7A' đè lên 'ý' (chồng 77%)",
+      "detail": "Vùng seekbar/hàng nút: box 7A (1276, 901, 1360, 921) vs ý (1325, 899, 1338, 925)",
+      "suggestion": "Chừa top inset/scrim cho hero; neo phụ đề lên trên seekbar + hàng nút khi OSD hiện",
+      "evidence": {
+        "frame": "step_034_mission_.jpg",
+        "video_t": 413.4,
+        "ui_state": "btnTvSettings#[1528,944][1792,1056]"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Chữ đè chữ (seekbar/hàng nút)",
+      "issue": "Chữ '7A' đè lên '¬' (chồng 77%)",
+      "detail": "Vùng seekbar/hàng nút: box 7A (1276, 901, 1360, 921) vs ¬ (1347, 899, 1354, 925)",
+      "suggestion": "Chừa top inset/scrim cho hero; neo phụ đề lên trên seekbar + hàng nút khi OSD hiện",
+      "evidence": {
+        "frame": "step_034_mission_.jpg",
+        "video_t": 413.4,
+        "ui_state": "btnTvSettings#[1528,944][1792,1056]"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Chữ đè chữ (seekbar/hàng nút)",
+      "issue": "Chữ '“7a' đè lên '7' (chồng 92%)",
+      "detail": "Vùng seekbar/hàng nút: box “7a (0, 1056, 91, 1079) vs 7 (44, 1054, 57, 1079)",
+      "suggestion": "Chừa top inset/scrim cho hero; neo phụ đề lên trên seekbar + hàng nút khi OSD hiện",
+      "evidence": {
+        "frame": "step_091_mission_.jpg",
+        "video_t": 1463.2,
+        "ui_state": "NONE"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Chữ đè chữ (seekbar/hàng nút)",
+      "issue": "Chữ '“7a' đè lên '9`' (chồng 82%)",
+      "detail": "Vùng seekbar/hàng nút: box “7a (0, 1056, 91, 1079) vs 9` (74, 1054, 93, 1079)",
+      "suggestion": "Chừa top inset/scrim cho hero; neo phụ đề lên trên seekbar + hàng nút khi OSD hiện",
+      "evidence": {
+        "frame": "step_091_mission_.jpg",
+        "video_t": 1463.2,
+        "ui_state": "NONE"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Chữ đè chữ (seekbar/hàng nút)",
+      "issue": "Chữ '¬:' đè lên 'D' (chồng 88%)",
+      "detail": "Vùng seekbar/hàng nút: box ¬: (0, 1066, 144, 1080) vs D (64, 1064, 69, 1080)",
+      "suggestion": "Chừa top inset/scrim cho hero; neo phụ đề lên trên seekbar + hàng nút khi OSD hiện",
+      "evidence": {
+        "frame": "step_094_mission_.jpg",
+        "video_t": 1616.1,
+        "ui_state": "NONE"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Chữ đè chữ (seekbar/hàng nút)",
+      "issue": "Chữ '¬:' đè lên 'xế' (chồng 100%)",
+      "detail": "Vùng seekbar/hàng nút: box ¬: (0, 1066, 144, 1080) vs xế (80, 1066, 144, 1080)",
+      "suggestion": "Chừa top inset/scrim cho hero; neo phụ đề lên trên seekbar + hàng nút khi OSD hiện",
+      "evidence": {
+        "frame": "step_094_mission_.jpg",
+        "video_t": 1616.1,
+        "ui_state": "NONE"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "area": "Player VOD",
+      "issue": "Phụ đề đè lên thanh seekbar",
+      "detail": "Phụ đề cắt ngang hàng seekbar (y 869-890): 'W8', 'bản', 'mãi', 'há'",
+      "suggestion": "Khi OSD hiện, neo phụ đề lên trên seekbar + hàng nút (tính cả tvBottomBar)",
+      "evidence": {
+        "frame": "step_094_mission_.jpg",
+        "video_t": 1616.1,
+        "ui_state": "NONE"
+      }
+    }
+  ],
+  "unverified": [],
+  "vision_calls": {
+    "total": 7,
+    "by_reason": {
+      "stuck_assist": 6,
+      "confirm_target": 1
+    },
+    "provider": "OPENAI"
+  },
+  "timings": {
+    "steps": 112,
+    "observe_s": 1764.8500000000001,
+    "vision_s": 7.7,
+    "vision_calls": 7,
+    "per_step_p50_s": 13.46,
+    "per_step_p95_s": 37.96,
+    "per_step_mean_s": 15.76,
+    "vision_latency_mean_s": 12.4,
+    "ocr_skipped_frames": 0
+  },
+  "verdict": "NEEDS_FIX",
+  "video": "full_qa_tour.mp4",
+  "defect_reel": null,
+  "defect_reel_entries": [
+    {
+      "t": 25.5,
+      "frame": "step_004_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Chữ 'Maldiv..' đè lên '‹©' (chồng 87%)"
+    },
+    {
+      "t": 240.6,
+      "frame": "step_025_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Chữ '1Ì' đè lên '¬c:' (chồng 42%)"
+    },
+    {
+      "t": 413.4,
+      "frame": "step_034_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Chữ '7A' đè lên 'ý' (chồng 77%)"
+    },
+    {
+      "t": 413.4,
+      "frame": "step_034_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Chữ '7A' đè lên '¬' (chồng 77%)"
+    },
+    {
+      "t": 744.7,
+      "frame": "step_052_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Chữ bị cắt cụt: '7.1111...'"
+    },
+    {
+      "t": 1322.7,
+      "frame": "step_082_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Chữ bị cắt cụt: '1a...'"
+    },
+    {
+      "t": 1463.2,
+      "frame": "step_091_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Chữ '“7a' đè lên '7' (chồng 92%)"
+    },
+    {
+      "t": 1463.2,
+      "frame": "step_091_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Chữ '“7a' đè lên '9`' (chồng 82%)"
+    },
+    {
+      "t": 1616.1,
+      "frame": "step_094_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Chữ '¬:' đè lên 'D' (chồng 88%)"
+    },
+    {
+      "t": 1616.1,
+      "frame": "step_094_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Chữ '¬:' đè lên 'xế' (chồng 100%)"
+    },
+    {
+      "t": 1616.1,
+      "frame": "step_094_mission_.jpg",
+      "severity": "HIGH",
+      "issue": "Phụ đề đè lên thanh seekbar"
+    }
+  ],
+  "nim_usage": {
+    "requests_used": 8,
+    "limit_per_min": 30,
+    "effective_limit_per_min": 30,
+    "hit_429": false,
+    "hits_429": 0,
+    "degraded_after_429": false,
+    "throttled_waits": 0,
+    "throttled_wait_s": 0.0
+  },
+  "screenshots": [
+    [
+      "MISSION_COLD_START",
+      "shots/step_004_mission_.jpg"
+    ],
+    [
+      "MISSION_SPORTS_MULTI_SOURCE",
+      "shots/step_006_mission_.jpg"
+    ],
+    [
+      "MISSION_SPORTS_MULTI_SOURCE",
+      "shots/step_011_mission_.jpg"
+    ],
+    [
+      "MISSION_SPORTS_ROOM_PICKER",
+      "shots/step_016_mission_.jpg"
+    ],
+    [
+      "MISSION_SPORTS_DATA_ACCURACY",
+      "shots/step_021_mission_.jpg"
+    ],
+    [
+      "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+      "shots/step_025_mission_.jpg"
+    ],
+    [
+      "MISSION_PLAYER_STREAMING_AND_CONTROLS",
+      "shots/step_026_mission_.jpg"
+    ],
+    [
+      "MISSION_HOME_BILLBOARD_6_ROWS",
+      "shots/step_031_mission_.jpg"
+    ],
+    [
+      "MISSION_HOME_BILLBOARD_6_ROWS",
+      "shots/step_034_mission_.jpg"
+    ],
+    [
+      "MISSION_HOME_BILLBOARD_6_ROWS",
+      "shots/step_036_mission_.jpg"
+    ],
+    [
+      "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
+      "shots/step_041_mission_.jpg"
+    ],
+    [
+      "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
+      "shots/step_046_mission_.jpg"
+    ],
+    [
+      "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+      "shots/step_051_mission_.jpg"
+    ],
+    [
+      "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+      "shots/step_052_mission_.jpg"
+    ],
+    [
+      "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
+      "shots/step_056_mission_.jpg"
+    ],
+    [
+      "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+      "shots/step_061_mission_.jpg"
+    ],
+    [
+      "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
+      "shots/step_066_mission_.jpg"
+    ],
+    [
+      "MISSION_PHIM_NGUONC_AND_CATEGORIES",
+      "shots/step_071_mission_.jpg"
+    ],
+    [
+      "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+      "shots/step_076_mission_.jpg"
+    ],
+    [
+      "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
+      "shots/step_081_mission_.jpg"
+    ],
+    [
+      "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
+      "shots/step_082_mission_.jpg"
+    ],
+    [
+      "MISSION_WEBPLAYER_DIRECTED_REAL_FILM",
+      "shots/step_086_mission_.jpg"
+    ],
+    [
+      "MISSION_WEBPLAYER_DIRECTED_REAL_FILM",
+      "shots/step_091_mission_.jpg"
+    ],
+    [
+      "MISSION_PLAYER_SETTINGS_DIALOG",
+      "shots/step_094_mission_.jpg"
+    ],
+    [
+      "MISSION_PLAYER_SETTINGS_DIALOG",
+      "shots/step_096_mission_.jpg"
+    ],
+    [
+      "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+      "shots/step_101_mission_.jpg"
+    ],
+    [
+      "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
+      "shots/step_106_mission_.jpg"
+    ],
+    [
+      "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
+      "shots/step_111_mission_.jpg"
+    ]
+  ]
+}
