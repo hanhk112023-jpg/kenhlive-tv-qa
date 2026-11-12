@@ -1013,6 +1013,34 @@ class RealtimeRunner:
         report["video"] = video_file
         report["video_speed_factor"] = video_speed_factor
         report["video_recorded_seconds"] = video_recorded_seconds
+        # CI-T9 mục 5: độ phủ video báo theo THỜI GIAN HÀNH ĐỘNG (t của
+        # bước cuối cùng trong timeline, time_offset_sec), KHÔNG theo
+        # duration_sec — duration gồm cả ~325s finalize (vision check cuối
+        # + join recorder) sau bước cuối nên headline cũ 1226,6/1563 =
+        # 78,5% dù phủ thật ~99% (CI-T8). Giữ cả số thô cũ (theo
+        # duration_sec) để đối chiếu. Không có bước nào / không có video
+        # thì coverage None (không bịa số).
+        _action_end_s = 0.0
+        for _e in self.timeline:
+            _t = _e.get("time_offset_sec")
+            if isinstance(_t, (int, float)) and _t > _action_end_s:
+                _action_end_s = float(_t)
+        _cov_action = (round(video_recorded_seconds / _action_end_s, 4)
+                       if _action_end_s > 0 else None)
+        _cov_raw = (round(video_recorded_seconds / duration_sec, 4)
+                    if duration_sec > 0 else None)
+        report["video_coverage"] = {
+            "recorded_seconds": video_recorded_seconds,
+            "action_seconds": round(_action_end_s, 1),
+            "duration_sec": duration_sec,
+            "coverage": _cov_action,
+            "coverage_vs_duration_sec": _cov_raw,
+            "text": ("%.1f%% (ghi %ss / %ss hành động; thô %.1f%% theo %ss cả finalize)"
+                     % (_cov_action * 100.0, video_recorded_seconds, round(_action_end_s, 1),
+                        _cov_raw * 100.0, duration_sec)
+                     if _cov_action is not None and _cov_raw is not None
+                     else "— (không có bước nào / không có video)")}
+        print("   🎬 [Video] cover %s" % report["video_coverage"]["text"], flush=True)
         # CI-T7 mục 5: screenrecord đã chết xác minh bằng pidof trước khi
         # chờ moov (False = vẫn chạy lúc dừng — chunk cuối có nguy cơ mất).
         if isinstance(video_info, dict):

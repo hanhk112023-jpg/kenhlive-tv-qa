@@ -2439,6 +2439,8 @@ def main():
     test_ci_t9_nav_excluded_from_live_rows()
     # --- CI-T9 mục 4 ---
     test_ci_t9_gate_requires_scored_live_row(specs)
+    # --- CI-T9 mục 5 ---
+    test_ci_t9_video_coverage_action_time()
 
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
@@ -2454,6 +2456,44 @@ def main():
           and report2["nim_usage"]["requests_used"] == 0)
     print("MOCK_RUNNER_OK" if ok else "MOCK_RUNNER_FAIL")
     return 0 if ok else 1
+
+
+def test_ci_t9_video_coverage_action_time():
+    """CI-T9 mục 5: độ phủ video = giây video đã ghi / thời gian hành động
+    (t bước cuối cùng), không theo duration_sec (gồm ~325s finalize sau
+    bước cuối — headline CI-T8 chỉ 78,5% dù phủ thật ~99%). Số thô cũ
+    (theo duration_sec) vẫn giữ để đối chiếu.
+    Số kiểu CI-T8: ghi 99s, bước cuối t=100, duration 130 -> coverage
+    0.99, thô 99/130 = 0.7615. Không có bước/video -> coverage None."""
+    import shutil as _sh
+    _sh.rmtree("/tmp/qa_mock_cov5", ignore_errors=True)
+    _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_cov5", serial=None,
+                                   vision_budget=0, no_vision=True)
+    _r.start_time = time.time()
+    _r.timeline = [{"time_offset_sec": 10.0, "observe_s": 1.0},
+                   {"time_offset_sec": 55.5, "observe_s": 1.0},
+                   {"time_offset_sec": 100.0, "observe_s": 1.0}]
+    _rep = _r.finish(130, {"recorded_seconds": 99.0})
+    _vc = _rep.get("video_coverage", {})
+    print("coverage:", _vc)
+    assert _vc.get("coverage") == 0.99, \
+        "coverage phải = 99/100 thời gian hành động, được %s" % _vc.get("coverage")
+    assert _vc.get("coverage_vs_duration_sec") == round(99.0 / 130, 4), \
+        "số thô cũ (theo duration_sec) phải giữ để đối chiếu"
+    assert _vc.get("action_seconds") == 100.0, "action_seconds = t bước cuối"
+    assert _vc.get("recorded_seconds") == 99.0
+    assert _vc.get("duration_sec") == 130
+    assert "99.0%" in _vc.get("text", ""), "text headline phải ghi 99.0%"
+    # Không có bước nào / không có video -> coverage None, không bịa số.
+    _sh.rmtree("/tmp/qa_mock_cov5b", ignore_errors=True)
+    _r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_cov5b", serial=None,
+                                    vision_budget=0, no_vision=True)
+    _r2.start_time = time.time()
+    _rep2 = _r2.finish(50, None)
+    assert _rep2.get("video_coverage", {}).get("coverage") is None, \
+        "không có bước/video thì coverage phải None"
+    assert _rep2.get("video_coverage", {}).get("action_seconds") == 0.0
+    print("CI_T9_COVERAGE_ACTION_OK")
 
 
 def test_ci_t9_gate_requires_scored_live_row(specs):
