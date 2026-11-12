@@ -65,7 +65,12 @@ jobs:
           set -euo pipefail
           python3 harness/gh_vn_to_singbox.py /tmp/singbox_ci.json || { echo "::error::Khong lay duoc file proxy VN tu GitHub"; exit 1; }
           SB_VER=v1.14.4
-          curl -sSL -o /tmp/sing-box.tar.gz "https://github.com/SagerNet/sing-box/releases/download/${SB_VER}/sing-box-${SB_VER}-linux-amd64-glibc.tar.gz"
+          OK_DL=0
+          for try in 1 2 3; do
+            if curl -fsSL -o /tmp/sing-box.tar.gz "https://github.com/SagerNet/sing-box/releases/download/${SB_VER}/sing-box-${SB_VER}-linux-amd64-glibc.tar.gz" && gzip -t /tmp/sing-box.tar.gz 2>/dev/null; then OK_DL=1; break; fi
+            echo "tai sing-box lan $try loi (file khong phai gzip hop le), thu lai sau 15s"; sleep 15
+          done
+          [ "$OK_DL" = "1" ] || { echo "::error::Khong tai duoc sing-box ${SB_VER} sau 3 lan"; exit 1; }
           tar xzf /tmp/sing-box.tar.gz -C /tmp
           SB="/tmp/sing-box-${SB_VER}-linux-amd64-glibc/sing-box"
           "$SB" check -c /tmp/singbox_ci.json

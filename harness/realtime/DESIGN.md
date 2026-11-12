@@ -1197,3 +1197,13 @@ bổ sung retry cổng kiểm IP ở commit sau review):**
 
 **Trial kiểm chứng:** (ghi sau khi trial chạy xong — run id, exit IP trên
 runner, F63 kiểm được hay chưa).
+- Thử 1 — run 43161479702 (2026-11-12 12:27 +07): **FAIL SỚM sau ~3 phút,
+  ở bước Set up proxy VN** — KHÔNG phải do proxy/file VN: script đã ra
+  "GH-VN proxy OK: 17 node VLESS", nhưng file tarball sing-box tải về
+  không phải gzip (`gzip: stdin: not in gzip format`, tar exit 2). curl
+  lúc đó dùng `-sSL` (không `-f`) nên trang lỗi HTTP bị lưu lặng lẽ rồi
+  tar mới vỡ. Kiểm lại từ máy ảo ngay sau đó: cùng URL trả HTTP 200,
+  32.527.188 byte, gzip hợp lệ — lỗi thoáng qua phía GitHub trên runner.
+  Fail-ồn-ào hoạt động đúng thiết kế: job đỏ ngay, không chạy tiếp không
+  proxy. Đã sửa: curl thêm `-f`, retry tải 3 lần, kiểm `gzip -t` trước
+  khi giải nén, lỗi sau 3 lần thì `::error::` exit 1 (2 workflow).
