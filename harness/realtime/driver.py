@@ -67,6 +67,8 @@ class Driver:
         self._webplayer_waited = False      # đã WAIT 1 lần chờ WebPlayer phát chưa
         self._webplayer_play_pressed = False  # đã bấm Play 1 lần trong WebPlayer chưa
         self._long_press_tried = False  # đã long-press yêu thích 1 lần chưa (CI-T5 mục 10)
+        self._keyboard_open_tries = 0  # CI-T9 mục 7: số lần OK mở bàn phím (tối đa 2)
+        self._keyboard_typed = False  # CI-T9 mục 7: đã gõ từ khóa khi bàn phím mở chưa
 
     def _state_sig(self, ui_state, activity):
         return (ui_state.get("focused_sig", "NONE"),
@@ -541,6 +543,34 @@ class Driver:
             if cur_tab is not None and cur_tab != m.tab:
                 return Action("SWITCH_TAB", str(m.tab), rule="goto_tab",
                               thought="Đang ở tab %s, mission cần tab %s" % (cur_tab, m.tab))
+
+        # -- 0b2. Mission cần bàn phím thật (CI-T9 mục 7, SEARCH): CI-T8 bàn
+        # phím không mở lần nào ở cả 95 bước vì driver chưa từng bấm OK trên
+        # ô tìm kiếm — focus tới searchInput (step_079 T4) rồi bỏ đi xuống
+        # hàng xu hướng. Luật này: focus đang ở ô nhập -> bấm OK mở bàn phím
+        # in-app (tối đa 2 lần); ô nhập hiện trong dump mà chưa focus -> đi
+        # tới nó; bàn phím đã mở -> gõ từ khóa qua adb input (TEXT). Bàn phím
+        # không mở thì runner đánh UNVERIFIED ở cuối mission (không PASS lặng).
+        if m.needs_keyboard and "PlayerActivity" not in act \
+                and "WebPlayerActivity" not in act:
+            _kb_open = bool(ui_state.get("keyboard_open")
+                            or ui_state.get("keyboard_open_image"))
+            if _kb_open:
+                if not self._keyboard_typed:
+                    self._keyboard_typed = True
+                    return Action("TEXT", "uefa", rule="keyboard:type",
+                                  thought="Bàn phím đã mở — gõ từ khóa 'uefa' qua adb input")
+            elif self._keyboard_open_tries < 2:
+                _fid = (focused_sig.split("#")[0] or "").lower()
+                if "search" in _fid or "tìm" in focused_text or "nhập" in focused_text:
+                    self._keyboard_open_tries += 1
+                    return Action("KEY", "OK", rule="keyboard:open",
+                                  thought="Bấm OK trên ô tìm kiếm để mở bàn phím thật")
+                _goto_kb = self._goto_view_action(
+                    ui_state, ["searchInput", "edtSearch", "etSearch"])
+                if _goto_kb is not None:
+                    _goto_kb.rule = "keyboard:goto_input"
+                    return _goto_kb
 
         # -- 0d. Thẻ đang focus là trận CHƯA ĐÁ thì không mở player/dialog từ
         # nó: tìm thẻ LIVE khác (CI-T5 mục 3). CI-T6 mục 5: mở rộng sang MỌI

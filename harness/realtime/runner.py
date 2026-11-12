@@ -127,6 +127,8 @@ class RealtimeRunner:
         self._player_title_frame = None  # frame title player để vision check (CI-T5 mục 7)
         self.vision_check_log = []  # CI-T6 mục 2: mỗi call check_visual đã soi
         # frame nào (frame path + timestamp + crop) — debug cú bỏ sót CI-T5
+        self._kb_seen_by_mission = {}  # CI-T9 mục 7: mission -> bàn phím đã mở thật chưa
+        self._kb_needed_by_mission = {}  # CI-T9 mục 7: mission -> mission có cần bàn phím thật không (ghi theo spec của run này)
 
     # -- helpers -------------------------------------------------------
     def _log_action(self, action):
@@ -693,6 +695,7 @@ class RealtimeRunner:
         last_frame_ref = None
         last_obs = None
         dialog_obs = None  # CI-T8 mục 3: observation đầu tiên thấy dialog mở
+        kb_seen = False  # CI-T9 mục 7: bàn phím ảo đã mở thật lần nào trong mission chưa
         pending_vision_confirm = False
         last_action_rule = None  # rule của action vừa thực thi (CI-T5 mục 9)
 
@@ -734,6 +737,9 @@ class RealtimeRunner:
             last_obs = obs
             ui_state = obs["ui_state"]
             self._note_vision_frames(spec, obs, last_frame_ref)
+            # CI-T9 mục 7: bàn phím mở thật (dump hoặc ảnh) ở bất kỳ bước nào.
+            if obs.get("keyboard_open") or obs.get("keyboard_open_image"):
+                kb_seen = True
             driver.note_state(ui_state, obs["activity"], obs.get("motion_state"))
             self.detector_ctx["last_key"] = self.device.action_history[-1] if self.device.action_history else ""
 
@@ -914,6 +920,19 @@ class RealtimeRunner:
                 gate.outcome_reason = ("Có hàng LIVE ở tab Lịch nhưng không hàng nào có tỉ số — "
                                        "chưa kiểm được trận đang đá hiển thị tỉ số (UNVERIFIED)")
                 print("   ❓ [Mission UNVERIFIED] %s: hàng LIVE không có tỉ số" % spec.name, flush=True)
+        # CI-T9 mục 7: mission cần bàn phím thật mà bàn phím không mở lần nào
+        # thì PASS (nếu có) bị lật thành UNVERIFIED — nhập liệu bằng bàn phím
+        # chưa từng được kiểm, không được PASS lặng như CI-T8. FAIL giữ
+        # nguyên (lỗi khác đã rõ, không che bằng UNVERIFIED).
+        self._kb_seen_by_mission[spec.name] = kb_seen
+        self._kb_needed_by_mission[spec.name] = bool(getattr(spec, "needs_keyboard", False))
+        if getattr(spec, "needs_keyboard", False) and not kb_seen \
+                and gate.outcome == "PASS":
+            gate.outcome = "UNVERIFIED"
+            gate.outcome_reason = ("Bàn phím ảo không mở lần nào trong mission này — "
+                                   "chưa kiểm được nhập liệu/tìm kiếm bằng bàn phím thật "
+                                   "(UNVERIFIED)")
+            print("   ❓ [Mission UNVERIFIED] %s: bàn phím không mở lần nào" % spec.name, flush=True)
         return self._finish_mission(spec, gate, last_obs and [last_obs] or [],
                                     dialog_obs=dialog_obs)
 
@@ -1197,6 +1216,26 @@ class RealtimeRunner:
                 "detail": "Run không có hàng LIVE nào ở tab Lịch — detector (e) "
                           "'hàng LIVE chỉ hiện giờ kickoff thay vì tỉ số' chưa được "
                           "kiểm (UNTESTED, không phải PASS)",
+                "severity": "UNTESTED"})
+        # CI-T9 mục 7: run có mở bàn phím ảo thật lần nào ở mission cần bàn
+        # phím (SEARCH) không — nếu không thì nhập liệu bằng bàn phím chưa
+        # được kiểm: ghi UNTESTED vào unverified, không im lặng như CI-T8
+        # (95/95 bước keyboard_open/image false mà SEARCH vẫn PASS).
+        # CI-T9 mục 7 (đính chính): lấy danh sách mission cần bàn phím từ
+        # chính run này (_kb_needed_by_mission, ghi theo spec lúc chạy),
+        # không đọc lại get_missions() — report đúng với mission đã chạy,
+        # và mock không phụ thuộc cờ needs_keyboard trong missions.py
+        # (file đó do worker khác commit riêng).
+        _kb_ran = [n for n, _needed in self._kb_needed_by_mission.items()
+                   if _needed]
+        _kb_seen = any(self._kb_seen_by_mission.get(n, False) for n in _kb_ran)
+        report["keyboard_seen"] = _kb_seen
+        if _kb_ran and not _kb_seen:
+            self.unverified.append({
+                "reason": "keyboard_never_opened",
+                "detail": "Run không mở bàn phím ảo lần nào ở mission cần bàn phím "
+                          "(%s) — nhập liệu/tìm kiếm bằng bàn phím thật chưa được "
+                          "kiểm (UNTESTED, không phải PASS)" % ", ".join(_kb_ran),
                 "severity": "UNTESTED"})
         # CI-T8 mục 5: fallback provider đã dùng (nếu có) — ghi rõ để biết
         # bao nhiêu vision call chạy qua provider dự phòng (nim_usage cũng

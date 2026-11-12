@@ -2456,6 +2456,7 @@ def main():
     test_ci_t9_playback_trial_frames()
     test_ci_t9_player_title_frame_skips_error_dialog()
     test_ci_t9_player_title_question_asks_duplicate()
+    test_ci_t9_keyboard_open_type_unverified()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -2728,6 +2729,120 @@ def test_ci_t9_player_title_question_asks_duplicate():
     _find = [f for f in _r.findings if f["issue"] == "Tiêu đề player đè đôi"]
     assert len(_find) == 1 and _find[0]["evidence"]["frame"] == "step_061_vod_play.jpg"
     print("CI_T9_TITLE_QUESTION_DUPLICATE_OK")
+
+
+_SEARCH_DUMP_T9 = {
+    "focused_sig": "searchInput#[128,136][1688,228]",
+    "focused_text": "Tìm trận đấu, kênh, phim, BLV…",
+    "focused_bounds": "[128,136][1688,228]",
+    "focusable_count": 8,
+    "all_visible_texts": [("searchInput", "Tìm trận đấu, kênh, phim, BLV…"),
+                          ("nav_search", "Tìm kiếm"),
+                          ("row1", "INTERF"), ("row2", "WNZT")],
+    "has_dialog": False,
+    "dialog_ids": [],
+    "selected_ids": ["nav_search"],
+    "ui_summary": "[FOCUSED] searchInput ('Tìm trận đấu, kênh, phim, BLV…')",
+    "osd_visible": False,
+}
+
+
+def test_ci_t9_keyboard_open_type_unverified():
+    """CI-T9 mục 7: (a) driver: focus ở ô tìm kiếm -> OK mở bàn phím (tối đa
+    2 lần); bàn phím đã mở -> gõ 'uefa' qua adb input; (b) runner: mission
+    SEARCH mà bàn phím không mở lần nào thì PASS bị lật UNVERIFIED (không
+    PASS lặng như CI-T8); (c) bàn phím mở thật sau OK thì mission PASS và
+    đã gõ từ khóa."""
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+    import runner as _rm
+    _specs = {s.name: s for s in get_missions()}
+    # Mock tự gắn cờ needs_keyboard trên bản sao của spec SEARCH: dây
+    # production (missions.py) do worker ExoPlayer commit riêng (file đó
+    # đang có thay đổi song song, không commit ở đây); test này kiểm
+    # driver/runner độc lập với file đó.
+    import copy as _copy
+    _spec = _copy.copy(_specs["MISSION_SEARCH_AND_SETTINGS_FEEDBACK"])
+    _spec.needs_keyboard = True
+    # (a) driver, unit.
+    _dev = FakeDevice()
+    _dev._tab = 3
+    _dev._dump = dict(_SEARCH_DUMP_T9)
+    _drv = Driver(_dev, EvidenceGate(_spec), _spec)
+    _a1 = _drv.next_action(_dev._dump, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("keyboard open action:", _a1.type, _a1.param, _a1.rule)
+    assert _a1.type == "KEY" and _a1.param == "OK" and _a1.rule == "keyboard:open", \
+        "focus ở ô tìm kiếm thì driver phải bấm OK mở bàn phím, được %s %s [%s]" % (
+            _a1.type, _a1.param, _a1.rule)
+    _dump_kb = dict(_SEARCH_DUMP_T9)
+    _dump_kb["keyboard_open"] = True
+    _dump_kb["keyboard_open_image"] = True
+    _a2 = _drv.next_action(_dump_kb, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("keyboard type action:", _a2.type, _a2.param, _a2.rule)
+    assert _a2.type == "TEXT" and _a2.param == "uefa" and _a2.rule == "keyboard:type", \
+        "bàn phím đã mở thì driver phải gõ từ khóa qua TEXT"
+    _a3 = _drv.next_action(_dump_kb, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    assert _a3.rule != "keyboard:type", "chỉ gõ từ khóa 1 lần/mission"
+
+    # (b) runner: bàn phím không mở lần nào -> UNVERIFIED (dù đủ tín hiệu PASS).
+    class _NoKbDevice(FakeDevice):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            self._dump = dict(_SEARCH_DUMP_T9)
+            self._tab = 3
+
+    _orig_dev = _rm.RealtimeDevice
+    _rm.RealtimeDevice = _NoKbDevice
+    try:
+        _r = _rm.RealtimeRunner(out_dir="/tmp/qa_mock_kb_t9", serial=None,
+                                vision_budget=0, no_vision=True)
+        _rep = _r.run([_spec])
+    finally:
+        _rm.RealtimeDevice = _orig_dev
+    _res = _r.mission_results[0]
+    print("SEARCH không mở bàn phím ->", _res["outcome"], "|", _res["reason"][:120],
+          "| keys:", _r.device.keys)
+    assert "OK" in _r.device.keys, "driver phải thử bấm OK mở bàn phím (keys: %s)" % _r.device.keys
+    assert _res["outcome"] == "UNVERIFIED", \
+        "bàn phím không mở lần nào thì mission SEARCH phải UNVERIFIED, không PASS lặng (được %s)" % _res["outcome"]
+    assert "Bàn phím" in _res["reason"]
+    assert _rep.get("keyboard_seen") is False
+
+    # (c) runner: OK mở được bàn phím thật -> PASS + đã gõ từ khóa.
+    class _KbDevice(FakeDevice):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            self._dump = dict(_SEARCH_DUMP_T9)
+            self._tab = 3
+            self.typed = []
+        def send_key(self, key_name):
+            super().send_key(key_name)
+            if key_name == "OK" and "searchInput" in self._dump.get("focused_sig", ""):
+                _d = dict(self._dump)
+                _d["all_visible_texts"] = list(_d["all_visible_texts"]) + [
+                    ("kb%d" % i, ch) for i, ch in enumerate("qwertyui")]
+                self._dump = _d
+        def input_text(self, text):
+            self.typed.append(text)
+            self._note("TEXT(%s)" % text)
+
+    _rm.RealtimeDevice = _KbDevice
+    try:
+        _r2 = _rm.RealtimeRunner(out_dir="/tmp/qa_mock_kb_t9b", serial=None,
+                                 vision_budget=0, no_vision=True)
+        _rep2 = _r2.run([_spec])
+    finally:
+        _rm.RealtimeDevice = _orig_dev
+    _res2 = _r2.mission_results[0]
+    print("SEARCH mở bàn phím ->", _res2["outcome"], "| typed:", _r2.device.typed)
+    assert _res2["outcome"] == "PASS", \
+        "bàn phím mở thật + đủ tín hiệu thì mission SEARCH phải PASS (được %s: %s)" % (
+            _res2["outcome"], _res2["reason"][:120])
+    assert _r2.device.typed == ["uefa"], \
+        "phải gõ đúng 1 lần từ khóa 'uefa' khi bàn phím mở (được %s)" % _r2.device.typed
+    assert _rep2.get("keyboard_seen") is True
+    print("CI_T9_KEYBOARD_OPEN_TYPE_UNVERIFIED_OK")
 
 
 def test_ci_t9_video_coverage_action_time():

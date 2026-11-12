@@ -18,7 +18,7 @@ class MissionSpec:
                  target_desc="", directed_launch=None, min_steps=4, kind="target",
                  tab=None, needs_scroll_top=False, goto_texts=None,
                  needs_long_press=False, needs_playback_progress=False,
-                 requires_live_row=False):
+                 requires_live_row=False, needs_keyboard=False):
         self.name = name
         self.title = title
         self.description = description
@@ -54,6 +54,10 @@ class MissionSpec:
         # (detector (e) 'hàng LIVE chỉ hiện giờ kickoff' chỉ kiểm được khi
         # thấy hàng LIVE). Không thấy hàng LIVE -> UNVERIFIED, không FAIL.
         self.requires_live_row = bool(requires_live_row)
+        # CI-T9 mục 7: mission chỉ có ý nghĩa khi bàn phím ảo đã mở thật
+        # ít nhất 1 lần trong mission (nhập liệu/tìm kiếm bằng bàn phím).
+        # Không mở lần nào -> UNVERIFIED (chưa kiểm được), không PASS lặng.
+        self.needs_keyboard = bool(needs_keyboard)
         # (IPTV favorites) — driver trước giờ không bao giờ phát LONG_PRESS
         # nên favorites chưa từng được kiểm tra thật.
         self.needs_long_press = bool(needs_long_press)
