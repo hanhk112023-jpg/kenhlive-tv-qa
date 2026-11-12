@@ -40,15 +40,33 @@ FAKE_SCORE_TIME = ((15, 16, 17, 18, 19, 20, 21, 22, 23), (0, 15, 30, 45))
 # Từ khóa ngữ cảnh môn thể thao (CI-T5, VISUAL-REVIEW §9 mục 1): luật
 # plausibility (một đội > 9 / tổng > 12) là luật BÓNG ĐÁ — tỉ số bóng rổ
 # thật 54:71 (NBL, CI-T4 step_012) bị tố oan vì detector không đọc ngữ cảnh.
-BASKETBALL_KEYWORDS = ("bóng rổ", "basketball", "nbl", "nba")
+# CI-T9 (2a): khớp cả tiền tố bị cắt — nhãn giải hiển thị "Hiệp hội
+# Bóng r..." không chứa "bóng rổ" (CI-T8 finding #3 GIẢ: Knicks 23–33
+# Cavaliers thật). "bóng r" là tiền tố cắt của "bóng rổ"; "basketb" là
+# tiền tố cắt của "basketball" (VD "National Basketb...").
+BASKETBALL_KEYWORDS = ("bóng rổ", "bóng r", "basketball", "basketb", "nbl", "nba")
 FOOTBALL_KEYWORDS = ("bóng đá", "afc", "saff", "v-league", "vleague",
                      "v.league", "soccer", "football")
+# CI-T9 (2b): tên đội NBA -> bóng rổ (khớp theo từ, có ranh giới từ để
+# "heat"/"suns"/"kings"/"magic" không bắt nhầm từ thường trong câu khác).
+NBA_TEAMS = (
+    "knicks", "cavaliers", "lakers", "celtics", "warriors", "bulls",
+    "heat", "nuggets", "suns", "mavericks", "nets", "clippers",
+    "76ers", "sixers", "bucks", "hawks", "hornets", "jazz", "kings",
+    "grizzlies", "timberwolves", "pelicans", "thunder", "magic",
+    "pacers", "pistons", "raptors", "rockets", "spurs",
+    "trail blazers", "wizards",
+)
+_NBA_TEAM_RES = [re.compile(r"\b" + re.escape(t) + r"\b") for t in NBA_TEAMS]
 
 
 def _sport_context(all_visible_texts):
     """('basketball' | 'football' | None) từ text lân cận trong cùng dump."""
     blob = " ".join(t for _, t in (all_visible_texts or [])).lower()
+    blob = re.sub(r"\s+", " ", blob)
     if any(k in blob for k in BASKETBALL_KEYWORDS):
+        return "basketball"
+    if any(rx.search(blob) for rx in _NBA_TEAM_RES):
         return "basketball"
     if any(k in blob for k in FOOTBALL_KEYWORDS):
         return "football"

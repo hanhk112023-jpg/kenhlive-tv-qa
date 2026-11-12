@@ -2435,6 +2435,8 @@ def main():
     assert _cm26b[0]["qa_start_s"] == 180.0, "qa_start phải là của chunk được giữ"
     print("CHUNK_MAP_TRIM_OK")
 
+    # --- CI-T9 mục 2: fake-score giữ ngữ cảnh môn khi nhãn bị cắt ---
+    test_ci_t9_fake_score_context()
     # --- CI-T9 mục 3 (hàm test_ci_t9_* ở cuối file) ---
     test_ci_t9_nav_excluded_from_live_rows()
     # --- CI-T9 mục 4 ---
@@ -2458,6 +2460,78 @@ def main():
           and report2["nim_usage"]["requests_used"] == 0)
     print("MOCK_RUNNER_OK" if ok else "MOCK_RUNNER_FAIL")
     return 0 if ok else 1
+
+
+def test_ci_t9_fake_score_context():
+    """CI-T9 (2): fake-score giữ ngữ cảnh môn khi nhãn giải bị cắt —
+    finding #3 GIẢ ở CI-T8 (Knicks 23–33 Cavaliers thật bị tố phi lý).
+    (a) Tiền tố cắt: "Hiệp hội Bóng r..." -> basketball; "National
+    Basketb..." -> basketball.
+    (b) Tên đội NBA: Knicks/Cavaliers/Lakers -> basketball (khớp theo từ:
+    "Heather"/"sunscreen" không bắt nhầm).
+    (c) Tỉ số đang tick: 13:21 -> 23:33 (2 lần quan sát, đổi giá trị)
+    không tố; chuỗi CI-T8 đầy đủ (step 9: 13:21 + tiêu đề NBA, step 27/29:
+    23:33 + nhãn cắt + tên đội) không tố.
+    Hồi quy: bóng đá 12:3 phi lý thật vẫn tố; không ngữ cảnh + đứng yên
+    qua 2 lần quan sát vẫn tố (Test H: đồng hồ 15:11->17:23->17:23).
+    RANH GIỚI (ghi rõ, không giấu): KHÔNG áp miễn trừ tick blanket cho
+    nhánh phi lý — nó mâu thuẫn Test H (đồng hồ tick rồi đứng yên vẫn phải
+    tố; chuỗi tick không ngữ cảnh 13:21->23:33->23:33 có cấu trúc giống hệt
+    đồng hồ). Case CI-T8 được sửa bằng (a)+(b) — ngữ cảnh bóng rổ có mặt
+    ở observation tố — cộng gate ổn định sẵn có. Nếu muốn miễn trừ tick
+    không ngữ cảnh thì phải sửa lại Test H, chưa làm ở vòng này.
+    """
+    import detectors as _det
+    _A = "com.kenhlive.tv/.MainActivity"
+    assert _det._sport_context([("league", "Hiệp hội Bóng r...")]) == "basketball", \
+        "nhãn cắt 'Bóng r...' phải nhận ra bóng rổ"
+    assert _det._sport_context([("title", "National Basketb...")]) == "basketball"
+    assert _det._sport_context([("title", "Bóng đá Ngoại hạng Anh")]) == "football"
+    assert _det._sport_context([("home", "New York Knicks"),
+                                ("away", "Cleveland Cavaliers")]) == "basketball", \
+        "tên đội NBA phải nhận ra bóng rổ"
+    assert _det._sport_context([("home", "Los Angeles Lakers")]) == "basketball"
+    assert _det._sport_context([("note", "Heather")]) is None, \
+        "'Heather' chứa 'heat' nhưng không phải tên đội"
+    assert _det._sport_context([("note", "sunscreen")]) is None
+    # (a)+(b): nhãn cắt + tên đội, tỉ số NBA 23:33 ổn định 2 lần -> KHÔNG tố.
+    _ctx = {"reported": set(), "_score_seen": {}}
+    _ui = {"all_visible_texts": [("leagueLabel", "Hiệp hội Bóng r..."),
+                                 ("teamHome", "New York Knicks"),
+                                 ("teamAway", "Cleveland Cavaliers"),
+                                 ("cardScoreHome", "23 : 33")]}
+    assert _det.detect_fake_score(_ui, _A, _ctx, "s1.jpg", 1) == []
+    assert _det.detect_fake_score(_ui, _A, _ctx, "s2.jpg", 2) == [], \
+        "Knicks 23-33 Cavaliers (nhãn cắt + tên đội) không được tố"
+    # (c): chuỗi CI-T8 đầy đủ — tick 13:21 -> 23:33 rồi đứng yên, có ngữ cảnh.
+    _ctx = {"reported": set(), "_score_seen": {}}
+    _o1 = {"all_visible_texts": [("heroTitle", "National Basketball Association"),
+                                 ("cardScoreHome", "13 : 21")]}
+    _o2 = {"all_visible_texts": [("leagueLabel", "Hiệp hội Bóng r..."),
+                                 ("teamHome", "New York Knicks"),
+                                 ("teamAway", "Cleveland Cavaliers"),
+                                 ("cardScoreHome", "23 : 33")]}
+    assert _det.detect_fake_score(_o1, _A, _ctx, "t1.jpg", 1) == []
+    assert _det.detect_fake_score(_o2, _A, _ctx, "t2.jpg", 2) == []
+    _f3 = _det.detect_fake_score(_o2, _A, _ctx, "t3.jpg", 3)
+    print("NBA tick 13:21->23:33 findings:", len(_f3))
+    assert _f3 == [], "tỉ số NBA thật đang tick không được tố (finding #3 GIẢ CI-T8)"
+    # (c): tick 2 lần quan sát (đổi giá trị) -> chưa tố (gate ổn định).
+    _ctx2 = {"reported": set(), "_score_seen": {}}
+    _u1 = {"all_visible_texts": [("cardScoreHome", "13 : 21")]}
+    _u2 = {"all_visible_texts": [("cardScoreHome", "23 : 33")]}
+    assert _det.detect_fake_score(_u1, _A, _ctx2, "u1.jpg", 1) == []
+    assert _det.detect_fake_score(_u2, _A, _ctx2, "u2.jpg", 2) == [], \
+        "giá trị đổi (13:21->23:33) thì chưa tố"
+    # Hồi quy: bóng đá phi lý thật vẫn tố.
+    _ctx3 = {"reported": set(), "_score_seen": {}}
+    _uf = {"all_visible_texts": [("heroSub", "Bóng đá Ngoại hạng Anh"),
+                                 ("cardScoreHome", "12 : 3")]}
+    assert _det.detect_fake_score(_uf, _A, _ctx3, "f1.jpg", 1) == []
+    _ff = _det.detect_fake_score(_uf, _A, _ctx3, "f2.jpg", 2)
+    assert len(_ff) == 1 and "12 : 3" in _ff[0]["issue"], \
+        "bóng đá 12:3 phi lý thật vẫn phải bị tố"
+    print("CI_T9_FAKE_SCORE_CONTEXT_OK")
 
 
 def test_ci_t9_video_coverage_action_time():
