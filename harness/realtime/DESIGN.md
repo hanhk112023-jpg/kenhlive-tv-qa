@@ -1391,9 +1391,13 @@ khối `if` APT.
   **03:24** / 13:53, 4 cảnh phim khác nhau, tiến trình 7% → 25%. Có đệm
   (spinner ở step_066/068, motion 0.01 ở bước 65) nhưng hồi phục.
 - **B1 (gate đọc đồng hồ): sửa được một nửa** — `playback_s` đã đọc được
-  (thử 3/4 toàn null), nhưng OCR của harness đọc cả 2 số trên OSD
-  "MM:SS / 13:53", lúc lấy giờ phát lúc lấy giờ tổng → gate "không tăng
-  đơn điệu" FAIL oan. Lỗi harness (H1 dưới), không phải video đóng băng.
+  (thử 3/4 toàn null), nhưng khi cả 2 lượt OCR đều mất chữ giờ phát mà
+  chỉ đọc được giờ tổng "13:53" thì `min([833,833])` = 833s → gate "không
+  tăng đơn điệu" FAIL oan. (Đính chính cơ chế — reviewer độc lập: không
+  phải harness "lúc lấy số trái, lúc lấy số phải": đọc đủ cả cặp thì
+  `min` luôn ra giờ phát; lỗi là khi giờ phát bị mất hẳn thì giờ tổng lọt
+  vào làm giờ phát. Xem H1 dưới.) Lỗi harness (H1 dưới), không phải video
+  đóng băng.
 - **video_error KHÔNG tái hiện:** 0 lần trong log/report/session; khung
   WebPlayer cuối step_068 (03:24) không có dialog; tour t223–243 cho thấy
   harness rời WebPlayer sạch sang player native (00:10 → 00:53). Dialog
@@ -1407,7 +1411,9 @@ khối `if` APT.
 **Findings — mắt kiểm (4/4 THẬT):**
 - #1 `blvScore` hiện `'0 - 0 · null'` — **THẬT, A13 MỚI** (§15.17 cuối).
 - #2/#3 hàng LIVE chỉ hiện giờ kickoff `'15:00'` (Tasmania) và `'15:30'`
-  (Adelaide) — **THẬT, A6 còn**, ổn định qua 3 lần quan sát.
+  (Adelaide) — **THẬT, A6 còn**, ổn định qua 4 khung đã lưu
+  (step_018/019/030/031; t=130.5, 135.5, 279.9, 292.7) — finding của
+  harness ghi "ổn định qua 2 lần quan sát" (detector tố sau 2 lần).
 - #4 focus lọt xuống nền khi Dialog mở — **THẬT, A11 CÒN** (viền trắng ở
   thẻ nền `cardRoot#[180,808][839,1044]`, y hệt thử 4).
 
@@ -1453,7 +1459,8 @@ khối `if` APT.
   kiểm được ngày ở đó.
 - **Đính chính "thời lượng tập đổi" (thử 3/4): không phải lỗi.** WebPlayer
   hiện phải = TỔNG (13:53); player native hiện phải = CÒN LẠI (00:18/
-  13:35, 01:03/12:49, 00:10/13:43 → 00:53/13:00 — cộng lại luôn = 13:53).
+  13:35, 01:03/12:49, 00:10/13:43 → 00:53/13:00 — cộng lại = 13:53, riêng
+  cặp 01:03/12:49 cộng ra 13:52 — lệch 1s do làm tròn hiển thị).
   Native tuân thủ đúng luật KL8 "VOD right label = remaining time".
 - ExoPlayer **mở đúng trận đang đá**: khung PlayerActivity không lưu
   trong shots, nhưng tour t≈45s + timelapse t=5s thấy rõ trận live,
@@ -1474,10 +1481,19 @@ dung khớp (mắt kiểm 4 khung mẫu reel t=3/9/15/21 đúng cảnh); timelap
 30,7s là nội dung phiên thật.
 
 **Lỗi harness ghi cho vòng sửa sau (CHỈ GHI):**
-- **H1 — OCR đồng hồ WebPlayer:** chỉ đọc số trái (trước dấu `/`), hoặc
-  bỏ qua lần đọc bằng đúng tổng thời lượng.
+- **H1 — OCR đồng hồ WebPlayer (đính chính cơ chế — reviewer độc lập):**
+  các lần đọc 833s xảy ra khi cả band OCR lẫn dải đồng hồ ép đều mất chữ
+  giờ phát, chỉ đọc được "13:53" (2 lần) → `min([833,833])` = 833. Sửa
+  đúng: **bỏ qua lần đọc bằng đúng tổng thời lượng** (hoặc yêu cầu 2 giá
+  trị trong cặp phải khác nhau); "chỉ đọc số trái (trước dấu `/`)" không
+  sửa được — code đã lấy `min` của cặp khi đọc đủ cả hai số.
 - **H2 — Mission chọn tập:** sửa thông báo FAIL (đang dùng mẫu mission
-  thể thao) + gate (chọn tập phải mở player, không phải lỗi).
+  thể thao) + gate (chọn tập phải mở player, không phải lỗi). Bổ sung
+  (reviewer độc lập): thông báo là mẫu chung cứng trong `runner.py`
+  (~dòng 828) — và `gate.dialog_seen` vẫn `false` suốt mission dù dialog
+  chọn tập đã mở rõ ở step_051, tức detector `has_dialog` cũng không nhận
+  ra dialog này (dù `episodeList`/`dialogBtnClose` đã có trong
+  `dialog_id_set` ở `device.py`).
 - **H3 — Mission đa nguồn:** tìm `'cola'` sai chỗ (hàng NBL/JLC chỉ có
   "SOCO"); điều hướng tới đúng hàng hoặc tìm không phân biệt hoa/thường.
 - **H4 — Mission IPTV:** vision chạy trên khung tải luồng; OSD player
@@ -1488,7 +1504,8 @@ dung khớp (mắt kiểm 4 khung mẫu reel t=3/9/15/21 đúng cảnh); timelap
 - Ghi nhận: `image_focus_ring=true` ở 5 bước (51, 54, 60, 61, 68; box
   bước 51 khớp nút đang focus trong step_052) — khác CI-T8 là 0/95 bước,
   cơ chế mục 1 đã chạy. `duplicate_frame=true` ở bước 61 (khung trùng
-  bước 60).
+  bước 60) — và ở 6 bước khác nữa (7, 11, 12, 45, 46, 76 — khung
+  tĩnh/menu/màn đen lúc tải, đều lành).
 
 **Lỗi app mới ghi cho fix loop sau (CHỈ GHI, không sửa code app):**
 - **A13 (MỚI, thử 5 run 43183031119):** thẻ phòng BLV hiện chuỗi `null`
