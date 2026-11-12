@@ -1207,3 +1207,27 @@ runner, F63 kiểm được hay chưa).
   Fail-ồn-ào hoạt động đúng thiết kế: job đỏ ngay, không chạy tiếp không
   proxy. Đã sửa: curl thêm `-f`, retry tải 3 lần, kiểm `gzip -t` trước
   khi giải nén, lỗi sau 3 lần thì `::error::` exit 1 (2 workflow).
+  (Đính chính sau Thử 2: không còn là "lỗi thoáng qua 1 lần" — 404 lặp
+  lại ở 2 run cách nhau ~5 phút, 3 lần liên tiếp trong Thử 2, trong khi
+  cùng URL tải được từ máy ảo ở cùng thời điểm.)
+- Thử 2 — run 43161910696 (2026-11-12 12:31 +07, head `ade876f`, job
+  4m40s): **FAIL SỚM lần 2, cùng bước Set up proxy VN** — lần này lỗi
+  hiện nguyên hình: `curl: (22) The requested URL returned error:
+  404`, **3/3 lần tải** (05:35:04 / 05:35:19 / 05:35:34 UTC, cách
+  15s), rồi `::error::Khong tai duoc sing-box v1.14.4 sau 3 lan`,
+  exit 1. File VN vẫn OK ("GH-VN proxy OK: 17 node VLESS").
+  Đối chiếu ngay sau run (05:36:14 UTC): cùng URL từ máy ảo trả
+  `302 Found` → `release-assets.githubusercontent.com` (signed URL
+  còn hạn tới 06:24 UTC); lần tải đầy đủ trước đó: HTTP 200,
+  32.527.188 byte, gzip hợp lệ, `sing-box version` 1.14.4. Asset
+  tồn tại, URL đúng — runner GitHub-hosted không tải được từ
+  `github.com/.../releases/download/...` (404), theo kiểu từng xảy
+  ra với codeload (vụ `actions/setup-go` #801, 15/10/2026: archive
+  thật trả 404 theo host/region rồi tự khỏi ~1 giờ sau). **Exit IP
+  chưa từng được kiểm** (sing-box chưa chạy trên runner, vòng kiểm
+  `VN_CC` chưa tới); **F63 chưa kiểm được**; QA 0 bước, artifact 0
+  (không có gì để kiểm bằng mắt). Chi tiết + đề xuất bước tiếp (thử
+  dispatch lại 1 lần; nếu 404 kéo dài thì đổi nguồn tải: `gh release
+  download`, install script `sing-box.app`, hoặc APT
+  `deb.sagernet.org` — giữ lại retry + `gzip -t` + fail-ồn-ào):
+  `~/workspace/kenhlive-plan/qa-run-43161910696/VISUAL-REVIEW.md`.
