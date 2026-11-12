@@ -7,6 +7,7 @@ harness cũ (AndroidTVDevice/Probes) và giữ nguyên ngữ nghĩa.
 """
 import io
 import json
+import math
 import re
 import subprocess
 import time
@@ -57,6 +58,48 @@ def sh(cmd, timeout=30):
         return (r.stdout or "") + (r.stderr or "")
     except Exception as e:
         return "__ERR__ %s" % e
+
+
+def _fit_circle(points):
+    """Fit vòng tròn (Kasa, bình phương tối thiểu) qua các điểm.
+    Trả (cx, cy, r) hoặc None khi điểm suy biến (thẳng hàng / r <= 0).
+    Dùng cho đường nhận vòng focus tròn: vòng bị JPEG làm mờ có thể vỡ
+    thành nửa trên/dưới — bbox của nửa vòng không phải bbox của vòng nên
+    không fit ellipse theo bbox được, phải fit theo điểm."""
+    n = len(points)
+    if n < 8:
+        return None
+    sx = sy = sxx = syy = sxy = sz = sxz = syz = 0.0
+    for (x, y) in points:
+        z = x * x + y * y
+        sx += x
+        sy += y
+        sxx += x * x
+        syy += y * y
+        sxy += x * y
+        sz += z
+        sxz += x * z
+        syz += y * z
+    # [sxx sxy sx; sxy syy sy; sx sy n] [D;E;F] = [-sxz;-syz;-sz]
+    a = [[sxx, sxy, sx, -sxz], [sxy, syy, sy, -syz], [sx, sy, float(n), -sz]]
+    for i in range(3):
+        piv = max(range(i, 3), key=lambda r: abs(a[r][i]))
+        if abs(a[piv][i]) < 1e-9:
+            return None
+        a[i], a[piv] = a[piv], a[i]
+        for r in range(i + 1, 3):
+            f = a[r][i] / a[i][i]
+            for c in range(i, 4):
+                a[r][c] -= f * a[i][c]
+    sol = [0.0] * 3
+    for i in (2, 1, 0):
+        sol[i] = (a[i][3] - sum(a[i][j] * sol[j] for j in range(i + 1, 3))) / a[i][i]
+    d, e, f = sol
+    cx, cy = -d / 2.0, -e / 2.0
+    r2 = (d * d + e * e) / 4.0 - f
+    if r2 <= 0:
+        return None
+    return cx, cy, math.sqrt(r2)
 
 
 class RealtimeDevice:
@@ -302,6 +345,18 @@ class RealtimeDevice:
         (rộng 50-650px, cao 30-170px) với pixel tập trung ở CHU VI của box
         (>= 45% pixel nằm sát 4 cạnh) và KHÔNG đặc (tỉ lệ lấp <= 0.6) —
         loại khối vàng/trắng đặc (logo, thumbnail, nội dung video).
+        CI-T9 (1): THÊM đường nhận vòng tròn/ellipse — test chu vi loại
+        vòng tròn (hình tròn nội tiếp chỉ chạm cạnh bbox ở 4 điểm; CI-T8
+        step_066/076 có vòng trắng rõ quanh nút pause mà vẫn False 95/95
+        bước). Một component được nhận thêm khi EITHER (a) fit ellipse
+        theo bbox: >= 55% điểm có bán kính chuẩn hóa |rho-1| <= 0.20 và
+        phủ >= 8/12 cung 30 độ, OR (b) fit vòng tròn theo điểm (Kasa):
+        >= 60% điểm cách tâm một bán kính (sai số <= max(2.5px, 12% r)),
+        phủ >= 5/12 cung, r trong 10-175px (ảnh downscale 960) và bbox
+        tương thích với r. Đường hình chữ nhật cũ GIỮ NGUYÊN.
+        Ngưỡng trắng 190 thay vì 215 (CI-T9 (1): viền mỏng qua JPEG còn
+        ~190 ở mép, 215 làm vòng vỡ thành mảnh < 30px) và nối component
+        dung sai +-2px theo y (vòng cong đứng nhảy 2px giữa 2 cột mẫu).
         Trả (found, color, coverage, box_1920) — box None khi không thấy.
         Rẻ: chỉ quét band dưới ở 960 rộng (~55k điểm)."""
         if not png_bytes or not Image:
@@ -331,13 +386,15 @@ class RealtimeDevice:
                     r, g, b = px[x, y]
                     if r >= 170 and g >= 120 and b <= 120 and (r - b) >= 80 and (r - g) <= 100:
                         pts[(x, y)] = "YELLOW"
-                    elif r >= 215 and g >= 215 and b >= 215:
+                    elif r >= 190 and g >= 190 and b >= 190:
                         pts[(x, y)] = "WHITE"
             if len(pts) < 30:
                 return False, "UNKNOWN", 0.0, None
-            # Connected components 8-hướng (lệch ±2 theo x do bước quét 2).
+            # Connected components 8-hướng (lệch ±2 theo x do bước quét 2,
+            # CI-T9 (1): dung sai ±2 theo y — vòng cong đứng nhảy 2px giữa
+            # 2 cột mẫu, ±1 làm vòng vỡ thành 2 nửa trên/dưới).
             seen = set()
-            best = None  # (perimeter_px, color, coverage, box_960)
+            best = None  # (score, color, coverage, box_960)
             for seed in list(pts):
                 if seed in seen:
                     continue
@@ -348,7 +405,7 @@ class RealtimeDevice:
                     cx, cy = stack.pop()
                     comp.append((cx, cy))
                     for nx in (cx - 2, cx, cx + 2):
-                        for ny in (cy - 1, cy, cy + 1):
+                        for ny in (cy - 2, cy - 1, cy, cy + 1, cy + 2):
                             nb = (nx, ny)
                             if nb in pts and nb not in seen:
                                 seen.add(nb)
@@ -372,22 +429,59 @@ class RealtimeDevice:
                 fill = (len(comp) * 2.0) / area_down
                 if fill > 0.6:
                     continue
-                # Pixel tập trung ở chu vi: trong 3px (ảnh downscale) tính
-                # từ 4 cạnh của bbox.
+                # (1) Đường cũ — giữ nguyên: pixel tập trung ở chu vi hình
+                # chữ nhật, trong 3px (ảnh downscale) tính từ 4 cạnh bbox.
                 per = 0
                 for (pxx, pyy) in comp:
                     if pyy - wy0 <= 3 or wy1 - pyy <= 3 or \
                        pxx - wx0 <= 3 or wx1 - pxx <= 3:
                         per += 1
                 cov = per / max(1, len(comp))
-                if cov < 0.45:
+                # (2) CI-T9 (1): đường vòng tròn/ellipse.
+                # (2a) Ellipse theo bbox: bán kính chuẩn hóa rho ~ 1.
+                ecx = (wx0 + wx1) / 2.0
+                ecy = (wy0 + wy1) / 2.0
+                erx = max(1.0, (wx1 - wx0) / 2.0)
+                ery = max(1.0, (wy1 - wy0) / 2.0)
+                rho_ok = 0
+                sectors = set()
+                for (pxx, pyy) in comp:
+                    rho = math.sqrt(((pxx - ecx) / erx) ** 2 + ((pyy - ecy) / ery) ** 2)
+                    if abs(rho - 1.0) <= 0.20:
+                        rho_ok += 1
+                    sectors.add(int((math.degrees(math.atan2(pyy - ecy, pxx - ecx)) % 360) // 30))
+                rho_frac = rho_ok / max(1, len(comp))
+                ellipse_ok = rho_frac >= 0.55 and len(sectors) >= 8
+                # (2b) Vòng tròn fit theo điểm (Kasa): cứu nửa vòng / cung
+                # vỡ — bbox của nửa vòng không phải bbox của vòng.
+                circle_frac = 0.0
+                circle_ok = False
+                fit = _fit_circle(comp)
+                if fit is not None:
+                    fcx, fcy, fr = fit
+                    if 10.0 <= fr <= 175.0:
+                        tol = max(2.5, 0.12 * fr)
+                        d_ok = 0
+                        fsectors = set()
+                        for (pxx, pyy) in comp:
+                            if abs(math.hypot(pxx - fcx, pyy - fcy) - fr) <= tol:
+                                d_ok += 1
+                            fsectors.add(int((math.degrees(math.atan2(pyy - fcy, pxx - fcx)) % 360) // 30))
+                        circle_frac = d_ok / max(1, len(comp))
+                        cbw, cbh = wx1 - wx0 + 1, wy1 - wy0 + 1
+                        circle_ok = (circle_frac >= 0.60 and len(fsectors) >= 5
+                                     and max(cbw, cbh) <= 2.5 * fr
+                                     and min(cbw, cbh) >= 0.4 * fr)
+                if cov < 0.45 and not ellipse_ok and not circle_ok:
                     continue
+                score = max(cov, rho_frac if ellipse_ok else 0.0,
+                            circle_frac if circle_ok else 0.0)
                 cols = {}
                 for p in comp:
                     cols[pts[p]] = cols.get(pts[p], 0) + 1
                 color = "YELLOW" if cols.get("YELLOW", 0) >= cols.get("WHITE", 0) else "WHITE"
-                if best is None or per > best[0]:
-                    best = (per, color, round(cov, 2), b1920)
+                if best is None or score > best[0]:
+                    best = (score, color, round(score, 2), b1920)
             if best is None:
                 return False, "UNKNOWN", 0.0, None
             return True, best[1], best[2], best[3]

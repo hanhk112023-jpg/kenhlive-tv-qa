@@ -2442,6 +2442,8 @@ def main():
     # --- CI-T9 mục 5 ---
     test_ci_t9_video_coverage_action_time()
 
+    # --- CI-T9 mục 1: focus-ring nhận vòng tròn/ellipse ---
+    test_ci_t9_focus_ring_circle()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -2617,6 +2619,110 @@ def test_ci_t9_nav_excluded_from_live_rows():
     assert _ctx2.get("schedule_live_rows", 0) == 1, \
         "chỉ đếm 1 hàng trận thật, nav không được đếm thêm"
     print("CI_T9_NAV_EXCLUDED_OK")
+
+
+def test_ci_t9_focus_ring_circle():
+    """CI-T9 (1): focus-ring phải nhận vòng tròn/ellipse — test chu vi cũ
+    (>= 45% pixel sát 4 cạnh bbox) loại hình tròn nội tiếp (chỉ chạm cạnh
+    ở 4 điểm). Bằng chứng CI-T8: step_066/076 có vòng trắng rõ quanh nút
+    pause nhưng image_focus_ring=False ở cả 95/95 bước.
+    - Vòng tròn r=40 vẽ bằng PIL: rect-coverage cũ 0.438 (< 0.45, đo trực
+      tiếp từ ảnh — code cũ loại) nhưng code mới phải nhận (đường ellipse).
+    - Ellipse dẹt 200x60: rect-coverage cũ 0.446 -> cũ loại, mới nhận.
+    - Viền chữ nhật cũ (N18) vẫn pass; khối đặc vẫn loại (hồi quy).
+    - Replay khung thật CI-T8 (bỏ qua nếu không có artifact local):
+      step_066/076 (vòng pause) True, step_081 (nút list focus) True,
+      step_060 (nút "ÂM THANH & PHỤ ĐỀ" focus) True, step_062 (không
+      viền — finding #1 THẬT) False.
+    Lưu ý cơ chế thật (đo trên khung 066): vòng còn vỡ thành mảnh dưới
+    ngưỡng trắng 215 + nối +-1px nên code cũ không thấy component nào
+    (rect-coverage của vòng gộp là 0.64 — test chu vi không phải thủ phạm
+    duy nhất); sửa gồm ngưỡng 190 + nối +-2px + 2 đường ellipse/circle.
+    """
+    from PIL import Image as _Im, ImageDraw as _Dr
+    _dev = RealtimeDevice()
+
+    def _png(_draw):
+        _im = _Im.new("RGB", (960, 540), (25, 25, 30))
+        _draw(_Dr.Draw(_im))
+        _buf = io.BytesIO()
+        _im.save(_buf, format="PNG")
+        return _buf.getvalue()
+
+    def _rect_cov(_png_bytes):
+        """Tỉ lệ pixel trắng nằm sát 4 cạnh bbox — đúng luật test chu vi
+        cũ, đo độc lập với detect_focus_ring_anywhere."""
+        _im = _Im.open(io.BytesIO(_png_bytes)).convert("RGB")
+        _px = _im.load()
+        _pts = []
+        for _y in range(425, 540):
+            for _x in range(0, 960, 2):
+                _r, _g, _b = _px[_x, _y]
+                if _r >= 190 and _g >= 190 and _b >= 190:
+                    _pts.append((_x, _y))
+        _xs = [p[0] for p in _pts]
+        _ys = [p[1] for p in _pts]
+        _x0, _x1, _y0, _y1 = min(_xs), max(_xs), min(_ys), max(_ys)
+        return sum(1 for (a, b) in _pts
+                   if b - _y0 <= 3 or _y1 - b <= 3
+                   or a - _x0 <= 3 or _x1 - a <= 3) / len(_pts)
+
+    _circ = _png(lambda d: d.ellipse([390, 442, 470, 522],
+                                     outline=(255, 255, 255), width=3))
+    _cc = _rect_cov(_circ)
+    print("vòng tròn r=40 rect-coverage cũ:", round(_cc, 3))
+    assert _cc < 0.45, "vòng tròn r=40 phải rớt test chu vi cũ (được %.3f)" % _cc
+    _f, _col, _cov, _box = _dev.detect_focus_ring_anywhere(_circ)
+    print("vòng tròn r=40 ->", _f, _col, _cov, _box)
+    assert _f is True and _col == "WHITE" and _cov >= 0.55, \
+        "vòng tròn trắng thật phải được nhận là vòng focus"
+    assert _box and 760 <= _box[0] <= 800 and 860 <= _box[1] <= 900, \
+        "box vòng phải gần (390,442)-(470,522) ở 960x540, được %s" % (_box,)
+    _el = _png(lambda d: d.ellipse([600, 455, 800, 515],
+                                   outline=(255, 255, 255), width=3))
+    _ec = _rect_cov(_el)
+    print("ellipse 200x60 rect-coverage cũ:", round(_ec, 3))
+    assert _ec < 0.45, "ellipse dẹt phải rớt test chu vi cũ (được %.3f)" % _ec
+    _f2, _col2, _cov2, _box2 = _dev.detect_focus_ring_anywhere(_el)
+    print("ellipse 200x60 ->", _f2, _col2, _cov2, _box2)
+    assert _f2 is True and _cov2 >= 0.55, "ellipse trắng thật phải được nhận"
+    assert _box2 and 1180 <= _box2[0] <= 1220 and 900 <= _box2[1] <= 925, \
+        "box ellipse phải gần (600,455)-(800,515) ở 960x540, được %s" % (_box2,)
+    # Hồi quy: viền chữ nhật cũ vẫn pass, khối đặc vẫn loại.
+    _rect = _png(lambda d: d.rectangle([100, 450, 300, 500],
+                                       outline=(255, 200, 0), width=3))
+    assert _dev.detect_focus_ring_anywhere(_rect)[0] is True, \
+        "viền chữ nhật cũ vẫn phải pass"
+    _solid = _png(lambda d: d.rectangle([600, 450, 700, 500],
+                                        fill=(240, 240, 240)))
+    assert _dev.detect_focus_ring_anywhere(_solid)[0] is False, \
+        "khối trắng đặc không phải vòng focus"
+    # Replay khung thật CI-T8.
+    _shots = os.path.expanduser(
+        "~/workspace/kenhlive-plan/qa-run-43127423731/shots")
+    if not os.path.isdir(_shots):
+        print("CI_T9_FOCUS_RING_CIRCLE_SKIP (không có artifact CI-T8 local)")
+        return
+    for _fn in ("step_066_vod_play.jpg", "step_076_webplaye.jpg"):
+        _r66 = _dev.detect_focus_ring_anywhere(
+            open(os.path.join(_shots, _fn), "rb").read())
+        print(_fn, "->", _r66)
+        assert _r66[0] is True and _r66[1] == "WHITE", \
+            "vòng pause trắng ở %s phải được nhận" % _fn
+        assert _r66[3] and 770 <= _r66[3][0] <= 810 and 900 <= _r66[3][1] <= 940, \
+            "box vòng pause phải gần nút pause (788,920)-(896,1032), được %s" % (_r66[3],)
+    _r62 = _dev.detect_focus_ring_anywhere(
+        open(os.path.join(_shots, "step_062_vod_play.jpg"), "rb").read())
+    print("step_062 (không viền) ->", _r62)
+    assert _r62[0] is False, "step_062 không có viền thì finding #1 thật, không được nhận oan"
+    _r60 = _dev.detect_focus_ring_anywhere(
+        open(os.path.join(_shots, "step_060_phim_epi.jpg"), "rb").read())
+    print("step_060 (nút ÂM THANH & PHỤ ĐỀ focus) ->", _r60)
+    assert _r60[0] is True, "step_060 có nút focus viền trắng thì phải nhận"
+    _r81 = _dev.detect_focus_ring_anywhere(
+        open(os.path.join(_shots, "step_081_webplaye.jpg"), "rb").read())
+    assert _r81[0] is True, "step_081 có nút list focus thì phải nhận"
+    print("CI_T9_FOCUS_RING_CIRCLE_OK")
 
 
 if __name__ == "__main__":
