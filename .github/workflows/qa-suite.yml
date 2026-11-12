@@ -48,35 +48,27 @@ jobs:
             cp app/build/outputs/apk/debug/app-universal-debug.apk app/build/outputs/apk/debug/app-debug.apk
           fi
 
-      # proxy VN — json.vnres.co chặn IP datacenter
-      # ƯU TIÊN node tĩnh YUNA_PROXY_YAML (không phụ thuộc dashboard.yunagrp.com — hay chết)
-      - name: Set up proxy VN
-        env:
-          SUB_URL: ${{ secrets.YUNA_SUB_URL }}
-          STATIC_YAML: ${{ secrets.YUNA_PROXY_YAML }}
+      # proxy VN — lay node VLESS VN moi nhat tu file GitHub cong khai Au1rxx
+      # (free-vpn-subscriptions/output/country/VN/singbox-0001.json), chay bang
+      # sing-box v1.14.4 (ban da kiem tren may ao Astra 2026-11-12).
+      # BO YUNA (Evelyn 2026-11-12): khong can secret nao nua.
+      # FAIL ON AO neu khong lay duoc file / khong co node song / exit IP
+      # khong phai VN — tuyet doi khong chay lang le khong proxy (loi cu).
+      - name: Set up proxy VN (file GitHub Au1rxx)
         run: |
           set -euo pipefail
-          if [ -z "$STATIC_YAML" ] && [ -z "$SUB_URL" ]; then echo "::warning::Khong co proxy VN (YUNA_PROXY_YAML/YUNA_SUB_URL) — chay khong qua proxy"; exit 0; fi
-          MH=$(ls /usr/local/bin/mihomo 2>/dev/null || true)
-          if [ -z "$MH" ]; then
-            VER=v1.19.30
-            curl -sSL -o /tmp/mihomo.gz "https://github.com/MetaCubeX/mihomo/releases/download/${VER}/mihomo-linux-amd64-${VER}.gz"
-            gunzip -f /tmp/mihomo.gz && install -m 0750 /tmp/mihomo /usr/local/bin/mihomo
-          fi
-          if [ -n "$STATIC_YAML" ]; then
-            echo "dung node tinh YUNA_PROXY_YAML"
-            printf '%s\n' "$STATIC_YAML" > /tmp/mihomo_ci.yaml
-          else
-            OK=0
-            for try in 1 2 3 4; do
-              if curl -sSL -m 40 -H 'User-Agent: clash-verge/1.6.6' -o /tmp/sub_full.yaml "$SUB_URL" && [ -s /tmp/sub_full.yaml ] && grep -q "proxies" /tmp/sub_full.yaml; then OK=1; break; fi
-              echo "sub fetch attempt $try failed, retry in 20s"; sleep 20
-            done
-            [ "$OK" = "1" ] || { echo "::error::Khong tai duoc subscription Yuna sau 4 lan"; exit 1; }
-            python3 harness/ci_sub_to_yaml.py
-          fi
-          nohup mihomo -f /tmp/mihomo_ci.yaml -d /tmp/mihomo_ci > /tmp/mihomo.log 2>&1 &
-          sleep 4
+          python3 harness/gh_vn_to_singbox.py /tmp/singbox_ci.json || { echo "::error::Khong lay duoc file proxy VN tu GitHub"; exit 1; }
+          SB_VER=v1.14.4
+          curl -sSL -o /tmp/sing-box.tar.gz "https://github.com/SagerNet/sing-box/releases/download/${SB_VER}/sing-box-${SB_VER}-linux-amd64-glibc.tar.gz"
+          tar xzf /tmp/sing-box.tar.gz -C /tmp
+          SB="/tmp/sing-box-${SB_VER}-linux-amd64-glibc/sing-box"
+          "$SB" check -c /tmp/singbox_ci.json
+          nohup "$SB" run -c /tmp/singbox_ci.json > /tmp/singbox.log 2>&1 &
+          for i in $(seq 1 30); do (echo > /dev/tcp/127.0.0.1/7891) 2>/dev/null && break; sleep 2; done
+          (echo > /dev/tcp/127.0.0.1/7891) 2>/dev/null || { echo "::error::sing-box khong mo port 7891"; tail -30 /tmp/singbox.log; exit 1; }
+          VN_CC=$(curl -sS -m 30 -x http://127.0.0.1:7891 https://ipwho.is/ 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('country_code','?'))" 2>/dev/null || echo "?")
+          echo "exit IP country: $VN_CC"
+          [ "$VN_CC" = "VN" ] || { echo "::error::Proxy VN khong cho exit IP Viet Nam (country=$VN_CC) — DUNG TRIAL, khong chay khong proxy"; tail -30 /tmp/singbox.log; exit 1; }
           echo "exit IP: $(curl -sS -m 15 -x http://127.0.0.1:7891 https://api.ipify.org || echo '?')"
           echo "HAS_PROXY=1" >> "$GITHUB_ENV"
 

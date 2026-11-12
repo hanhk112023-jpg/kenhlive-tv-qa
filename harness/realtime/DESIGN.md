@@ -1151,5 +1151,45 @@ bị harness bỏ lỡ).
 5. Coverage video: báo theo thời gian hành động (t bước cuối).
 6. Vision player_title: hỏi trùng tiêu đề thay vì chỉ hỏi chồng chữ.
 7. Ép mở bàn phím thật để kiểm mục 6.
-8. F63 + IPTV + player native: cần trial có proxy VN.
+8. F63 + IPTV + player native: cần trial có proxy VN. **ĐÃ LÀM (mục 8,
+   2026-11-12): bỏ YUNA — proxy VN lấy từ file GitHub công khai Au1rxx
+   (`free-vpn-subscriptions/output/country/VN/singbox-0001.json`), xem
+   §15.16. Không cần secret YUNA nữa; workflow FAIL ỒN ÀO nếu không có
+   proxy thay vì chạy lặng lẽ không proxy.**
 9. Lỗi app A1/A2/A5/A6/A7/A8/A9 → vòng sửa app riêng.
+
+### 15.16. CI-T9 mục 8 — proxy VN từ file GitHub, bỏ YUNA (2026-11-12)
+
+Evelyn quyết (2026-11-12 12:20): bỏ proxy YUNA, lấy dữ liệu proxy từ file
+GitHub công khai. Chỉ làm mục 8 của danh sách sửa CI-T9 (§15.15); 8 mục
+còn lại chưa được duyệt, không làm.
+
+**Thay đổi (1 commit trên main):**
+- MỚI `harness/gh_vn_to_singbox.py` (chỉ dùng stdlib): tải
+  `Au1rxx/free-vpn-subscriptions/output/country/VN/singbox-0001.json` mới
+  nhất (retry 4 lần), giữ 17 node VLESS + nhóm urltest `auto`, bỏ endpoint
+  WireGuard (không dùng trong CI), thêm mixed inbound 127.0.0.1:7891, route
+  final = `auto` (tự chọn node VN còn sống). Không có node VLESS / không có
+  nhóm urltest / không tải được file → exit nonzero.
+- Cả 2 workflow (`qa-realtime-trial.yml`, `qa-suite.yml`): bước "Set up
+  proxy VN" mới — tải sing-box v1.14.4 (bản đã kiểm trên máy ảo Astra),
+  `sing-box check`, chạy nền, chờ port 7891, **kiểm tra thật exit IP qua
+  ipwho.is phải là VN (country_code == "VN") mới đặt HAS_PROXY=1**.
+  Fetch lỗi / sing-box không mở port / exit IP không phải VN → `::error::`
+  + exit 1 (FAIL ỒN ÀO, tuyệt đối không chạy lặng lẽ không proxy — đó chính
+  là lỗi cũ: các trial trước chỉ `::warning::` rồi chạy tiếp).
+  Port 7891 giữ nguyên như mihomo cũ nên bước emulator
+  (`adb shell settings put global http_proxy 10.0.2.2:7891`) không đổi.
+- XÓA `harness/ci_sub_to_yaml.py` (chỉ phục vụ sub YUNA, nay chết).
+- Không cần secret YUNA_PROXY_YAML / YUNA_SUB_URL nữa (repo QA chưa từng
+  có 2 secret này; đã kiểm ở §15.14 mục 8).
+
+**Kiểm chứng local trước commit (máy ảo Astra, 2026-11-12):**
+- Script build config từ URL thật: 17 node VLESS, urltest=auto;
+  `sing-box check` OK; URL sai → retry 4 lần rồi exit 1.
+- Chạy sing-box với config sinh ra, port 7891: exit IP 150.95.109.109,
+  Viet Nam / Hà Nội (ipwho.is + ipify khớp) — cùng node vless-1827154159
+  đã chạy được trên máy ảo từ sáng.
+
+**Trial kiểm chứng:** (ghi sau khi trial chạy xong — run id, exit IP trên
+runner, F63 kiểm được hay chưa).
