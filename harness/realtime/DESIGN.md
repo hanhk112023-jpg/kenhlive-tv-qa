@@ -1014,3 +1014,142 @@ cụm fix; reviewer độc lập kiểm lại trước khi dispatch trial.
   (verdict/điểm/số PASS/tốc độ QA) — cần coordinator riêng kiểm chứng
   (video + từng ảnh + report) trước khi kết luận; **không áp dụng
   switchover** trong vòng này.
+
+### 15.15. CI-T8 LIVE TRIAL — eye-review (run 43127423731, 2026-11-12)
+
+Trial trực tiếp đầu tiên của code CI-T8 (main@923a9ed). Workflow SUCCESS,
+job `qa` 32m36s. Artifact `qa-report-realtime` đã tải về
+`~/workspace/kenhlive-plan/qa-run-43127423731/` (32 ảnh, tour 306,7s @ 4,0×,
+reel 18,37s, `qa_report.json`, `qa_session.json`, `VISUAL-REVIEW.md` đầy đủ
++ thư mục `eye/`). Kiểm bằng mắt toàn bộ 32 ảnh + tour + reel; reviewer độc
+lập kiểm lại mọi tuyên bố và tìm ra 5 lỗi (1 lớn) trong bản kiểm chứng đầu,
+đã sửa hết trước khi ghi mục này (xem VISUAL-REVIEW.md §10).
+
+**Verdict: NEEDS-CI-T9 — KHÔNG switch.**
+
+| Số liệu | Giá trị |
+|---|---|
+| Verdict / điểm | NEEDS_FIX / 56 |
+| Thời gian QA | **1563s = 26m03s** (< 1800s ✅; T7: 2057s) |
+| Bước / mission | 95 bước, 18 mission, **11/18 PASS**, 0 UNVERIFIED |
+| Vision | 4 call (confirm_target 2, check_visual 2), provider **OPENAI** qua `integrate.api.nvidia.com`, 4 request, **0×429**, 0 retry, `fallback_used` 0, latency TB 21,9s/call (T7: 57,9s), `vision_s` 87,6s |
+| Video | ghi 1226,6s, tour 306,7s @ 4,0×, `graceful_stop` true, `screenrecord_exited` true, 8 chunk (chunk cuối 6,5s raw — run kết thúc 6,5s sau khi chunk mở, không mất chunk) |
+| Reel | 3 entry, 3/3 `content_verified`, timebase `chunk_map` |
+| Findings | 3 HIGH: #1 thật, #2 thật, #3 GIẢ |
+| Vision lỗi transport | 0 (suy ra từ retries=0 + 4/4 call có kết quả; JSON không có trường đếm timeout/503 trực tiếp) |
+
+PASS (11): COLD_START, ROOM_PICKER, DATA_ACCURACY, HOME_BILLBOARD (mềm —
+billboard 60% không thấy trong khung), SCHEDULE_EPG, SCHEDULE_LIVE_DIRECTED
+(mềm — xem dưới), IPTV_CATEGORIES, PHIM_NGUONC, PLAYER_SETTINGS_DIALOG,
+SEARCH_AND_SETTINGS, STRESS.
+FAIL (7): SPORTS_MULTI_SOURCE (thiếu text `cola` — tab Thể thao chỉ có SOCO),
+PLAYER_STREAMING (dialog phòng BLV không đóng, không tới PlayerActivity),
+SIDEBAR_RAIL (không mở rail — A5), IPTV_EPG (player kẹt "Đang tải luồng...",
+vision 2× deny đúng), PHIM_EPISODE_PICKER (OK mở thẳng player thay vì
+dialog), VOD_PLAYER + WEBPLAYER_DIRECTED (WebPlayer đóng băng 00:00,
+playback UNVERIFIED). Các FAIL đều trung thực (mắt kiểm khớp).
+
+**Findings — mắt kiểm:**
+- #1 "Mất focus trong player khi OSD đang hiện" (step_062) — **THẬT**.
+  Crop 2× hàng nút: không viền nào; dump NONE + `image_focus_ring=False`.
+  Focus chỉ trống lúc OSD vừa mở (step 61–64); sau DPAD đã lên nút
+  (step_066/076: vòng tròn trắng quanh pause; step_081: viền trắng quanh
+  "Danh sách tập").
+- #2 "Focus lọt xuống màn hình nền khi Dialog đang mở" (step_016) — **THẬT**.
+  Crop 2×: viền trắng rõ quanh thẻ nền Goyang/Daegu; timeline step 15 đúng
+  `cardRoot#[180,808][839,1044]`.
+- #3 "Tỷ số phi lý '23 : 33'" (step_029) — **LỖI GIẢ**. Tỉ số bóng rổ NBA
+  thật đang đá: New York Knicks 23 – 33 Cleveland Cavaliers, LIVE, tick
+  13:21 (step 9) → 23:33 (step 27). Khung tour 59s hiện đủ thẻ + nhãn
+  "Hiệp hội Bóng r..." + COLA + LIVE. Cơ chế: `_sport_context` chỉ nhận
+  `("bóng rổ","basketball","nbl","nba")`; nhãn giải hiển thị bị cắt thành
+  "Hiệp hội Bóng r..." nên không chứa "bóng rổ"; tiêu đề đầy đủ "National
+  Basketball Association" chỉ có ở tab Thể thao (step 011), lúc đó tỉ số
+  mới 13:21 chưa đủ 2 lần quan sát. Sport context tính theo từng
+  observation, không mang ngữ cảnh cũ.
+
+**Từng mục CI-T8 (live):**
+- (1) Focus WebPlayer đọc ảnh — **CHƯA ĐẠT (sửa lại sau review; bản đầu
+  ghi ĐẠT là overclaim).** Chỉ chứng minh được nửa true-positive (step_062
+  không viền → tố đúng). Nửa veto chống tố oan bằng ảnh **chưa hoạt động**:
+  `image_focus_ring=False` ở cả 95/95 bước; ở step 65/75 (file step_066/076)
+  hàm quét ĐÃ chạy nhưng trả False dù vòng tròn trắng quanh nút pause thấy
+  rõ; 066/076/081 không bị tố chỉ nhờ guard dump (`focused_sig != "NONE"
+  → return []`). Nguyên nhân khả dĩ: test chu vi (≥45% pixel sát 4 cạnh
+  bbox) loại vòng tròn — hình tròn nội tiếp chỉ chạm cạnh ở 4 điểm.
+- (2) Timebase chunk + verify reel — **ĐẠT.** Reel giữa đoạn khớp shot
+  0,003/0,007/0,003; đầu đoạn seg1 0,094/0,086 (dialog đang mở), seg2
+  0,212/0,249 (màn home cuộn, cùng màn hình), seg3 0,003/0,003. `chunk_map`
+  đúng: tour 69,5s ≈ step_034 (0,002), tour 75s ≈ step_036 (0,002).
+- (3) Đồng bộ frame + FAIL ồn ào — **ĐẠT.** Mọi frame trích dẫn (32 ref)
+  đều tồn tại; 18/18 screenshot trong report đều có file.
+- (4) Tốc độ — **ĐẠT.** 1563s < 1800s; `local_unstick` chạy 3 lần; vision
+  TB 21,9s/call.
+- (5) Vision retry + fallback — **CHƯA KIỂM ĐƯỢC.** 0 lỗi transport nên
+  không có gì để retry/fallback kích hoạt (mock đã kiểm; CI 1 provider nên
+  fallback là no-op).
+- (6) Bàn phím = trạng thái đổi — **CHƯA KIỂM ĐƯỢC.** `keyboard_open` và
+  `keyboard_open_image` false ở cả 95/95 bước — bàn phím không mở lần nào
+  (kể cả Tìm kiếm + STRESS). STRESS PASS là vì không có bàn phím, không
+  phải vì logic mới đã chạy.
+- (7) Schedule LIVE — **KHÔNG ĐẠT (lỗ hổng).** Mission PASS mềm: không
+  khung nào trong 2 mission Lịch (tour 68–77s) thấy hàng LIVE có tỉ số —
+  toàn trận KẾT THÚC, agent không cuộn danh sách. Cờ `schedule_live_seen`
+  vẫn được đặt; cơ chế gần như chắc chắn (reviewer củng cố): cổng "sched"
+  qua nhờ id nav `nav_schedule` có ở mọi dump MainActivity, hàng nav chứa
+  nhãn "TRỰC TIẾP" (band y 0–112) khớp `"trực tiếp" in t` → cờ đặt ngay từ
+  đầu run. Detector (e) chưa được kiểm thật.
+- (8) F63 — **CHƯA CHỨNG MINH ĐƯỢC** (không proxy VN; WebPlayer đóng băng;
+  toast "Mạng lỗi — thoát ra vào lại sau" ở step_084).
+- (9) Định nghĩa per-step — **ĐẠT.** `observe_*` tính lại từ timeline
+  khớp chính xác (p50 5,67 / p95 20,12 / mean 8,55, theo phương pháp
+  percentile theo chỉ mục của harness; numpy tuyến tính cho p95 = 18,38 —
+  con số phụ thuộc phương pháp).
+
+**Video phủ:** headline 1226,6/1563 = 78,5% — nhưng `duration_sec` gồm
+~325s finalize sau bước cuối (t=1238,0). Lúc join, thời gian chờ chunk hết
+hạn chỉ ~80–125s (request sau mission cuối + 2 vision check rồi mới join;
+bản đầu ghi ~183s là sai — tính từ lúc request thay vì lúc join). Phủ trên
+thời gian hành động ≈ 1226,6/1238,5 ≈ 99% (khung cuối tour khớp step_096 ở
+diff 0,004; khoảng trống giữa chunk ~12s). Không thiếu bước nào (khác CI-T7
+thiếu 184s cuối). Đề xuất CI-T9: báo coverage theo t bước cuối.
+
+**Playback (F63):** chỉ 2 lần đọc `playback_s` khác null, cả 2 = 0 (step 60
+t=672,8; step 70 t=869,0); 20 quan sát còn lại null. step_061/071 là màn
+"Đang tải..." đen (không đồng hồ/seekbar; 061 vs 071 diff 0,000);
+step_062/066/076/081/082 là placeholder xám + spinner + "00:00 / 00:00".
+A1 double title vẫn còn ở mọi khung WebPlayer + native player (060/084);
+vision `player_title not_found` đúng với câu hỏi chồng chữ (2 dòng không đè
+nhau) — lỗi thực chất là trùng tiêu đề, câu hỏi sai trọng tâm.
+
+**Lỗi app (ghi cho fix loop, CHỈ GHI):** A1 double title (còn); A2 native
+player kẹt "Đang tải luồng..." + toast "Mạng lỗi" (còn); A5 rail không mở
+(còn); A6 LIVE hiện "VS" không tỉ số — KBL/JPN D3 (còn; riêng NBA có tỉ số
+thật); A7 hàng nút OSD native tràn 2 mép (còn — cập nhật: ngay cả nút đang
+focus "ÂM THANH & PHỤ ĐỀ" cũng bị cắt ở mép phải, crop 2× step_060/084);
+A8 trận đã kết thúc không hiện tỉ số chung cuộc (còn); **A9 (MỚI) ngày Lịch
+cũ: "Thứ Bảy, 03/10, 37 trận" trong khi run 12/11 — lệch 40 ngày**
+(03/10/2026 đúng là thứ Bảy; chưa rõ đồng hồ emulator hay dữ liệu API cũ).
+
+**Đối chiếu switchover:** QA <30 phút ✅ (1563s); 0×429 ≤40 req ✅ (4 req);
+mọi frame bằng chứng tồn tại ✅ (32/32); reel khớp ✅ (3/3); 0 PASS giả
+tuyệt đối nhưng 2 PASS mềm (HOME_BILLBOARD, SCHEDULE_LIVE_DIRECTED);
+WebPlayer tới đích + OSD thấy bằng mắt nhưng video không phát ❌;
+**0 lỗi HIGH giả ❌ (finding #3)**; mắt kiểm khớp báo cáo một phần (2/3
+finding đúng, các FAIL trung thực, nhưng finding #3 sai + A1/A6/A7/A8/A9
+bị harness bỏ lỡ).
+
+**Danh sách sửa CI-T9** (đầy đủ trong VISUAL-REVIEW.md §9):
+1. Focus-ring scanner: test chu vi loại vòng tròn — thêm test nhận
+   vòng tròn/ellipse; mock có viền tròn thật. Tới lúc đó mục (1) mới được
+   coi là kiểm thật.
+2. Fake-score: ngữ cảnh môn phải chịu được nhãn bị cắt (từ khóa tiền tố
+   "bóng r" / map tên đội NBA → môn; tỉ số đang tick thì không tố).
+3. Schedule detector: loại hàng nav (y < 140) khi đếm hàng LIVE.
+4. Gate Schedule: "live" phải đi kèm hàng trận có tỉ số, không chỉ cờ
+   global.
+5. Coverage video: báo theo thời gian hành động (t bước cuối).
+6. Vision player_title: hỏi trùng tiêu đề thay vì chỉ hỏi chồng chữ.
+7. Ép mở bàn phím thật để kiểm mục 6.
+8. F63 + IPTV + player native: cần trial có proxy VN.
+9. Lỗi app A1/A2/A5/A6/A7/A8/A9 → vòng sửa app riêng.
