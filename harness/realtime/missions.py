@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """KenhLive Realtime QA — mission specs (mục tiêu bằng chứng, không kịch bản).
 
-17 mission, cùng độ phủ với harness cũ (17 mission — VOD và WebPlayer tách
-riêng thành 2 mission nhưng tổng vẫn 17 vì Home Hub cũ đã bỏ).
-CI-T8: thêm mission thứ 18 MISSION_SCHEDULE_LIVE_DIRECTED (chờ hàng LIVE
-thật ở tab Lịch để kiểm detector (e)).
+18 mission: 17 mission gốc (cùng độ phủ với harness cũ — VOD và WebPlayer
+tách riêng thành 2 mission nhưng tổng vẫn 17 vì Home Hub cũ đã bỏ) +
+1 mission CI-T8 MISSION_SCHEDULE_LIVE_DIRECTED.
 Mỗi mission khai TÍN HIỆU CẦN CÓ, không khai từng bước bấm — driver tự chọn
 hành động theo trạng thái. required_texts so khớp case-insensitive trên text
 của UI dump (tên hiển thị thật của app).
@@ -106,7 +105,7 @@ ALL_MISSIONS = [
         "kiểm được), không FAIL, không im lặng.",
         max_steps=8, min_steps=3,
         required_activity="MainActivity",
-        required_texts=["trực tiếp"],
+        required_texts=["live"],
         target_desc="hàng trận đấu đang đá (badge TRỰC TIẾP/LIVE) hiển thị tỉ số",
         tab=1, needs_scroll_top=True, requires_live_row=True,
     ),

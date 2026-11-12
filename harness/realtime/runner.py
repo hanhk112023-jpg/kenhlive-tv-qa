@@ -790,9 +790,12 @@ class RealtimeRunner:
         # CI-T8 mục 7: mission cần hàng LIVE thật mà run không có hàng LIVE
         # nào -> UNVERIFIED (chưa kiểm được detector (e)), không FAIL oan,
         # không tính vào tỉ lệ pass (judge coi outcome ngoài PASS/FAIL là
-        # undecided). Điều kiện chạy sau khi gate đã kết luận xong.
+        # undecided). Điều kiện chạy sau khi gate đã kết luận xong. Kể cả
+        # PASS cũng đổi: text nav "Trực tiếp" có sẵn ở mọi tab nên PASS
+        # trên text đó mà không thấy hàng LIVE nào thì mission chưa kiểm
+        # được gì — chỉ khi detector đã thấy hàng LIVE (cờ schedule_live_seen
+        # đặt trong _observe) thì PASS mới giữ.
         if getattr(spec, "requires_live_row", False) \
-                and gate.outcome != "PASS" \
                 and not self.detector_ctx.get("schedule_live_seen"):
             gate.outcome = "UNVERIFIED"
             gate.outcome_reason = ("Không có hàng LIVE nào ở tab Lịch trong run này — "
@@ -962,6 +965,24 @@ class RealtimeRunner:
             timings["per_step_p50_s"] = s[len(s) // 2]
             timings["per_step_p95_s"] = s[int(len(s) * 0.95)] if len(s) > 1 else s[0]
             timings["per_step_mean_s"] = round(sum(s) / len(s), 2)
+        # CI-T8 mục 9: định nghĩa đo phải rõ ràng trong report — per_step_*
+        # là WALL TIME mỗi bước (observe + gate + hành động driver + chờ ổn
+        # định), KHÔNG phải chỉ observe. Reviewer CI-T7 tính lại từ timeline
+        # observe_s (chỉ observe) nên ra p95/mean thấp hơn (20.01/8.91 so
+        # với 21.95/9.61) — không phải lỗi tính, là khác định nghĩa. Ghi rõ
+        # định nghĩa + percentiles observe-only từ timeline để 2 dãy số tự
+        # khớp nhau trong cùng report.
+        timings["per_step_definition"] = (
+            "wall time mỗi bước = observe (wait+dump+detect) + gate + "
+            "hành động driver + chờ ổn định; observe_* chỉ tính observe")
+        _obs_times = sorted(
+            e.get("observe_s") for e in self.timeline
+            if isinstance(e.get("observe_s"), (int, float)))
+        if _obs_times:
+            timings["observe_p50_s"] = _obs_times[len(_obs_times) // 2]
+            timings["observe_p95_s"] = _obs_times[int(len(_obs_times) * 0.95)] \
+                if len(_obs_times) > 1 else _obs_times[0]
+            timings["observe_mean_s"] = round(sum(_obs_times) / len(_obs_times), 2)
         timings["vision_calls"] = self.vision.calls_total
         timings["sync_retries"] = getattr(self, "_sync_retries", 0)  # CI-T7 mục 7
         timings["vision_s"] = round(sum(self.vision.latencies), 1)  # tổng mọi

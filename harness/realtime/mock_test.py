@@ -2254,17 +2254,23 @@ def main():
         _vis22.KILO_KEY = ""
         _orig_pc22 = _vis22.VisionClient._provider_configured
         _vis22.VisionClient._provider_configured = staticmethod(lambda name: False)
+
+        def _fake_post22_raise(url, key, payload, timeout, user=None, surrogate=None,
+                               surrogate_host=None):
+            raise _urlerr22.HTTPError(url, 503, "Service Unavailable", {}, None)
+        _vis22._post = _fake_post22_raise
         try:
             _vc22b = _vis22.VisionClient(budget=40)
             assert _vc22b._pick_fallback() is None, \
                 "không có provider dự phòng thì _pick_fallback phải trả None"
             _res22b, _err22b = _vc22b.check_visual(_fake_png(0), "có lỗi gì không?")
             assert _res22b is None and _err22b and "error" in _err22b, \
-                "không fallback thì trả (None, error) như cũ"
+                "không fallback thì trả (None, error) như cũ, được res=%s err=%s" % (_res22b, _err22b)
             assert _vc22b.fallback_used == 0 and _vc22b.calls_total == 1, \
                 "không fallback thì chỉ 1 call, được %d" % _vc22b.calls_total
         finally:
             _vis22.VisionClient._provider_configured = _orig_pc22
+            _vis22._post = _fake_post22
     finally:
         _vis22._post = _orig_post22
         for _k22, _v22 in _orig22.items():
@@ -2367,6 +2373,36 @@ def main():
                for u in _rep24.get("unverified", [])), \
         "finish() phải ghi UNTESTED schedule_live_no_score khi run không có hàng LIVE"
     print("SCHEDULE_LIVE_OK")
+
+    # --- Test N25: định nghĩa per-step rõ ràng + observe percentiles (CI-T8 mục 9) ---
+    # CI-T7: reviewer tính lại p95/mean từ timeline observe_s ra 20.01/8.91
+    # trong khi report ghi 21.95/9.61 — khác định nghĩa đo (per_step_* là
+    # wall time cả bước, observe_s chỉ là observe), không phải lỗi tính.
+    import shutil as _sh25
+    _sh25.rmtree("/tmp/qa_mock_tim25", ignore_errors=True)
+    _orig_dev25 = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = FakeDevice
+    try:
+        _r25 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_tim25", serial=None,
+                                         vision_budget=0, no_vision=True)
+        _rep25 = _r25.run([specs["MISSION_COLD_START"]])
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev25
+    _tim25 = _rep25.get("timings", {})
+    print("per_step_definition:", _tim25.get("per_step_definition"))
+    print("observe percentiles:", _tim25.get("observe_p50_s"),
+          _tim25.get("observe_p95_s"), _tim25.get("observe_mean_s"))
+    assert _tim25.get("per_step_definition"), "report phải ghi rõ định nghĩa per-step"
+    # observe_* phải khớp tính lại từ timeline observe_s của chính report.
+    _sess25 = json.load(open("/tmp/qa_mock_tim25/qa_session.json", encoding="utf-8"))
+    _obs25 = sorted(e["observe_s"] for e in _sess25["timeline"]
+                    if isinstance(e.get("observe_s"), (int, float)))
+    assert _obs25, "timeline phải có observe_s"
+    assert _tim25.get("observe_p50_s") == _obs25[len(_obs25) // 2], \
+        "observe_p50 phải khớp tính lại từ timeline"
+    assert _tim25.get("observe_mean_s") == round(sum(_obs25) / len(_obs25), 2), \
+        "observe_mean phải khớp tính lại từ timeline"
+    print("TIMINGS_DEFINITION_OK")
 
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
