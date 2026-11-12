@@ -139,7 +139,7 @@ class RealtimeRunner:
         activity = self.device.current_activity()
         t_dump = round(time.time() - t1, 2)
         t2 = time.time()
-        png, waited, timed_out = self.watcher.wait_stable(timeout_s=8.0)
+        png, waited, timed_out = self.watcher.wait_stable(timeout_s=6.0)
         t_wait = round(time.time() - t2, 2)
         t3 = time.time()
         ui_state2 = self.device.dump_ui_state()

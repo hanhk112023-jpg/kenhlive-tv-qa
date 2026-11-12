@@ -1609,8 +1609,9 @@ def main():
 
     # --- Test B11: vision retry lỗi transport hạ tầng (bắt buộc cho replay R6) ---
     # Replay R6 rớt P0-3 hai lần liên tiếp: 'Remote end closed connection
-    # without response' — gọi lại ngay sau đó thì thành công 2/3 lần. Retry
-    # 2s cũ không đủ; giờ thử lại tối đa 2 lần nữa, backoff 2s rồi 10s.
+    # without response' — gọi lại ngay sau đó thì thành công 2/3 lần.
+    # CI-T8 mục 5: retry ĐÚNG 1 lần (tổng 2 lần gửi) rồi mới ghi
+    # UNVERIFIED — thử 3 lần cũ tốn tới 102s/call lỗi, không đáng.
     import vision as _vis
     import urllib.request as _urlreq
     import http.client as _httpc
@@ -1625,7 +1626,7 @@ def main():
 
     def _flaky_urlopen(req, timeout=None):
         _calls["n"] += 1
-        if _calls["n"] <= 2:
+        if _calls["n"] <= 1:
             raise _httpc.RemoteDisconnected("Remote end closed connection without response")
         return _FakeResp()
 
@@ -1635,7 +1636,7 @@ def main():
     # khôi phục sau test để không làm bẩn số đếm của test F (no-vision).
     from ratelimit import LIMITER as _LIM
     _lim_req, _lim_stamps = _LIM.requests, list(_LIM._stamps)
-    _vis._TRANSPORT_BACKOFF_S = (0.05, 0.05)
+    _vis._TRANSPORT_BACKOFF_S = (0.05,)
     _urlreq.urlopen = _flaky_urlopen
     try:
         out11 = _vis._post(_vis.NVIDIA_NIM_BASE, "",
@@ -1644,8 +1645,23 @@ def main():
         _urlreq.urlopen = _orig_urlopen
         _vis._TRANSPORT_BACKOFF_S = _orig_backoff
     print("vision transport retry: urlopen calls", _calls["n"], "->", out11)
-    assert _calls["n"] == 3, "lỗi transport phải thử lại tới lần thứ 3"
-    assert out11 == '{"found": true}', "lần thứ 3 thành công thì phải trả nội dung"
+    assert _calls["n"] == 2, "lỗi transport retry đúng 1 lần (tổng 2 lần gửi)"
+    assert out11 == '{"found": true}', "lần thứ 2 thành công thì phải trả nội dung"
+    # Lỗi transport 2 lần liên tiếp -> raise sau 2 lần gửi (hết retry).
+    def _flaky2_urlopen(req, timeout=None):
+        _calls["n"] += 1
+        raise _httpc.RemoteDisconnected("Remote end closed connection without response")
+    _calls["n"] = 0
+    _urlreq.urlopen = _flaky2_urlopen
+    try:
+        _vis._post(_vis.NVIDIA_NIM_BASE, "", {"model": "x", "messages": []}, timeout=5)
+        _raised11 = False
+    except _httpc.RemoteDisconnected:
+        _raised11 = True
+    finally:
+        _urlreq.urlopen = _orig_urlopen
+    assert _raised11 and _calls["n"] == 2, \
+        "lỗi transport 2 lần liên tiếp phải raise sau 2 lần gửi (1 retry)"
     # Lỗi không phải transport thì vẫn chỉ thử 2 lần rồi raise.
 
     def _boom_urlopen(req, timeout=None):
@@ -2109,6 +2125,86 @@ def main():
                                                   os.path.basename(_ev20c))), \
         "evidence frame sau dedup phải trỏ file tồn tại, được %s" % _ev20c
     print("EVIDENCE_SYNC_OK")
+
+    # --- Test N21: kẹt lần 1 thoát cục bộ trước khi tốn vision (CI-T8 mục 4) ---
+    # Vision latency trung bình 57,9s/call là nút thắt (CI-T7: 11 call =
+    # 637,2s) — kẹt lần 1 thử DPAD_DOWN cục bộ (~9s); vẫn kẹt mới gọi vision.
+    _spec21 = specs["MISSION_COLD_START"]
+    _dev21 = FakeDevice()
+    _drv21 = Driver(_dev21, EvidenceGate(_spec21), _spec21, vision=None)
+    for _i in range(4):
+        _drv21.note_state(_dev21._dump, "com.kenhlive.tv/.MainActivity",
+                          motion_playing=False)
+    assert _drv21.stuck(), "3 quan sát không đổi phải báo kẹt"
+    _a21 = _drv21.next_action(_dev21._dump, "com.kenhlive.tv/.MainActivity",
+                              _fake_png(0), 0.0)
+    print("kẹt lần 1 -> action:", _a21.type, _a21.param, "| rule:", _a21.rule)
+    assert _a21.type == "KEY" and _a21.param == "DPAD_DOWN" \
+        and _a21.rule == "stuck:local_unstick", \
+        "kẹt lần 1 phải thử thoát cục bộ, không tốn vision"
+    assert _drv21._vision_assist_used is False, "chưa được gọi vision"
+    # Vẫn kẹt sau thoát cục bộ, không có vision -> FAIL level 2 (không treo).
+    for _i in range(4):
+        _drv21.note_state(_dev21._dump, "com.kenhlive.tv/.MainActivity",
+                          motion_playing=False)
+    assert _drv21.stuck(), "kẹt lần 2 phải vẫn báo kẹt"
+    _a21b = _drv21.next_action(_dev21._dump, "com.kenhlive.tv/.MainActivity",
+                               _fake_png(0), 0.0)
+    print("kẹt lần 2 (không vision) -> action:", _a21b.type, "| rule:", _a21b.rule)
+    assert _a21b.type == "FAIL" and _a21b.rule == "stuck:level2", \
+        "kẹt lần 2 không vision phải FAIL level 2"
+    # Kẹt lần 2 có vision -> vision-assist (không lặp lại local unstick).
+    class _Vision21:
+        def available(self):
+            return True
+        def remaining(self):
+            return 5
+        def stuck_assist(self, *a, **k):
+            return ({"action": "KEY", "param": "DPAD_UP"}, None)
+    _drv21v = Driver(FakeDevice(), EvidenceGate(_spec21), _spec21, vision=_Vision21())
+    for _i in range(4):
+        _drv21v.note_state(_drv21v.device._dump, "com.kenhlive.tv/.MainActivity",
+                           motion_playing=False)
+    _av1 = _drv21v.next_action(_drv21v.device._dump, "com.kenhlive.tv/.MainActivity",
+                               _fake_png(0), 0.0)
+    assert _av1.rule == "stuck:local_unstick", "lần 1 vẫn phải local unstick"
+    for _i in range(4):
+        _drv21v.note_state(_drv21v.device._dump, "com.kenhlive.tv/.MainActivity",
+                           motion_playing=False)
+    _av2 = _drv21v.next_action(_drv21v.device._dump, "com.kenhlive.tv/.MainActivity",
+                               _fake_png(0), 0.0)
+    print("kẹt lần 2 (có vision) -> action:", _av2.type, _av2.param, "| rule:", _av2.rule)
+    assert _av2.rule == "stuck:vision_assist" and _av2.param == "DPAD_UP", \
+        "kẹt lần 2 có vision phải dùng vision-assist"
+    print("LOCAL_UNSTICK_OK")
+    # --- Test N21b: vision timeout 60s + retry đúng 1 lần (CI-T8 mục 4/5) ---
+    import inspect as _ins21
+    from vision import VisionClient as _VC21
+    for _m21 in ("confirm_target", "check_visual", "stuck_assist"):
+        _t21 = _ins21.signature(getattr(_VC21, _m21)).parameters["timeout"].default
+        assert _t21 == 60, "%s timeout phải là 60s (nemotron cần ~45-55s), được %s" % (_m21, _t21)
+    import vision as _vis21
+    import urllib.request as _urlreq21
+    import urllib.error as _urlerr21
+    _calls21 = {"n": 0}
+    _orig_urlopen21 = _urlreq21.urlopen
+
+    def _fake_urlopen21(*a, **k):
+        _calls21["n"] += 1
+        raise _urlerr21.HTTPError("https://x", 503, "Service Unavailable", {}, None)
+    _urlreq21.urlopen = _fake_urlopen21
+    try:
+        _vis21._post("https://example.invalid/v1/chat", "Bearer x",
+                     {"model": "m", "messages": []}, timeout=5)
+        _raised21 = False
+    except Exception:
+        _raised21 = True
+    finally:
+        _urlreq21.urlopen = _orig_urlopen21
+    print("503 -> urlopen calls:", _calls21["n"], "| raised:", _raised21)
+    assert _raised21 and _calls21["n"] == 2, \
+        "503 chỉ retry đúng 1 lần (tổng 2 lần gửi), được %d" % _calls21["n"]
+    print("VISION_RETRY_ONCE_OK")
 
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,

@@ -40,6 +40,8 @@ class Driver:
         self._state_hist = []      # (focused_sig, texts_hash, activity)
         self._stuck_level = 0
         self._vision_assist_used = False
+        self._local_unstick_tried = False  # CI-T8 mục 4: kẹt lần 1 thử thoát
+        # cục bộ (DPAD_DOWN, ~9s) trước khi tốn vision-assist (~58s/call)
         self._explore_idx = 0
         self._last_action = None
         self._no_change_streak = 0
@@ -346,8 +348,18 @@ class Driver:
         if dismiss is not None:
             return dismiss
 
-        # -- 0b. Kẹt: thoát 1 lần bằng vision, kẹt lần 2 -> FAIL.
+        # -- 0b. Kẹt: thoát cục bộ lần 1, vision lần 2, FAIL lần 3.
         if self.stuck():
+            # CI-T8 mục 4 (tốc độ): vision latency trung bình 57,9s/call là
+            # nút thắt (11 call = 637,2s) — kẹt lần 1 thử thoát CỤC BỘ
+            # (DPAD_DOWN, ~9s) trước; chỉ tốn vision khi vẫn kẹt sau đó.
+            # Kẹt thật (A-B-A-B / đứng yên thật) thì vision vẫn chạy ở lần 2.
+            if not self._local_unstick_tried:
+                self._local_unstick_tried = True
+                self._no_change_streak = 0
+                self._revisit_streak = 0
+                return Action("KEY", "DPAD_DOWN", rule="stuck:local_unstick",
+                              thought="Kẹt lần 1: thử DPAD_DOWN cục bộ trước khi tốn vision")
             if not self._vision_assist_used and self.vision is not None and self.vision.available() \
                     and self.vision.remaining() > 0 and frame_png:
                 self._vision_assist_used = True

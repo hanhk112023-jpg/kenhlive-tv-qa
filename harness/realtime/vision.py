@@ -9,8 +9,12 @@ Chỉ dùng cho 3 việc (DESIGN.md §8):
   1. confirm_target — xác nhận mục tiêu mission trên frame ổn định gần nhất.
   2. check_visual   — xác minh một defect nghi vấn (crop vùng nghi).
   3. stuck_assist    — gợi ý hành động khi driver kẹt.
-Timeout 30s, retry 1. Không parse được / timeout -> None (UNVERIFIED),
+Timeout 60s, retry 1. Không parse được / timeout -> None (UNVERIFIED),
 KHÔNG bao giờ trả điểm mặc định.
+CI-T8 mục 4: timeout cũ 30s quá ngắn cho nemotron 120B + max_tokens 5000
+(khoảng 45-55s mới sinh xong) — call thành công vẫn bị cắt ở 30s rồi thử
+lại (30s + 2s + ~26s ≈ 58s/call trung bình). Timeout 60s cho call hoàn
+thành ngay lần đầu, đỡ lãng phí 1 lần retry.
 
 Rate limit (luật cứng Evelyn 2026-11-11 13:42): NIM giới hạn 40 req/phút.
 Mọi call tới integrate.api.nvidia.com đều qua ratelimit.LIMITER (tối đa
@@ -41,9 +45,10 @@ def _is_nim_url(url):
 
 
 # Backoff giữa các lần thử lại khi gặp lỗi HẠ TẦNG transport (NIM đóng kết
-# nối giữa chừng): lần 1 chờ 2s, lần 2 chờ 10s. Hằng số module để mock test
-# có thể rút ngắn khi kiểm chứng offline.
-_TRANSPORT_BACKOFF_S = (2, 10)
+# nối giữa chừng): retry đúng 1 lần, chờ 2s (CI-T8 mục 5: "retry 1 lần khi
+# 503/timeout rồi mới ghi UNVERIFIED" — thử 3 lần cũ tốn tới 102s/call lỗi).
+# Hằng số module để mock test có thể rút ngắn khi kiểm chứng offline.
+_TRANSPORT_BACKOFF_S = (2,)
 
 
 def _is_transport_error(e):
@@ -127,7 +132,9 @@ def _post(url, key, payload, timeout, user=None, surrogate=None,
             sys.path.insert(0, sys_path)
         from dynamic_credentials import add_surrogate_to_request
         add_surrogate_to_request(req, surrogate, allowed_hosts=[surrogate_host])
-    for attempt in range(3):
+    # CI-T8 mục 5: TỔNG CỘNG 2 lần gửi (1 lần gốc + retry 1 lần) cho mọi
+    # lỗi hạ tầng (503, timeout, đóng kết nối) — rồi mới ghi UNVERIFIED.
+    for attempt in range(2):
         try:
             if is_nim:
                 # Luật cứng 40 req/phút của NIM: throttle client-side ở 30/phút.
@@ -180,13 +187,13 @@ def _post(url, key, payload, timeout, user=None, surrogate=None,
             time.sleep(2)
         except Exception as e:
             # Lỗi transport hạ tầng (NIM đóng kết nối giữa chừng): thử lại
-            # tối đa 2 lần nữa với backoff dài dần (2s rồi 10s). Bằng chứng
-            # replay R6: check P0-3 rớt 2 lần liên tiếp với 'Remote end
-            # closed connection' nhưng gọi lại ngay sau đó thành công 2/3
-            # lần (found=True) — retry 2s cũ không đủ để qua cơn chập chờn.
+            # đúng 1 lần với backoff 2s (CI-T8 mục 5). Bằng chứng replay R6:
+            # check P0-3 rớt 2 lần liên tiếp với 'Remote end closed
+            # connection' nhưng gọi lại ngay sau đó thành công 2/3 lần
+            # (found=True) — retry 2s cũ không đủ để qua cơn chập chờn.
             # Mỗi lần thử lại là 1 request thật (đếm trong requests_used),
             # không tính là retry-429, không ảnh hưởng điểm app.
-            if _is_transport_error(e) and attempt < 2:
+            if _is_transport_error(e) and attempt < 1:
                 time.sleep(_TRANSPORT_BACKOFF_S[attempt])
                 continue
             if attempt >= 1:
@@ -329,7 +336,7 @@ class VisionClient:
         return _extract_json(raw), None
 
     # -- 3 trường hợp dùng duy nhất ------------------------------------
-    def confirm_target(self, image_bytes, target_desc, timeout=30):
+    def confirm_target(self, image_bytes, target_desc, timeout=60):
         """Xác nhận mục tiêu có đang hiển thị không. Trả dict {confirmed, quote} hoặc None."""
         prompt = (
             "Bạn đang xem ảnh chụp màn hình Android TV 1920x1080 của app KenhLive. "
@@ -344,7 +351,7 @@ class VisionClient:
         return {"confirmed": bool(res.get("confirmed")),
                 "quote": str(res.get("quote", ""))[:120]}, None
 
-    def check_visual(self, image_bytes, question, timeout=30, crop=None, max_side=None):
+    def check_visual(self, image_bytes, question, timeout=60, crop=None, max_side=None):
         """Xác minh một defect nghi vấn. Trả dict {found, severity, detail} hoặc None.
         crop=(x0,y0,x1,y1) theo tọa độ 1920x1080: cắt đúng vùng nghi trước khi
         hỏi — model tập trung, ít bỏ sót lỗi ở mép/vùng nhỏ. Vùng crop được gửi
@@ -383,7 +390,7 @@ class VisionClient:
                 "detail": str(res.get("detail", ""))[:200],
                 "quote": str(res.get("quote", ""))[:300]}, None
 
-    def stuck_assist(self, image_bytes, target_desc, tried, timeout=30):
+    def stuck_assist(self, image_bytes, target_desc, tried, timeout=60):
         """Kẹt: hỏi nên bấm gì tiếp. Trả dict {action, param} hoặc None."""
         prompt = (
             "Bạn đang xem ảnh chụp màn hình Android TV của app KenhLive. "
