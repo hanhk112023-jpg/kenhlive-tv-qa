@@ -2479,6 +2479,8 @@ def main():
     test_h1_total_only_reading_dropped()
     # --- H4-runner (1): vision-confirm chỉ trên observation hiện tại ---
     test_h4_runner_vision_confirm_current_frame()
+    # --- H4-runner (2): màn đang tải không tính là đang phát ---
+    test_h4_runner_loading_screen_not_playing()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -3649,6 +3651,69 @@ def test_h4_runner_vision_confirm_current_frame():
         "dump mới vẫn là màn tải thì poll phải chờ hết 10s rồi trả False, không gọi vision"
     runner_mod.RealtimeDevice = _orig_dev
     print("H4_RUNNER_VISION_CONFIRM_CURRENT_FRAME_OK")
+
+
+def test_h4_runner_loading_screen_not_playing():
+    """H4-runner (2) (trial 5 run 43183031119): màn 'Đang tải luồng…'
+    (step_044: màn đen + spinner, motion_delta 12.2) KHÔNG được tính là
+    đang phát — spinner quay làm watcher/fallback đo motion cao nhưng
+    video chưa phát. Giờ _observe trả loading_screen True + motion False
+    (motion_delta vẫn giữ số đo thật), gate không tích lũy motion_seen.
+    Đối chứng: cùng 2 frame khác nhau rõ, dump không có chữ tải ->
+    motion True như cũ."""
+    from gate import EvidenceGate
+    from missions import get_missions
+    _orig_dev = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = FakeDevice
+    try:
+        _loading_dump = {
+            "focused_sig": "playerBuffering#[800,500][1120,580]",
+            "focused_text": "Đang tải luồng…",
+            "focused_bounds": "[800,500][1120,580]",
+            "focusable_count": 1,
+            "all_visible_texts": [("playerBuffering", "Đang tải luồng…"),
+                                  ("channelName", "VTV Cần Thơ")],
+            "has_dialog": False, "dialog_ids": [], "selected_ids": [],
+            "ui_summary": "[FOCUSED] playerBuffering ('Đang tải luồng…')",
+            "osd_visible": False,
+        }
+        _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_h4l", serial=None,
+                                       vision_budget=0, no_vision=True)
+        _r._global_step = 1  # ngoài chu kỳ lưu mỗi 5 bước (1 % 5 != 0)
+        _r.device._activity = "com.kenhlive.tv/.PlayerActivity"
+        _r.device._dump = dict(_loading_dump)
+        _r.watcher._latest_png = _fake_png(5)
+        _r.watcher._stable_streak = 5
+        _r._prev_obs_png = _fake_png(0)
+        _o = _r._observe("MISSION_IPTV_EPG_AND_ZAPPING_PLAYER")
+        print("màn tải: loading", _o["loading_screen"], "| motion", _o["motion"],
+              "| state", _o["motion_state"], "| delta", round(_o["motion_delta"], 2))
+        assert _o["loading_screen"] is True, "dump có 'Đang tải luồng…' thì phải nhận màn tải"
+        assert _o["motion"] is False and _o["motion_state"] is False, \
+            "màn tải thì motion phải False dù spinner làm delta cao (được %s)" % _o["motion_delta"]
+        assert _o["motion_delta"] > 0.35, \
+            "motion_delta vẫn giữ số đo thật của spinner (được %s)" % _o["motion_delta"]
+        # Gate không tích lũy motion_seen từ khung tải.
+        _specs = {s.name: s for s in get_missions()}
+        _g = EvidenceGate(_specs["MISSION_IPTV_EPG_AND_ZAPPING_PLAYER"])
+        _g.observe("com.kenhlive.tv/.PlayerActivity",
+                   [t for _, t in _loading_dump["all_visible_texts"]], [],
+                   False, _o["motion"], 100.0)
+        assert _g.motion_seen is False, \
+            "motion False trên khung tải thì gate không được tích lũy motion_seen"
+        # Đối chứng: cùng 2 frame, dump không có chữ tải -> motion True.
+        _r._global_step = 2
+        _r.device._dump = dict(FakeDevice.HOME_DUMP)
+        _r.watcher._latest_png = _fake_png(5)
+        _r.watcher._stable_streak = 5
+        _r._prev_obs_png = _fake_png(0)
+        _o2 = _r._observe("MISSION_IPTV_EPG_AND_ZAPPING_PLAYER")
+        print("không tải: loading", _o2["loading_screen"], "| motion", _o2["motion"])
+        assert _o2["loading_screen"] is False and _o2["motion"] is True, \
+            "không có chữ tải thì 2 frame khác nhau rõ vẫn tính là đang phát"
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev
+    print("H4_RUNNER_LOADING_SCREEN_NOT_PLAYING_OK")
 
 
 if __name__ == "__main__":

@@ -308,6 +308,17 @@ class RealtimeRunner:
                 motion_state = bool(motion)
                 motion_delta = fb_diff  # số đo thật, ghi vào timeline thay vì None
                 motion_source = "fallback_pixel_diff"
+        # H4 (trial 5 step_044): màn "Đang tải luồng…" có spinner quay nên
+        # motion_delta cao (12.2) nhưng video CHƯA phát — không được tính
+        # là đang phát (không tích lũy motion_seen, không gọi vision trên
+        # khung tải). Chỉ hạ tín hiệu phát đang True xuống False; UNKNOWN
+        # (None, watcher đói mẫu) giữ nguyên để driver không tính kẹt oan.
+        # motion_delta vẫn giữ số đo thật để timeline giải thích được.
+        loading_screen = _is_loading_screen(ui_state)
+        ui_state["loading_screen"] = loading_screen
+        if loading_screen and motion_state:
+            motion = False
+            motion_state = False
         # CI-T6 mục 7: hash frame để (a) detector bỏ qua quan sát trùng,
         # (b) không lưu shot trùng. 011=012, 055=056, 075=076 ở CI-T5.
         frame_hash = hashlib.sha256(png).hexdigest() if png else None
@@ -366,6 +377,7 @@ class RealtimeRunner:
             "image_focus_ring": image_ring, "image_focus_box": image_ring_box,
             "motion": motion, "motion_delta": motion_delta,
             "motion_state": motion_state, "motion_source": motion_source,
+            "loading_screen": loading_screen,
             "t_offset": t_offset, "frame_ref": frame_ref,
             "frame_file": saved, "findings": findings,
             "duplicate_frame": duplicate_frame,
@@ -859,7 +871,8 @@ class RealtimeRunner:
                              "image_focus_ring": obs.get("image_focus_ring", False),
                              "image_focus_box": obs.get("image_focus_box"),
                              "keyboard_open": ui_state.get("keyboard_open", False),
-                             "keyboard_open_image": obs.get("keyboard_open_image")},
+                             "keyboard_open_image": obs.get("keyboard_open_image"),
+                             "loading_screen": obs.get("loading_screen", False)},
                 "playback_state": {"is_playing": obs["motion"],
                                    # motion_delta -1 = chưa đủ mẫu để đo (không
                                    # rõ), KHÔNG phải 0.00 = đứng yên. Ghi None
