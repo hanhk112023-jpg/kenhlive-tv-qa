@@ -75,7 +75,10 @@ jobs:
           # GitHub; da cai thanh cong ngay lan 1 tren runner, run 43164647966,
           # sing-box 1.14.4, exit IP VN 150.95.109.109).
           sudo install -d -m 0755 /etc/apt/keyrings
-          if sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc && sudo chmod a+r /etc/apt/keyrings/sagernet.asc && printf 'Types: deb\nURIs: https://deb.sagernet.org/\nSuites: *\nComponents: *\nEnabled: yes\nSigned-By: /etc/apt/keyrings/sagernet.asc\n' | sudo tee /etc/apt/sources.list.d/sagernet.sources >/dev/null && (sudo apt-get update -qq -o Acquire::http::Timeout=30 -o Acquire::Retries=3 || true) && sudo apt-get install -y -qq sing-box; then
+          # Pin version APT theo SB_VER (bo 'v' — version deb la 1.14.4,
+          # khong co 'v'; '*' khop ca hau to neu co): repo len ban moi thi
+          # CI FAIL on ao thay vi am tham doi version.
+          if sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc && sudo chmod a+r /etc/apt/keyrings/sagernet.asc && printf 'Types: deb\nURIs: https://deb.sagernet.org/\nSuites: *\nComponents: *\nEnabled: yes\nSigned-By: /etc/apt/keyrings/sagernet.asc\n' | sudo tee /etc/apt/sources.list.d/sagernet.sources >/dev/null && (sudo apt-get update -qq -o Acquire::http::Timeout=30 -o Acquire::Retries=3 || true) && sudo apt-get install -y -qq "sing-box=${SB_VER#v}*"; then
             SB="$(command -v sing-box || true)"
           fi
           if [ -n "$SB" ] && [ -x "$SB" ]; then
