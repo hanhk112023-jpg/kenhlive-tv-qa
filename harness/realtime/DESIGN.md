@@ -1279,7 +1279,52 @@ runner, F63 kiểm được hay chưa).
 - Sửa sau Thử 3 (commit `649c251`, 2 workflow): **APT lên nguồn chính, `gh`
   xuống fallback** — vì APT đã chứng minh chạy ngay lần 1 trên runner còn
   `gh` thất bại 2 kiểu khác nhau trên runner (404 rồi "no assets match")
-  dù chạy tốt trên máy ảo. Guards giữ nguyên. Thử 4 — run 43168594823
-  (dispatch 2026-11-12 13:30 +07, head `649c251`, full): đang chạy, kiểm
-  chứng APT làm nguồn chính ngay lần 1 + exit IP VN + F63 (ghi kết quả sau
-  khi xong).
+  dù chạy tốt trên máy ảo. Guards giữ nguyên.
+- Thử 4 — run 43168594823 (2026-11-12 13:30 +07, head `649c251`, full, job
+  SUCCESS 29m11s): **APT CHẠY NGAY LẦN 1 — mục tiêu của thử này ĐẠT.**
+  "dung sing-box tu APT: /usr/bin/sing-box" (06:34:10 UTC), `sing-box
+  version 1.14.4`; `gh release download` **không hề chạy** (0 lần "no assets
+  match" — fallback không vào nhánh). **Exit IP trên runner: VN, lần kiểm 1**
+  (06:34:14 UTC): `150.95.109.109`, `HAS_PROXY=1` — lần thứ 2 liên tiếp.
+  QA: verdict NEEDS_FIX, điểm 69, QA 1394s (23m14s, <30 phút), 88 bước,
+  12/18 PASS (cùng 6 mission FAIL như Thử 3), 6 vision calls (provider
+  OPENAI), 0×HTTP 429. **F63 lần 2: WebPlayer PHÁT ĐƯỢC qua proxy VN**
+  (motion 7–38 bước 63–72, đồng hồ mắt đọc 00:20/01:00/01:20 trên 13:53),
+  nhưng kết bằng dialog `video_error` giống hệt Thử 3 (step_075, sha256
+  trùng frame step_076 Thử 3) — cả 2 mission WebPlayer FAIL vì gate bằng
+  chứng (harness ghi `playback_s: null` dù mắt đọc được đồng hồ). Eye-review
+  đầy đủ (34/34 ảnh + tour + reel):
+  `~/workspace/kenhlive-plan/qa-run-43168594823/VISUAL-REVIEW.md` — lần này
+  **0 HIGH giả** (cả 2 HIGH đều thật): #1 A6 (hàng LIVE 13:00 không tỉ số);
+  **#2 A11 MỚI: dialog chọn phòng BLV không trap focus — viền focus trắng
+  nằm ở thẻ nền (cardRoot#[180,808][839,1044]) trong khi dialog đang mở
+  (step_012)**. **A12 MỚI: cùng trận New Zealand vs India hiện 2 tỉ số khác
+  nhau trên cùng màn hình** — thẻ trái 4:0 rồi 5:0, thẻ giữa INTERF kẹt
+  3:0 / "Hiệp 1:15'" (step_021/031). A1/A5/A6/A10 còn (A1: vision
+  `player_title` lại chạy nhầm khung dialog lỗi step_075; A10 hàng nút
+  tràn mép phải ở step_053/076/077). A9: ngày ĐÚNG ở màn hình chi tiết trận
+  ("Thứ Năm, 12/11/2026" — step_006) nên A9 có thể chỉ sai ở tab Lịch hoặc
+  đã hết — cần khung tab Lịch có ngày mới kết luận. IPTV Thử 4: khung duy
+  nhất step_045 đen + "Đang tải luồng..." nên vision không xác nhận là
+  ĐÚNG với khung này (khác Thử 3 là false-negative). Video phủ ~100% cửa
+  sổ hành động (1129.1s ghi / 25.5–1130.5s), 7 chunk đủ, reel đúng cảnh.
+  **KHÔNG switch.**
+- **KẾT LUẬN mục 8: HOÀN THÀNH.** 2 trial liên tiếp chứng minh bước proxy qua,
+  exit IP VN 150.95.109.109 (lần kiểm 1, cả 2 lần), F63 kiểm được thật (phim
+  phát qua proxy). Nguồn tải ổn định ở APT chính. Còn lại ngoài phạm vi mục 8
+  (chưa duyệt): gate bằng chứng WebPlayer (đọc đồng hồ phát), vision chọn
+  nhầm khung `player_title` (2/2 trial), chọn mục tiêu ExoPlayer, focus trap
+  dialog BLV (A11), kẹt dữ liệu tỉ số trực tiếp (A12), và lỗi app A1/A5/A6/A10.
+
+**Lỗi app mới ghi cho fix loop sau (CHỈ GHI, không sửa code app):**
+- **A11 (MỚI, Thử 4 run 43168594823):** dialog chọn phòng BLV không giữ
+  focus — khi dialog đang mở, viền focus D-pad nằm ở thẻ trận nền
+  (cardRoot#[180,808][839,1044], thẻ INTERF "New Z... 3:0 India"), bằng
+  chứng step_012. Cần `requestFocus()` vào nút mặc định trong
+  `setOnShowListener` (gợi ý của harness).
+- **A12 (MỚI, Thử 4 run 43168594823):** cùng trận New Zealand vs India hiện
+  2 tỉ số khác nhau trên cùng màn hình — thẻ "Giao hữu Quốc tế" 4:0 rồi
+  5:0, thẻ INTERF kẹt 3:0 / "Hiệp 1:15'" không cập nhật (step_021/031).
+  Dữ liệu trực tiếp từ 2 nguồn/khung giờ khác nhau, không đồng bộ.
+- A10 (Thử 3) còn ở Thử 4 (step_053/076/077). A9 chưa kết luận (ngày đúng
+  12/11/2026 ở màn hình chi tiết trận, step_006 Thử 4).
