@@ -4145,8 +4145,9 @@ def test_tour_settings_and_multiview_missions():
     """Tour đủ màn sau trial 9 (DESIGN §15.23, VISUAL-REVIEW trial 9 §8):
     3 mission mới lấp 4 màn thiếu (Cài đặt, dialog 'Xóa bộ nhớ đệm',
     màn phản hồi Telegram QR, MultiView).
-    - SETTINGS_STORAGE_DIALOG: hàng 'Xóa bộ nhớ đệm ảnh' (nhãn thật trên
-      màn hình — trial 10 chứng minh 'Dung lượng bộ nhớ đệm' không khớp)
+    - SETTINGS_STORAGE_DIALOG: hàng 'Dung lượng bộ nhớ đệm'
+      (settings_storage_usage — hàng mở showStorageDialog; wave 5 sửa:
+      'Xóa bộ nhớ đệm ảnh' là clearCache() xóa ngay + rebuild, KHÔNG dialog)
       mở dialog 'Xóa toàn bộ bộ nhớ đệm' (đỏ, D6) — driver KHÔNG BAO GIỜ bấm OK khi
       dialog đang mở nên nút xóa thật không bị bấm (kể cả khi focus đang
       đứng trên chính nút đỏ).
@@ -4174,35 +4175,45 @@ def test_tour_settings_and_multiview_missions():
 
     def _ui_settings(focus_text, focus_sig, focus_bounds):
         # Danh sách Cài đặt thật (SettingsFragment): hàng phản hồi +
-        # hàng dung lượng, focus đang ở 1 trong 2 hàng.
+        # hàng dung lượng (mở showStorageDialog) + hàng xóa-cache
+        # (clearCache — KHÔNG dialog, wave 5), focus đang ở 1 hàng.
         return {
             "focused_sig": focus_sig, "focused_text": focus_text,
             "focused_bounds": focus_bounds,
             "all_visible_texts": [("nav_settings", "Cài đặt"),
                                   ("rowFeedback", "Liên hệ & Báo lỗi"),
                                   ("rowFeedbackSub", "Nhóm Telegram: @kenhlivetv"),
-                                  ("rowStorage", "Xóa bộ nhớ đệm ảnh"),
-                                  ("rowStorageVal", "Đệm 120 MB · APK 45 MB")],
+                                  ("rowStorageUsage", "Dung lượng bộ nhớ đệm"),
+                                  ("rowStorageVal", "Đệm 120 MB · APK 45 MB"),
+                                  ("rowClearCache", "Xóa bộ nhớ đệm ảnh")],
             "all_visible_nodes": [
                 {"id": "rowFeedback", "text": "Liên hệ & Báo lỗi",
                  "bounds": "[100,300][900,420]"},
-                {"id": "rowStorage", "text": "Xóa bộ nhớ đệm ảnh",
-                 "bounds": "[100,450][900,570]"}],
+                {"id": "rowStorageUsage", "text": "Dung lượng bộ nhớ đệm",
+                 "bounds": "[100,450][900,570]"},
+                {"id": "rowClearCache", "text": "Xóa bộ nhớ đệm ảnh",
+                 "bounds": "[100,600][900,720]"}],
             "has_dialog": False, "dialog_ids": [],
             "selected_ids": ["nav_settings"]}
 
     _ui_list_fb = _ui_settings("Liên hệ & Báo lỗi",
                                "rowFeedback#[100,300][900,420]", "[100,300][900,420]")
-    _ui_list_st = _ui_settings("Xóa bộ nhớ đệm ảnh",
-                               "rowStorage#[100,450][900,570]", "[100,450][900,570]")
+    _ui_list_st = _ui_settings("Dung lượng bộ nhớ đệm",
+                               "rowStorageUsage#[100,450][900,570]", "[100,450][900,570]")
+    _ui_list_cache = _ui_settings("Xóa bộ nhớ đệm ảnh",
+                                  "rowClearCache#[100,600][900,720]", "[100,600][900,720]")
 
     # --- (1) Storage dialog: spec + driver đi tới hàng đích rồi OK mở dialog.
     _st = _specs["MISSION_SETTINGS_STORAGE_DIALOG"]
     assert _st.tab == 4 and _st.required_activity == "MainActivity"
     assert _st.required_texts == ["xóa toàn bộ bộ nhớ đệm"]
-    assert _st.needs_dialog is True and _st.goto_texts == ["xóa bộ nhớ đệm ảnh"], \
-        "goto_texts phải khớp nhãn thật trên màn hình 'Xóa bộ nhớ đệm ảnh' " \
-        "(trial 10: 'dung lượng bộ nhớ đệm' không khớp gì -> mở nhầm dialog chất lượng)"
+    assert _st.needs_dialog is True \
+        and _st.goto_texts == ["dung lượng bộ nhớ đệm"], \
+        "goto_texts phải là hàng 'Dung lượng bộ nhớ đệm' — hàng duy nhất mở " \
+        "showStorageDialog (wave 5: 'Xóa bộ nhớ đệm ảnh' là clearCache, không dialog)"
+    assert _st.max_steps >= 12 and _st.needs_scroll_top is True, \
+        "hàng đích sâu ~9 hàng + danh sách có thể còn cuộn -> cần scroll_top " \
+        "và max_steps đủ (được max_steps=%d)" % _st.max_steps
     _dev = FakeDevice()
     _dev._tab = 4
     _drv = Driver(_dev, EvidenceGate(_st), _st)
@@ -4210,6 +4221,18 @@ def test_tour_settings_and_multiview_missions():
     print("storage: focus ở hàng phản hồi ->", _a1.type, _a1.param, "| rule:", _a1.rule)
     assert _a1.rule == "goto_view_text" and _a1.type == "KEY", \
         "chưa đứng trên hàng đích thì phải đi tới nó, không bấm OK lung tung"
+    # Regression wave 1 (trial 11): focus trên hàng 'Xóa bộ nhớ đệm ảnh'
+    # (clearCache — xóa NGAY dưới nền, không dialog) thì driver KHÔNG được
+    # bấm OK; phải đi tiếp tới hàng 'Dung lượng bộ nhớ đệm'.
+    _a1c = _drv.next_action(_ui_list_cache, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("storage: focus trên hàng XÓA-CACHE (không dialog) ->",
+          _a1c.type, _a1c.param, "| rule:", _a1c.rule)
+    assert not (_a1c.type == "KEY" and _a1c.param == "OK"), \
+        "hàng 'Xóa bộ nhớ đệm ảnh' không mở dialog — bấm OK ở đây là xóa cache " \
+        "thật (được %s %s [%s])" % (_a1c.type, _a1c.param, _a1c.rule)
+    assert _a1c.rule == "goto_view_text" and _a1c.type == "KEY", \
+        "từ hàng xóa-cache phải đi tiếp tới hàng dung lượng (được %s %s [%s])" \
+        % (_a1c.type, _a1c.param, _a1c.rule)
     _a2 = _drv.next_action(_ui_list_st, "com.kenhlive.tv/.MainActivity", None, 0.0)
     print("storage: focus trên hàng dung lượng ->", _a2.type, _a2.param, "| rule:", _a2.rule)
     assert _a2.type == "KEY" and _a2.param == "OK" and _a2.rule == "open_dialog", \
@@ -4685,19 +4708,22 @@ def test_reset_clears_leftover_dialog_between_missions():
     }
     # Danh sách Cài đặt sau khi BACK đóng dialog (focus ở hàng dung lượng).
     _SETTINGS_LIST = {
-        "focused_sig": "rowStorage#[100,450][900,570]",
-        "focused_text": "Xóa bộ nhớ đệm ảnh",
+        "focused_sig": "rowStorageUsage#[100,450][900,570]",
+        "focused_text": "Dung lượng bộ nhớ đệm",
         "focused_bounds": "[100,450][900,570]",
         "all_visible_texts": [("nav_settings", "Cài đặt"),
                               ("rowFeedback", "Liên hệ & Báo lỗi"),
                               ("rowFeedbackSub", "Nhóm Telegram: @kenhlivetv"),
-                              ("rowStorage", "Xóa bộ nhớ đệm ảnh"),
-                              ("rowStorageVal", "Đệm 120 MB · APK 45 MB")],
+                              ("rowStorageUsage", "Dung lượng bộ nhớ đệm"),
+                              ("rowStorageVal", "Đệm 120 MB · APK 45 MB"),
+                              ("rowClearCache", "Xóa bộ nhớ đệm ảnh")],
         "all_visible_nodes": [
             {"id": "rowFeedback", "text": "Liên hệ & Báo lỗi",
              "bounds": "[100,300][900,420]"},
-            {"id": "rowStorage", "text": "Xóa bộ nhớ đệm ảnh",
-             "bounds": "[100,450][900,570]"}],
+            {"id": "rowStorageUsage", "text": "Dung lượng bộ nhớ đệm",
+             "bounds": "[100,450][900,570]"},
+            {"id": "rowClearCache", "text": "Xóa bộ nhớ đệm ảnh",
+             "bounds": "[100,600][900,720]"}],
         "has_dialog": False, "dialog_ids": [],
         "selected_ids": ["nav_settings"]}
 

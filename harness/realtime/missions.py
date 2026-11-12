@@ -301,27 +301,31 @@ ALL_MISSIONS = [
     MissionSpec(
         "MISSION_SETTINGS_STORAGE_DIALOG",
         "Cài Đặt: Dialog Xóa Bộ Nhớ Đệm (Destructive Đỏ, D6)",
-        "Tab Cài đặt (tab 4, tour trial 9 thiếu màn này): hàng 'Xóa bộ nhớ "
-        "đệm ảnh' (SettingsFragment, row mở showStorageDialog) mở dialog tiêu đề "
-        "'Dung lượng & nguồn dữ liệu', nút Positive 'Xóa toàn bộ bộ nhớ đệm' "
-        "(đỏ, destructive — D6) + nút 'Đóng'. Text đích 'xóa toàn bộ bộ nhớ "
-        "đệm' CHỈ có trên nút của dialog (danh sách Cài đặt chỉ có hàng 'Xóa "
-        "bộ nhớ đệm ảnh') nên mission không PASS được khi chưa mở dialog. "
-        "Trial 10 (run 43227207645, mission #19 FAIL 8 bước): goto_texts cũ "
-        "'dung lượng bộ nhớ đệm' căn cứ code KHÔNG khớp nhãn thật trên màn "
-        "hình — hàng thật là 'Xóa bộ nhớ đệm ảnh' (step_079/093) — nên driver "
-        "fallback bấm OK lên hàng đang focus (Chất lượng hình) rồi kẹt trong "
-        "dialog chọn chất lượng; đổi sang đúng nhãn thật. "
+        "Tab Cài đặt (tab 4, tour trial 9 thiếu màn này): hàng 'Dung lượng bộ "
+        "nhớ đệm' (R.string.settings_storage_usage, value 'Đệm X · APK Y', mục "
+        "'Dung lượng & nguồn dữ liệu' — SettingsFragment.showStorageDialog) mở "
+        "dialog tiêu đề 'Dung lượng & nguồn dữ liệu', nút Positive 'Xóa toàn bộ "
+        "bộ nhớ đệm' (đỏ, destructive — D6) + nút 'Đóng'. Text đích 'xóa toàn bộ "
+        "bộ nhớ đệm' CHỈ có trên nút của dialog (danh sách Cài đặt chỉ có nhãn "
+        "hàng) nên mission không PASS được khi chưa mở dialog. "
+        "SỬA wave 5 (trial 11 run 43287392690, mission #20 FAIL 8 bước): hàng "
+        "'Xóa bộ nhớ đệm ảnh' là clearCache() — xóa cache ảnh/HTTP dưới nền + "
+        "toast + rebuild() (vì vậy focus nhảy về đầu danh sách sau OK), KHÔNG "
+        "có dialog; wave 1 đi theo docstring sai của code nên goto_texts cũ "
+        "trỏ nhầm hàng này. Hàng đích nằm sâu (~hàng 9 từ đầu) nên "
+        "needs_scroll_top=True (danh sách có thể còn cuộn từ mission trước, "
+        "explore chỉ đi DOWN/RIGHT không bao giờ UP) và max_steps 8->14 cho đủ "
+        "~9 DPAD_DOWN + OK + observe dialog. "
         "AN TOÀN — KHÔNG xóa thật: driver không bao giờ bấm OK khi dialog đang "
         "mở (luật open_dialog chỉ bấm khi chưa có dialog; luật dismiss để nguyên "
         "dialog đích của mission cần dialog); mission PASS ngay khi đủ bằng chứng "
         "rồi runner BACK về ở mission sau. Nút đỏ không bao giờ bị bấm.",
-        max_steps=8, min_steps=4,
+        max_steps=14, min_steps=4,
         required_activity="MainActivity",
         required_texts=["xóa toàn bộ bộ nhớ đệm"],
-        needs_dialog=True,
+        needs_dialog=True, needs_scroll_top=True,
         target_desc="hộp thoại dung lượng bộ nhớ đệm đang mở với nút xóa toàn bộ màu đỏ và nút Đóng",
-        tab=4, goto_texts=["xóa bộ nhớ đệm ảnh"],
+        tab=4, goto_texts=["dung lượng bộ nhớ đệm"],
     ),
     MissionSpec(
         "MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR",
