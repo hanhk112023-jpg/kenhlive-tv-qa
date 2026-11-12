@@ -105,6 +105,22 @@ def _playback_seconds_from_text(text):
 CLOCK_STRIP = (180, 970, 660, 1060)
 
 
+# H4 (trial 5 run 43183031119): các chuỗi màn đang tải của app
+# (strings.xml: player_buffering 'Đang tải luồng…', state_loading
+# 'Đang tải…', live_loading 'Đang tải trận đấu…', sched_loading 'Đang
+# tải lịch thi đấu…'). Màn tải có spinner quay nên motion_delta cao
+# (step_044: 12.2) nhưng video CHƯA phát. Guard nằm ở runner (không ở
+# perception): tín hiệu tải nằm trong UI dump, watcher chỉ thấy pixel
+# nên không phân biệt được spinner với video đang phát.
+_LOADING_TEXTS = ("đang tải", "loading")
+
+
+def _is_loading_screen(ui_state):
+    """True nếu dump có text màn đang tải ('Đang tải luồng…', ...)."""
+    blob = " ".join(t for _, t in (ui_state or {}).get("all_visible_texts", [])).lower()
+    return any(k in blob for k in _LOADING_TEXTS)
+
+
 class RealtimeRunner:
     def __init__(self, out_dir="/tmp/qa_report_realtime", serial=None, vision_budget=40,
                  no_vision=False):
@@ -607,19 +623,50 @@ class RealtimeRunner:
                       % (sev, issue, res.get("detail", "")), flush=True)
 
     def _vision_confirm(self, spec, gate, obs):
-        """Xác nhận hoàn thành bằng vision (1 call) khi gate đủ tín hiệu rẻ."""
-        # Player mission cần motion: đừng gọi vision trên frame 'Đang tải
-        # luồng...' — poll watcher tới 10s cho motion thật trước đã (CI-T3:
-        # PLAYER_STREAMING bị vision chối 2 lần trên frame đang tải, motion
-        # 0.00). Hết 10s vẫn không có motion -> trả False KHÔNG gọi vision
-        # (không tốn call, không tính là denial — driver sẽ WAIT thêm).
+        """Xác nhận hoàn thành bằng vision (1 call) khi gate đủ tín hiệu rẻ.
+        H4 (trial 5 run 43183031119): chỉ confirm trên observation HIỆN
+        TẠI — tín hiệu tích lũy (motion_seen/activities_seen) có thể là
+        của observation cũ, player đã tự thoát giữa 2 observation thì
+        vision sẽ soi nhầm khung lưới (IPTV_EPG: vision chối 2 lần trên
+        khung tải/lưới vì gate VISION_PENDING từ motion của khung trước).
+        - Không ở required_activity lúc này -> False, không gọi vision.
+        - Khung hiện tại là màn tải -> False, không poll (khung tải cũ
+          thì vision cũng chỉ thấy tải; driver WAIT rồi observation sau
+          sẽ chụp khung phát thật).
+        Player mission cần motion: đừng gọi vision trên frame 'Đang tải
+        luồng...' — poll watcher tới 10s cho motion thật trước đã (CI-T3:
+        PLAYER_STREAMING bị vision chối 2 lần trên frame đang tải, motion
+        0.00). Hết 10s vẫn không có motion -> trả False KHÔNG gọi vision
+        (không tốn call, không tính là denial — driver sẽ WAIT thêm).
+        Poll chỉ tính motion khi dump mới xác nhận còn ở activity đích và
+        hết màn tải — spinner tải cũng làm watcher báo motion (H4 (2))."""
+        # H4(1): observation hiện tại phải đang ở activity đích.
+        if spec.required_activity:
+            _act_now = obs.get("activity") or ""
+            if not _act_now.endswith(spec.required_activity):
+                return False
+        # H4(2): khung hiện tại là màn tải thì không confirm, không poll.
+        if obs.get("loading_screen"):
+            return False
         if spec.needs_motion and not obs.get("motion"):
             deadline = time.time() + 10.0
             while time.time() < deadline:
                 if self.watcher.is_video_playing():
-                    gate.motion_seen = True
-                    obs["motion"] = True
-                    break
+                    # H4(2): spinner "Đang tải luồng..." cũng làm watcher
+                    # báo motion — xác minh bằng dump mới: còn ở activity
+                    # đích và không còn màn tải thì mới tính là đang phát.
+                    try:
+                        _ui_now = self.device.dump_ui_state()
+                        _act_fresh = self.device.current_activity()
+                    except Exception:
+                        _ui_now, _act_fresh = None, ""
+                    _act_ok = (not spec.required_activity
+                               or (_act_fresh or "").endswith(spec.required_activity))
+                    if _act_ok and not _is_loading_screen(_ui_now):
+                        gate.motion_seen = True
+                        obs["motion"] = True
+                        break
+                    # Vẫn là màn tải / đã rời player: chờ tiếp, không tính motion.
                 time.sleep(0.5)
             if not obs.get("motion"):
                 return False

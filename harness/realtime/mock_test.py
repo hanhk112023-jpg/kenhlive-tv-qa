@@ -2477,6 +2477,8 @@ def main():
     test_h4_iptv_hold_and_no_tab_switch_in_player()
     # --- H1 (vòng sửa sau trial 5, run 43183031119) ---
     test_h1_total_only_reading_dropped()
+    # --- H4-runner (1): vision-confirm chỉ trên observation hiện tại ---
+    test_h4_runner_vision_confirm_current_frame()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -3536,6 +3538,117 @@ def test_h1_total_only_reading_dropped():
         "bỏ 833 thì dãy còn lại phải tăng đơn điệu: %s" % _kept
     assert _g.playback_status() == "increasing"
     print("H1_TOTAL_ONLY_READING_DROPPED_OK", _kept)
+
+
+def test_h4_runner_vision_confirm_current_frame():
+    """H4-runner (1) (vòng sửa sau trial 5, run 43183031119): vision-confirm
+    chỉ chạy trên observation HIỆN TẠI — gate VISION_PENDING dựa vào tín
+    hiệu tích lũy (motion_seen/activities_seen) nên player tự thoát giữa
+    2 observation thì vision vẫn gọi trên khung lưới/khung tải (IPTV_EPG
+    trial 5: vision chối 2 lần trên khung tải/lưới). Giờ:
+    (a) obs đang ở PlayerActivity + motion True -> vision gọi 1 lần;
+    (b) obs đã về MainActivity (lưới) dù motion tích lũy True -> KHÔNG
+    gọi vision (trả False, không tính denial);
+    (c) obs là màn tải (loading_screen) -> KHÔNG gọi vision, KHÔNG poll;
+    (d) obs motion False + watcher báo phát + dump mới xác nhận còn ở
+    player, hết tải -> poll thành công, vision gọi;
+    (e) obs motion False + watcher báo phát nhưng dump mới vẫn là màn tải
+    (spinner đánh lừa poll) -> poll hết 10s, KHÔNG gọi vision."""
+    from gate import EvidenceGate
+    from missions import get_missions
+
+    class _FV:
+        def __init__(self):
+            self.calls = []
+        def available(self):
+            return True
+        def remaining(self):
+            return 10
+        def confirm_target(self, image_bytes, target_desc, timeout=60):
+            self.calls.append(target_desc)
+            return {"confirmed": True, "quote": "VTV Cần Thơ đang phát"}, None
+
+    _specs = {s.name: s for s in get_missions()}
+    _sp = _specs["MISSION_IPTV_EPG_AND_ZAPPING_PLAYER"]
+    assert _sp.needs_motion and _sp.needs_vision \
+        and _sp.required_activity == "PlayerActivity"
+    # Runner phải dùng FakeDevice (như test no_live): main() alias sẵn khi
+    # chạy full suite, nhưng test này còn phải chạy được standalone.
+    _orig_dev = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = FakeDevice
+
+    def _runner():
+        _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_h4v", serial=None,
+                                       vision_budget=40, no_vision=False)
+        _fv = _FV()
+        _r.vision = _fv
+        return _r, _fv
+
+    def _obs(activity, motion, loading=False):
+        return {"png": _fake_png(1), "frame_ref": "step_044_iptv_epg.jpg",
+                "t_offset": 100.0, "activity": activity, "motion": motion,
+                "loading_screen": loading}
+
+    # (a) khung hiện tại đúng player + đang phát -> vision gọi 1 lần.
+    _r, _fv = _runner()
+    _g = EvidenceGate(_sp)
+    assert _r._vision_confirm(_sp, _g, _obs(
+        "com.kenhlive.tv/.PlayerActivity", True)) is True
+    assert len(_fv.calls) == 1 and len(_g.vision_confirmations) == 1, \
+        "khung player đang phát thì vision phải được gọi 1 lần"
+    # (b) khung hiện tại đã về lưới (player tự thoát) -> không gọi vision.
+    _r, _fv = _runner()
+    _g = EvidenceGate(_sp)
+    _g.motion_seen = True  # tín hiệu tích lũy từ khung trước (cái bẫy cũ)
+    _g.activities_seen.add("com.kenhlive.tv/.PlayerActivity")
+    assert _r._vision_confirm(_sp, _g, _obs(
+        "com.kenhlive.tv/.MainActivity", True)) is False
+    assert _fv.calls == [] and _g.vision_denials == 0, \
+        "player đã thoát về lưới thì không được gọi vision trên khung lưới"
+    # (c) khung hiện tại là màn tải -> không gọi vision, không poll.
+    _r, _fv = _runner()
+    _g = EvidenceGate(_sp)
+    _t0 = time.time()
+    assert _r._vision_confirm(_sp, _g, _obs(
+        "com.kenhlive.tv/.PlayerActivity", True, loading=True)) is False
+    assert _fv.calls == [] and time.time() - _t0 < 5.0, \
+        "khung tải thì trả False ngay, không được poll 10s rồi gọi vision"
+    # (d) motion chưa đo được ở obs, watcher báo phát, dump mới xác nhận
+    # còn ở player + hết tải -> poll thành công, vision gọi.
+    _r, _fv = _runner()
+    _g = EvidenceGate(_sp)
+    _r.device._activity = "com.kenhlive.tv/.PlayerActivity"
+    _r.device._dump = dict(FakeDevice.HOME_DUMP)
+    _now = time.time()
+    _r.watcher._history = [(_now, 12.0), (_now, 11.0)]
+    assert _r._vision_confirm(_sp, _g, _obs(
+        "com.kenhlive.tv/.PlayerActivity", False)) is True
+    assert len(_fv.calls) == 1 and _g.motion_seen is True, \
+        "poll xác minh được stream đã phát thì vision phải được gọi"
+    # (e) watcher báo phát nhưng dump mới vẫn là màn tải (spinner đánh lừa
+    # poll) -> poll hết 10s, KHÔNG gọi vision.
+    _r, _fv = _runner()
+    _g = EvidenceGate(_sp)
+    _r.device._activity = "com.kenhlive.tv/.PlayerActivity"
+    _r.device._dump = {
+        "focused_sig": "playerBuffering#[800,500][1120,580]",
+        "focused_text": "Đang tải luồng…",
+        "focused_bounds": "[800,500][1120,580]",
+        "focusable_count": 1,
+        "all_visible_texts": [("playerBuffering", "Đang tải luồng…")],
+        "has_dialog": False, "dialog_ids": [], "selected_ids": [],
+        "ui_summary": "[FOCUSED] playerBuffering ('Đang tải luồng…')",
+        "osd_visible": False,
+    }
+    _now = time.time()
+    _r.watcher._history = [(_now, 12.0), (_now, 11.0)]
+    _t0 = time.time()
+    assert _r._vision_confirm(_sp, _g, _obs(
+        "com.kenhlive.tv/.PlayerActivity", False)) is False
+    assert _fv.calls == [] and time.time() - _t0 >= 9.0, \
+        "dump mới vẫn là màn tải thì poll phải chờ hết 10s rồi trả False, không gọi vision"
+    runner_mod.RealtimeDevice = _orig_dev
+    print("H4_RUNNER_VISION_CONFIRM_CURRENT_FRAME_OK")
 
 
 if __name__ == "__main__":
