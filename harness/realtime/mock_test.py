@@ -2481,6 +2481,8 @@ def main():
     test_h4_runner_vision_confirm_current_frame()
     # --- H4-runner (2): màn đang tải không tính là đang phát ---
     test_h4_runner_loading_screen_not_playing()
+    # --- H4-runner (3): màn đang tải không được tính kẹt ---
+    test_h4_runner_loading_screen_not_stuck()
     # --- H2 (vòng sửa sau trial 5, run 43183031119) ---
     test_h2_episode_dialog_detected()
     test_h2_episode_picker_player_is_not_fail()
@@ -3719,6 +3721,103 @@ def test_h4_runner_loading_screen_not_playing():
     finally:
         runner_mod.RealtimeDevice = _orig_dev
     print("H4_RUNNER_LOADING_SCREEN_NOT_PLAYING_OK")
+
+
+def test_h4_runner_loading_screen_not_stuck():
+    """H4-runner-3 (reviewer, sau trial 5 run 43183031119): màn tải THẬT
+    trong player bị tính kẹt. Đường đi: _observe ép motion True -> False
+    trên màn tải (H4) -> runner.py:853 truyền False vào note_state ->
+    trong player, False đi vào nhánh đếm streak chung -> 4 observation
+    tải giống nhau -> streak >= 3 -> stuck() True -> kẹt cấp 1 DPAD_DOWN
+    ngay trong player đang tải, rồi kẹt cấp 2 FAIL (hoặc vision
+    stuck_assist SWITCH_TAB giết player). Màn tải IPTV qua proxy VN chậm
+    kéo dài >4 chu kỳ quan sát (~30-40s) nên lỗi này nổ thật.
+    Sửa: màn tải thì note_state nhận None (UNKNOWN, cùng luật CI-T5) — chỉ
+    ghi sig vào lịch sử, không tăng streak; gate vẫn nhận motion False
+    (không tích lũy motion_seen).
+    Kiểm bằng vòng mission THẬT: MISSION_IPTV_EPG_AND_ZAPPING_PLAYER với
+    FakeDevice luôn ở PlayerActivity + dump 'Đang tải luồng…', watcher
+    chạy nền như production (spinner đo được motion thật), max_steps=10
+    (đủ cho kẹt cấp 2 nổ ở bước 8 nếu chưa fix). Kỳ vọng: 10/10 obs là
+    màn tải, KHÔNG DPAD_DOWN (kẹt cấp 1), reason KHÔNG chứa 'Kẹt cấp 2',
+    mission chỉ FAIL vì gate thiếu tín hiệu (motion chưa từng thấy).
+    Đối chứng mức driver: cùng 4 obs tải, note_state trực tiếp với False
+    (hành vi cũ) -> stuck() True — chứng tỏ setup tái hiện được lỗi,
+    không phải pass rỗng."""
+    import copy as _copy
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+
+    _loading_dump = {
+        "focused_sig": "playerBuffering#[800,500][1120,580]",
+        "focused_text": "Đang tải luồng…",
+        "focused_bounds": "[800,500][1120,580]",
+        "focusable_count": 1,
+        "all_visible_texts": [("playerBuffering", "Đang tải luồng…"),
+                              ("channelName", "VTV Cần Thơ")],
+        "has_dialog": False, "dialog_ids": [], "selected_ids": [],
+        "ui_summary": "[FOCUSED] playerBuffering ('Đang tải luồng…')",
+        "osd_visible": False,
+    }
+
+    class _LoadingDevice(FakeDevice):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            self._activity = "com.kenhlive.tv/.PlayerActivity"
+            self._dump = dict(_loading_dump)
+
+        def send_key(self, key_name):
+            # Giữ nguyên PlayerActivity: BACK thật về MainActivity, nhưng
+            # kịch bản là player đang tải không thoát — không để 1 phím
+            # lạc làm vỡ kịch bản.
+            self.keys.append(key_name)
+            self._note(key_name)
+
+    _specs = {s.name: s for s in get_missions()}
+    _spec = _copy.copy(_specs["MISSION_IPTV_EPG_AND_ZAPPING_PLAYER"])
+    _spec.max_steps = 10  # đủ cho kẹt cấp 2 nổ ở bước 8 nếu chưa fix
+    _orig_dev = runner_mod.RealtimeDevice
+    _orig_reset = runner_mod.RealtimeRunner._reset_to_mission
+    runner_mod.RealtimeDevice = _LoadingDevice
+    # Mission đã ở trong player đang tải: bỏ qua bước reset về MainActivity.
+    runner_mod.RealtimeRunner._reset_to_mission = lambda self, s: None
+    try:
+        _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_h4load",
+                                       serial=None, vision_budget=0,
+                                       no_vision=True)
+        _r.watcher.start()  # như production: lấy mẫu nền để đo motion thật
+        time.sleep(1.5)
+        _res = _r.run_mission(_spec)
+        _r.watcher.stop()
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev
+        runner_mod.RealtimeRunner._reset_to_mission = _orig_reset
+    _loading_steps = [t for t in _r.timeline
+                      if t["ui_state"]["loading_screen"]]
+    print("màn tải 10 bước: loading obs %d/%d | keys %s | outcome %s" % (
+        len(_loading_steps), len(_r.timeline), _r.device.action_history,
+        _res["outcome"]))
+    assert len(_r.timeline) == 10 and len(_loading_steps) == 10, \
+        "mission phải chạy đủ 10 bước, mọi observation đều là màn tải"
+    assert "DPAD_DOWN" not in _r.device.action_history, \
+        "màn tải không được kích kẹt cấp 1 (DPAD_DOWN) trong player đang tải"
+    assert "Kẹt cấp 2" not in _res["reason"], \
+        "màn tải không được FAIL kẹt cấp 2 (được: %s)" % _res["reason"]
+    assert "chưa từng chuyển động" in _res["reason"], \
+        "gate vẫn phải thấy motion False (không tích lũy motion_seen): %s" % _res["reason"]
+    # Đối chứng mức driver: cùng obs tải, note_state với False (hành vi cũ)
+    # phải tính stuck — nếu không, test trên pass rỗng.
+    _drv = Driver(FakeDevice(),
+                  EvidenceGate(_specs["MISSION_IPTV_EPG_AND_ZAPPING_PLAYER"]),
+                  _specs["MISSION_IPTV_EPG_AND_ZAPPING_PLAYER"], vision=None)
+    for _ in range(4):
+        _drv.note_state(dict(_loading_dump),
+                        "com.kenhlive.tv/.PlayerActivity",
+                        motion_playing=False)
+    assert _drv.stuck(), \
+        "4 obs tải giống nhau với motion False phải tính stuck (đường cũ)"
+    print("H4_RUNNER_LOADING_SCREEN_NOT_STUCK_OK")
 
 
 def test_h2_episode_dialog_detected():

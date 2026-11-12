@@ -850,7 +850,19 @@ class RealtimeRunner:
             # CI-T9 mục 7: bàn phím mở thật (dump hoặc ảnh) ở bất kỳ bước nào.
             if obs.get("keyboard_open") or obs.get("keyboard_open_image"):
                 kb_seen = True
-            driver.note_state(ui_state, obs["activity"], obs.get("motion_state"))
+            # H4-runner-3 (reviewer, sau trial 5): màn tải trong player thì
+            # motion coi như UNKNOWN đối với note_state — màn tải có spinner
+            # nên motion ĐO ĐƯỢC (motion_state False sau khi H4 ép từ True),
+            # nhưng video chưa phát; False đi vào nhánh đếm streak chung thì
+            # 4 observation tải giống nhau -> streak >= 3 -> stuck() nổ oan
+            # (kẹt cấp 1 DPAD_DOWN trong player đang tải, rồi kẹt cấp 2 FAIL
+            # hoặc vision stuck_assist SWITCH_TAB giết player). None thì
+            # driver chỉ ghi sig vào lịch sử, không tăng streak (cùng luật
+            # UNKNOWN của CI-T5). motion False vẫn giữ cho gate (không tích
+            # lũy motion_seen) — chỉ note_state nhận None.
+            driver.note_state(ui_state, obs["activity"],
+                              None if obs.get("loading_screen")
+                              else obs.get("motion_state"))
             self.detector_ctx["last_key"] = self.device.action_history[-1] if self.device.action_history else ""
 
             # tích lũy bằng chứng vào gate
