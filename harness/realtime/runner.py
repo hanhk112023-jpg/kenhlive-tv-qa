@@ -455,6 +455,22 @@ class RealtimeRunner:
             time.sleep(1.5)
         return False
 
+    @staticmethod
+    def _player_title_rank(obs):
+        """Mức ưu tiên của 1 frame làm ứng cử viên vision check player_title
+        (CI-T9 B(2)): 2 = player ĐANG PHÁT, không dialog lỗi; 1 = không lỗi
+        nhưng chưa chắc đang phát (loading/OSD ẩn/không rõ); 0 = khung dialog
+        lỗi 'video_error' / 'Không phát được video' (2/2 trial T3/T4 check
+        chạy nhầm khung này: step_076/075 là khung CUỐI, dialog che tiêu
+        đề). obs thiếu ui_state/motion (mock cũ) -> 1 (không rõ, không loại)."""
+        ui = (obs or {}).get("ui_state") or {}
+        blob = " ".join(t for _, t in ui.get("all_visible_texts", [])).lower()
+        if "video_error" in blob or "không phát được video" in blob:
+            return 0
+        if (obs or {}).get("motion"):
+            return 2
+        return 1
+
     def _note_vision_frames(self, spec, obs, last_frame_ref):
         """Giữ 1 frame hero (Home) + 1 frame title player để vision check
         cuối run (CI-T5 mục 7: OCR không tách được chữ chồng). Ưu tiên frame
@@ -463,18 +479,30 @@ class RealtimeRunner:
         CI-T6 mục 2: giữ frame CUỐI (ổn định nhất), không phải frame đầu —
         frame WebPlayer đầu tiên (lúc loading) có thể chưa hiện lỗi đè đôi,
         trong khi lỗi tồn tại suốt các frame sau (step_063/066/067 CI-T5).
-        Kiểm tra trên frame đầu = bỏ sót."""
+        Kiểm tra trên frame đầu = bỏ sót.
+        CI-T9 B(2): trong cùng 1 mức ưu tiên thì frame CUỐI thắng (giữ luật
+        CI-T6); khung dialog lỗi (rank 0) KHÔNG được thay khung đang phát
+        (rank 2) dù nó là khung cuối — chỉ làm fallback khi cả run không có
+        khung phát/không-lỗi nào."""
         if spec.name == "MISSION_HOME_BILLBOARD_6_ROWS":
             self._hero_frame = {"png": obs["png"], "frame": last_frame_ref,
                                 "t": obs["t_offset"]}
         act = obs.get("activity") or ""
         if "WebPlayerActivity" in act:
-            self._player_title_frame = {"png": obs["png"], "frame": last_frame_ref,
-                                        "t": obs["t_offset"], "activity": act}
+            _rank = self._player_title_rank(obs)
+            _cur = self._player_title_frame or {}
+            if _rank >= _cur.get("_rank", -1):
+                self._player_title_frame = {"png": obs["png"], "frame": last_frame_ref,
+                                            "t": obs["t_offset"], "activity": act,
+                                            "_rank": _rank}
         elif "PlayerActivity" in act and "WebPlayerActivity" not in (
                 (self._player_title_frame or {}).get("activity") or ""):
-            self._player_title_frame = {"png": obs["png"], "frame": last_frame_ref,
-                                        "t": obs["t_offset"], "activity": act}
+            _rank = self._player_title_rank(obs)
+            _cur = self._player_title_frame or {}
+            if _rank >= _cur.get("_rank", -1):
+                self._player_title_frame = {"png": obs["png"], "frame": last_frame_ref,
+                                            "t": obs["t_offset"], "activity": act,
+                                            "_rank": _rank}
 
     def _vision_overlap_checks(self):
         """CI-T5 mục 7: vision check hero + title player — 2 lỗi thật CI-T3+

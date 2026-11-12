@@ -2454,6 +2454,7 @@ def main():
     # --- CI-T9 mục 6 + 7, nhóm B (1)(2) (hàm test_ci_t9_* ở cuối file) ---
     test_ci_t9_playback_merged_clock_token()
     test_ci_t9_playback_trial_frames()
+    test_ci_t9_player_title_frame_skips_error_dialog()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -2633,6 +2634,60 @@ def test_ci_t9_playback_trial_frames():
         "đọc 20->60->79->119 thì gate phải increasing, được %s" % _g.playback_status()
     assert _g.playback_monotonic()[0] is True
     print("CI_T9_PLAYBACK_TRIAL_FRAMES_OK", _vals)
+
+
+def test_ci_t9_player_title_frame_skips_error_dialog():
+    """CI-T9 B(2): run kết thúc bằng dialog lỗi video_error vẫn chọn được
+    khung đang phát. Rank: phát=2, không-lỗi-không-rõ=1, dialog lỗi=0;
+    cùng rank thì frame CUỐI thắng (giữ luật CI-T6). Chỉ toàn khung lỗi
+    thì fallback khung lỗi (vẫn có cái để soi)."""
+    from missions import get_missions
+    import runner as _rm
+    _specs = {s.name: s for s in get_missions()}
+    _spec = _specs["MISSION_VOD_PLAYER_SEEK_AND_RESUME"]
+    _WP = "com.kenhlive.tv/.phim.WebPlayerActivity"
+
+    def _obs(frame, t, motion, texts):
+        return {"png": _fake_png(abs(hash(frame)) % 5 + 1), "t_offset": t,
+                "activity": _WP, "motion": motion,
+                "ui_state": {"all_visible_texts": [("x", tx) for tx in texts]}}
+
+    assert _rm.RealtimeRunner._player_title_rank(
+        _obs("e", 0, False, ["Không phát được video", "Error code: video_error"])) == 0
+    assert _rm.RealtimeRunner._player_title_rank(
+        _obs("p", 0, True, ["Tuyệt Thế Chiến Hồn"])) == 2
+    assert _rm.RealtimeRunner._player_title_rank(
+        _obs("u", 0, False, ["Tuyệt Thế Chiến Hồn"])) == 1
+    _r = _rm.RealtimeRunner(out_dir="/tmp/qa_mock_title_t9", serial=None,
+                            vision_budget=0, no_vision=True)
+    _r._note_vision_frames(_spec, _obs("step_056_vod_play.jpg", 100.0, True,
+                                       ["Tuyệt Thế Chiến Hồn"]), "step_056_vod_play.jpg")
+    assert _r._player_title_frame["frame"] == "step_056_vod_play.jpg"
+    _r._note_vision_frames(_spec, _obs("step_061_vod_play.jpg", 200.0, False,
+                                       ["Tuyệt Thế Chiến Hồn"]), "step_061_vod_play.jpg")
+    assert _r._player_title_frame["frame"] == "step_056_vod_play.jpg", \
+        "khung không-rõ (rank 1) không được thay khung đang phát (rank 2)"
+    _r._note_vision_frames(_spec, _obs("step_066_webplaye.jpg", 300.0, True,
+                                       ["Tuyệt Thế Chiến Hồn"]), "step_066_webplaye.jpg")
+    assert _r._player_title_frame["frame"] == "step_066_webplaye.jpg", \
+        "cùng rank phát thì frame CUỐI thắng"
+    _r._note_vision_frames(_spec, _obs("step_075_webplaye.jpg", 400.0, False,
+                                       ["Không phát được video",
+                                        "Error code: video_error"]), "step_075_webplaye.jpg")
+    assert _r._player_title_frame["frame"] == "step_066_webplaye.jpg", \
+        "khung dialog lỗi cuối run (như T4 step_075) không được thay khung đang phát"
+    # Chỉ toàn khung lỗi -> fallback khung lỗi cuối (vẫn có cái để soi).
+    _r2 = _rm.RealtimeRunner(out_dir="/tmp/qa_mock_title_t9b", serial=None,
+                             vision_budget=0, no_vision=True)
+    _r2._note_vision_frames(_spec, _obs("step_075_webplaye.jpg", 100.0, False,
+                                        ["Không phát được video",
+                                         "Error code: video_error"]), "step_075_webplaye.jpg")
+    _r2._note_vision_frames(_spec, _obs("step_076_webplaye.jpg", 200.0, False,
+                                        ["Không phát được video",
+                                         "Error code: video_error"]), "step_076_webplaye.jpg")
+    assert _r2._player_title_frame["frame"] == "step_076_webplaye.jpg", \
+        "không có khung phát nào thì fallback khung lỗi cuối"
+    print("CI_T9_TITLE_FRAME_SKIPS_ERROR_OK")
 
 
 def test_ci_t9_video_coverage_action_time():
