@@ -2550,6 +2550,8 @@ def main():
     test_h5_player_entry_frame_saved()
     # --- Tour đủ màn sau trial 9 (DESIGN §15.23) ---
     test_tour_settings_and_multiview_missions()
+    # --- Blocker trial-9→10: dọn dialog tàn dư đầu mission (DESIGN §15.24) ---
+    test_reset_clears_leftover_dialog_between_missions()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -4337,6 +4339,172 @@ def test_tour_settings_and_multiview_missions():
     assert _vmv == "VISION_PENDING", \
         "trạng thái trống vẫn đủ tín hiệu rẻ, chỉ chờ vision (được %s)" % _vmv
     print("TOUR_SETTINGS_MULTIVIEW_OK")
+
+
+def test_reset_clears_leftover_dialog_between_missions():
+    """Blocker trial-9→10 (reviewer độc lập, verdict NO-GO): chuỗi mission
+    MISSION_SETTINGS_STORAGE_DIALOG (#19) → MISSION_SETTINGS_FEEDBACK_
+    TELEGRAM_QR (#20), cùng tab 4. Storage mission PASS ngay khi gate thấy
+    text 'xóa toàn bộ bộ nhớ đệm' — AlertDialog VẪN MỞ sau đó — nhưng runner
+    không dọn dialog giữa các mission: `_reset_to_mission` cũ chỉ BACK khi
+    activity không phải MainActivity (dialog nằm trên MainActivity nên
+    không BACK), `_settle_blocking_dialog` chỉ đóng dialog chứa
+    `btnCloseFeedback` (storage dialog chỉ có `alertTitle` nên hàm trả
+    True ngay mà không đóng gì). Feedback mission bắt đầu với storage
+    dialog đang mở: driver tưởng đó là dialog đích (`needs_dialog` nên
+    `_dismiss_dialog_action` trả None), mọi luật mở dialog bị guard
+    `not has_dialog`, driver chỉ còn explore trong dialog rồi FAIL
+    [stuck:level2] ở bước 7 (mô phỏng `/tmp/review_sim/sim_transition.py`
+    bằng chính Driver/EvidenceGate của repo); kẹt cấp 2 gọi vision
+    stuck_assist có thể trả KEY OK đúng lúc focus ở nút đỏ 'Xóa toàn bộ
+    bộ nhớ đệm' → xóa thật.
+    Fix (hướng (a)): `_reset_to_mission` BACK tới khi dialog đóng (tối
+    đa 3 lần) ngay đầu mỗi mission — đầu mission mọi dialog đang mở đều
+    là tàn dư của mission trước (dialog đích chỉ mở GIỮA mission).
+    - (a) reset trên feedback spec khi storage dialog đang mở: đúng 1 BACK,
+      KHÔNG OK (nút đỏ không được chạm), dump sau reset hết dialog;
+    - (b) tái hiện đúng kịch bản reviewer: TRƯỚC reset driver trên dump
+      storage-dialog-mở trả explore (lỗi gốc), SAU reset driver trên danh
+      sách Cài đặt trả goto tới hàng 'Liên hệ & Báo lỗi' (không explore);
+    - (c) dialog lì không đóng được bằng BACK: đúng 3 BACK rồi dừng (giới
+      hạn cứng, không lặp vô hạn), mission vẫn được chạy tiếp;
+    - (d) mission bắt đầu sạch (không dialog, đúng tab): reset không tốn
+      phím nào."""
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+    _specs = {s.name: s for s in get_missions()}
+    _fb = _specs["MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR"]
+
+    # Trạng thái thật khi storage mission vừa PASS (y hệt sim reviewer):
+    # dialog AlertDialog vẫn mở, focus mặc định trên nút positive ĐỎ.
+    _STORAGE_DLG = {
+        "focused_sig": "button1#[500,900][1100,1000]",
+        "focused_text": "Xóa toàn bộ bộ nhớ đệm",
+        "focused_bounds": "[500,900][1100,1000]",
+        "all_visible_texts": [("alertTitle", "Dung lượng & nguồn dữ liệu"),
+                              ("dlgMsg", "Xóa bộ nhớ đệm không làm mất lịch sử xem và cài đặt."),
+                              ("button1", "Xóa toàn bộ bộ nhớ đệm"),
+                              ("button2", "Đóng"),
+                              ("nav_settings", "Cài đặt")],
+        "all_visible_nodes": [{"id": "button1", "text": "Xóa toàn bộ bộ nhớ đệm",
+                               "bounds": "[500,900][1100,1000]"},
+                              {"id": "button2", "text": "Đóng",
+                               "bounds": "[100,900][400,1000]"}],
+        "has_dialog": True, "dialog_ids": ["alertTitle"],
+        "selected_ids": ["nav_settings"],
+    }
+    # Danh sách Cài đặt sau khi BACK đóng dialog (focus ở hàng dung lượng).
+    _SETTINGS_LIST = {
+        "focused_sig": "rowStorage#[100,450][900,570]",
+        "focused_text": "Dung lượng bộ nhớ đệm",
+        "focused_bounds": "[100,450][900,570]",
+        "all_visible_texts": [("nav_settings", "Cài đặt"),
+                              ("rowFeedback", "Liên hệ & Báo lỗi"),
+                              ("rowFeedbackSub", "Nhóm Telegram: @kenhlivetv"),
+                              ("rowStorage", "Dung lượng bộ nhớ đệm"),
+                              ("rowStorageVal", "Đệm 120 MB · APK 45 MB")],
+        "all_visible_nodes": [
+            {"id": "rowFeedback", "text": "Liên hệ & Báo lỗi",
+             "bounds": "[100,300][900,420]"},
+            {"id": "rowStorage", "text": "Dung lượng bộ nhớ đệm",
+             "bounds": "[100,450][900,570]"}],
+        "has_dialog": False, "dialog_ids": [],
+        "selected_ids": ["nav_settings"]}
+
+    class _LeftoverDialogDevice(FakeDevice):
+        """BACK đóng storage dialog về danh sách Cài đặt (hành vi thật của
+        AlertDialog trên MainActivity); OK không bao giờ được gửi."""
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            self._tab = 4
+            self._dump = dict(_STORAGE_DLG)
+
+        def send_key(self, key_name):
+            self.keys.append(key_name)
+            self._note(key_name)
+            if key_name == "BACK" and self._dump.get("has_dialog"):
+                self._dump = dict(_SETTINGS_LIST)
+
+    class _StubbornDialogDevice(FakeDevice):
+        """Dialog lì: BACK không đóng được gì (đối chứng giới hạn 3 lần)."""
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            self._tab = 4
+            self._dump = dict(_STORAGE_DLG)
+
+        def send_key(self, key_name):
+            self.keys.append(key_name)
+            self._note(key_name)
+
+    _orig_dev = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = _LeftoverDialogDevice
+    try:
+        # --- (a) reset dọn đúng 1 BACK, không OK, hết dialog.
+        _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_reset_dlg",
+                                       serial=None, vision_budget=0,
+                                       no_vision=True)
+        assert _r.device._dump.get("has_dialog") is True, \
+            "đầu test phải đúng trạng thái blocker: storage dialog đang mở"
+        _r._reset_to_mission(_fb)
+        print("reset khi storage dialog mở: keys", _r.device.keys,
+              "| còn dialog:", _r.device._dump.get("has_dialog"))
+        assert _r.device.keys == ["BACK"], \
+            "reset phải đóng dialog bằng đúng 1 BACK (được %s)" % _r.device.keys
+        assert "OK" not in _r.device.keys, \
+            "reset KHÔNG được bấm OK — focus đang ở nút đỏ xóa thật"
+        assert _r.device._dump.get("has_dialog") is False, \
+            "sau reset dialog tàn dư phải đóng"
+
+        # --- (b) tái hiện kịch bản reviewer: trước reset explore, sau reset goto.
+        _dev_bug = _LeftoverDialogDevice()
+        _drv_bug = Driver(_dev_bug, EvidenceGate(_fb), _fb)
+        _a_bug = _drv_bug.next_action(dict(_STORAGE_DLG),
+                                      "com.kenhlive.tv/.MainActivity", None, 0.0)
+        print("feedback TRƯỚC reset (storage dialog mở) ->", _a_bug.type,
+              _a_bug.param, "| rule:", _a_bug.rule)
+        assert _a_bug.rule.startswith("explore"), \
+            "lỗi gốc: driver trên dialog tàn dư chỉ explore (được [%s])" % _a_bug.rule
+        _drv_fix = Driver(_dev_bug, EvidenceGate(_fb), _fb)
+        _a_fix = _drv_fix.next_action(dict(_SETTINGS_LIST),
+                                      "com.kenhlive.tv/.MainActivity", None, 0.0)
+        print("feedback SAU reset (danh sách Cài đặt) ->", _a_fix.type,
+              _a_fix.param, "| rule:", _a_fix.rule)
+        assert _a_fix.rule == "goto_view_text" and _a_fix.type == "KEY", \
+            "sau reset driver phải đi tới hàng đích, không explore trong dialog " \
+            "(được %s %s [%s])" % (_a_fix.type, _a_fix.param, _a_fix.rule)
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev
+
+    # --- (c) dialog lì: đúng 3 BACK rồi dừng, không lặp vô hạn.
+    runner_mod.RealtimeDevice = _StubbornDialogDevice
+    try:
+        _r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_reset_stubborn",
+                                        serial=None, vision_budget=0,
+                                        no_vision=True)
+        _r2._reset_to_mission(_fb)
+        print("reset khi dialog lì: keys", _r2.device.keys,
+              "| còn dialog:", _r2.device._dump.get("has_dialog"))
+        assert _r2.device.keys == ["BACK", "BACK", "BACK"], \
+            "dialog không đóng được thì reset dừng sau đúng 3 BACK (được %s)" \
+            % _r2.device.keys
+        assert _r2.device._dump.get("has_dialog") is True, \
+            "mock lì phải giữ dialog mở để đối chứng giới hạn"
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev
+
+    # --- (d) bắt đầu sạch: reset không tốn phím nào.
+    _r3 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_reset_clean",
+                                    serial=None, vision_budget=0, no_vision=True)
+    _r3.device = FakeDevice()
+    _r3.device._tab = 4
+    _r3.device._dump = dict(FakeDevice.HOME_DUMP)
+    _r3._reset_to_mission(_fb)
+    print("reset khi không có dialog: keys", _r3.device.keys)
+    assert _r3.device.keys == [], \
+        "không dialog + đúng tab thì reset không được gửi phím nào (được %s)" \
+        % _r3.device.keys
+    print("RESET_CLEARS_LEFTOVER_DIALOG_OK")
 
 
 if __name__ == "__main__":

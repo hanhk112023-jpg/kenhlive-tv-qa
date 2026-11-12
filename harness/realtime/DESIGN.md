@@ -2041,3 +2041,45 @@ max_steps=8 không (danh sách Cài đặt dài, focus xuất phát ở đâu);
 xác nhận cả 2 trạng thái (ô đang phát / trống trung thực) không;
 (4) full run dài thêm ~3–4 phút (trial 9: 25m32s; mục tiêu <30 phút) —
 nếu vượt, cân nhắc đưa 1 mission tour vào quick hoặc tăng vision budget.
+
+### 15.24. Blocker sau trial 9 — dialog tàn dư giữa 2 mission tour (reviewer độc lập, NO-GO)
+
+**Gốc rễ (mô phỏng bằng chính Driver/EvidenceGate của repo,
+`/tmp/review_sim/sim_transition.py`):** chuỗi `MISSION_SETTINGS_STORAGE_DIALOG`
+(#19) → `MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR` (#20), cùng tab 4. Storage
+mission PASS ngay khi gate thấy text 'xóa toàn bộ bộ nhớ đệm' — AlertDialog
+VẪN MỞ sau đó. Runner không dọn dialog giữa các mission: `_reset_to_mission`
+cũ chỉ BACK khi activity không phải MainActivity (dialog nằm trên MainActivity
+nên không BACK); `_settle_blocking_dialog` chỉ đóng dialog chứa
+`btnCloseFeedback` (storage dialog chỉ có `alertTitle` nên hàm trả True ngay
+mà không đóng gì). Feedback mission bắt đầu với storage dialog đang mở:
+driver tưởng đó là dialog đích (`needs_dialog` nên `_dismiss_dialog_action`
+trả None), mọi luật mở dialog bị guard `not has_dialog`, driver chỉ còn
+explore trong dialog rồi FAIL [stuck:level2] ở bước 7; gate cuối vẫn CONTINUE
+(thiếu 'quét mã qr'). Chú thích "runner BACK về ở mission sau" trong §15.23
+là SAI — runner cũ không hề làm việc đó. Nguy cơ xóa thật (xác suất thấp
+nhưng thật): kẹt cấp 2 gọi vision stuck_assist, prompt cho phép trả KEY OK
+mà không cảnh báo nút destructive; focus trong AlertDialog luân phiên giữa
+nút đỏ 'Xóa toàn bộ bộ nhớ đệm' và 'Đóng'.
+
+**Fix (hướng (a) reviewer đề xuất, 1 commit, harness-only):**
+`_reset_to_mission` — sau khi về MainActivity, BACK tới khi dialog đóng
+(tối đa 3 lần, mỗi lần dump lại để kiểm tra). An toàn vì đầu mission mọi
+dialog đang mở đều là tàn dư của mission trước (dialog đích chỉ mở GIỮA
+mission); BACK chỉ gửi khi `has_dialog` nên không BACK thừa ra khỏi
+MainActivity và mission bắt đầu sạch không tốn phím nào. Dialog chào mừng
+cũng được đóng luôn ở đây nếu BACK đóng được nó — không xung đột
+`_settle_blocking_dialog` (nó vẫn xử lý trường hợp dialog chào mừng không
+đóng được bằng BACK). KHÔNG đổi thứ tự mission một mình (hướng (c) — lỗi
+gốc vẫn còn, mission needs_dialog ghép đôi sau này sẽ tái phát).
+Mock mới `test_reset_clears_leftover_dialog_between_missions` mô phỏng đúng
+kịch bản: reset khi storage dialog mở → đúng 1 BACK, không OK, hết dialog;
+trước reset driver trả explore (lỗi gốc), sau reset trả goto tới hàng đích;
+dialog lì → đúng 3 BACK rồi dừng; bắt đầu sạch → 0 phím.
+
+**Chưa chắc chắn, cần trial kiểm:** (1) BACK thật trên AlertDialog của app
+có đóng dialog không, hay dialog này chặn BACK (mock giả định BACK đóng
+được — nếu trial cho thấy dialog vẫn mở sau 3 BACK thì cần đường đóng khác,
+vd bấm 'Đóng'); (2) BACK đầu mission có làm mất focus/tab đích không
+(reset chạy trước tab-switch nên tab được đặt lại sau, focus trong danh
+sách Cài đặt do driver tự đi tới).

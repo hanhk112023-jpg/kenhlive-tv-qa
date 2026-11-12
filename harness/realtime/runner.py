@@ -739,7 +739,25 @@ class RealtimeRunner:
         """Đầu mỗi mission (không directed): đưa app về trạng thái xuất phát —
         MainActivity + đúng tab đích. CI-T2: app kẹt trong PlayerActivity từ
         mission 4, 7 mission sau FAIL oan vì không có luật quay về MainActivity
-        (BACK tầng 4 của app về TRANG CHỦ, nên BACK từ player là đường về)."""
+        (BACK tầng 4 của app về TRANG CHỦ, nên BACK từ player là đường về).
+        Blocker trial-9→10 (reviewer, mô phỏng bằng chính Driver/EvidenceGate
+        của repo): mission trước có thể PASS trong lúc dialog của nó VẪN MỞ
+        (MISSION_SETTINGS_STORAGE_DIALOG PASS ngay khi gate thấy text đích,
+        AlertDialog 'Xóa toàn bộ bộ nhớ đệm' vẫn mở trên MainActivity) rồi
+        dialog tàn dư đó chặn mission sau nếu mission sau cũng cần dialog:
+        MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR tưởng storage dialog là dialog
+        đích (driver._dismiss_dialog_action trả None khi needs_dialog), mọi
+        luật mở dialog bị guard `not has_dialog`, driver chỉ còn explore
+        trong dialog rồi FAIL [stuck:level2] ở bước 7 — và kẹt cấp 2 gọi
+        vision stuck_assist có thể trả KEY OK đúng lúc focus ở nút đỏ thì
+        bộ nhớ đệm bị xóa thật. Nên sau khi về MainActivity, BACK tới khi
+        dialog đóng (tối đa 3 lần): an toàn vì đầu mission mọi dialog đang
+        mở đều là tàn dư của mission trước (dialog đích chỉ mở GIỮA mission);
+        BACK chỉ gửi khi has_dialog nên không BACK thừa ra khỏi MainActivity
+        (BACK trên MainActivity có dialog mở thì đóng dialog, không thoát app).
+        Dialog chào mừng cũng được đóng luôn ở đây nếu BACK đóng được nó —
+        không xung đột _settle_blocking_dialog (nó vẫn xử lý trường hợp
+        dialog chào mừng không đóng được bằng BACK)."""
         if spec.directed_launch:
             return
         for _ in range(3):
@@ -750,6 +768,18 @@ class RealtimeRunner:
         if "MainActivity" not in self.device.current_activity():
             self.device.launch_app()
             time.sleep(2.0)
+        # Dọn dialog tàn dư của mission trước (xem docstring): BACK tới khi
+        # hết dialog, tối đa 3 lần. Mỗi vòng dump lại để kiểm tra — chỉ BACK
+        # khi has_dialog nên mission bắt đầu sạch sẽ cũng không tốn phím nào.
+        for _ in range(3):
+            try:
+                ui_state = self.device.dump_ui_state()
+            except Exception:
+                break
+            if not ui_state.get("has_dialog"):
+                break
+            self.device.send_key("BACK")
+            time.sleep(0.8)
         if spec.tab is not None:
             try:
                 cur = self.device.detect_tab_index(self.device.dump_ui_state())
