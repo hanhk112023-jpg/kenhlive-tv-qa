@@ -18,7 +18,8 @@ class MissionSpec:
                  target_desc="", directed_launch=None, min_steps=4, kind="target",
                  tab=None, needs_scroll_top=False, goto_texts=None,
                  needs_long_press=False, needs_playback_progress=False,
-                 requires_live_row=False, needs_keyboard=False):
+                 requires_live_row=False, needs_keyboard=False,
+                 playback_no_clock=False):
         self.name = name
         self.title = title
         self.description = description
@@ -67,6 +68,17 @@ class MissionSpec:
         # stream (PLAYER_STREAMING, IPTV_EPG) không có elapsed clock có nghĩa
         # nên ép ở đó sẽ FAIL oan — xem DESIGN §15.8 mục 8.
         self.needs_playback_progress = bool(needs_playback_progress)
+        # H1 (trial 9 run 43217017298): OSD WebPlayer KHÔNG CÓ đồng hồ
+        # elapsed/total nào (step_065, tour t_013–015: chỉ back / pause /
+        # "Tua tới 10s" / list / "TỐC ĐỘ 1X" — khác native player có seekbar
+        # "00:25 / 45:36"). Mission WebPlayer KHÔNG được đòi đọc đồng hồ
+        # không tồn tại: khi không đọc được đồng hồ lần nào (unknown),
+        # bằng chứng phát là motion (cảnh đổi giữa 2 frame quan sát — đã
+        # bắt buộc riêng qua needs_motion) + vision (đã bắt buộc riêng qua
+        # needs_vision). Video đóng băng vẫn FAIL vì motion không bao giờ
+        # xanh; đồng hồ NẾU đọc được mà đứng yên / không đơn điệu thì 2
+        # nhánh kia vẫn tố như cũ (không đổi).
+        self.playback_no_clock = bool(playback_no_clock)
 
 
 class EvidenceGate:
@@ -226,12 +238,23 @@ class EvidenceGate:
                 missing.append("playback: thời gian phát đứng yên %02d:%02d qua %d quan sát "
                                "— video đóng băng, không phát thật" % (_m, _s, len(_vals)))
             elif _pb == "unknown" and self.steps >= 2:
-                # CI-T7 mục 4: không đọc được đồng hồ sau >= 2 quan sát thì
-                # KHÔNG được PASS tự do nữa (CI-T6: readings [] + unknown ở
-                # mọi mission player mà vẫn PASS). Live: FAIL ở max_steps;
-                # replay downgrade thành UNVERIFIED (thiếu dữ liệu đo).
-                missing.append("playback: không đọc được đồng hồ phát sau %d quan sát "
-                               "— chưa chứng minh video phát thật (UNVERIFIED)" % self.steps)
+                if s.playback_no_clock:
+                    # H1 (trial 9 run 43217017298): OSD WebPlayer không có
+                    # đồng hồ — không đòi đọc; bằng chứng phát là motion +
+                    # vision (2 tín hiệu bắt buộc riêng). Không clock + không
+                    # motion thì FAIL ở nhánh motion ("video chưa từng chuyển
+                    # động"), không PASS giả. Nhánh này cũng mở đường gọi
+                    # vision-confirm: trial 9 mission #14 thiếu cả vision lẫn
+                    # playback nên evaluate trả CONTINUE thay vì
+                    # VISION_PENDING, vision không bao giờ được gọi.
+                    pass
+                else:
+                    # CI-T7 mục 4: không đọc được đồng hồ sau >= 2 quan sát thì
+                    # KHÔNG được PASS tự do nữa (CI-T6: readings [] + unknown ở
+                    # mọi mission player mà vẫn PASS). Live: FAIL ở max_steps;
+                    # replay downgrade thành UNVERIFIED (thiếu dữ liệu đo).
+                    missing.append("playback: không đọc được đồng hồ phát sau %d quan sát "
+                                   "— chưa chứng minh video phát thật (UNVERIFIED)" % self.steps)
             else:
                 _mono, _mono_detail = self.playback_monotonic()
                 if not _mono:

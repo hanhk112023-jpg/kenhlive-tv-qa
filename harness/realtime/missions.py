@@ -195,10 +195,15 @@ ALL_MISSIONS = [
         "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
         "Trình Phát Web (WebPlayerActivity), Tua JS & Tiếp Tục Xem",
         "WebPlayer bằng deep-link open=webplayer (phim embed THẬT), tua D-pad qua JS, "
-        "toggle Play/Pause, thoát lưu tiến độ vào hàng Tiếp Tục Xem.",
+        "toggle Play/Pause, thoát lưu tiến độ vào hàng Tiếp Tục Xem. "
+        "H1 (trial 9 run 43217017298): OSD WebPlayer KHÔNG CÓ đồng hồ phát "
+        "nên gate không đòi đọc đồng hồ (playback_no_clock) — bằng chứng phát "
+        "là motion + vision; mission #14 FAIL oan ở trial 9 vì gate cũ đòi đọc "
+        "đồng hồ không tồn tại.",
         max_steps=10, min_steps=4,
         required_activity="WebPlayerActivity",
         needs_motion=True, needs_vision=True, needs_playback_progress=True,
+        playback_no_clock=True,
         directed_launch="LAUNCH_WEB_PLAYER",
         target_desc="WebPlayerActivity đang phát phim embed thật",
     ),
@@ -207,10 +212,13 @@ ALL_MISSIONS = [
         "WebPlayer Có Định Hướng: Phim Embed Thật, Phát/Tạm Dừng/Tua/Tốc Độ",
         "Mission có định hướng (KL8 Task 12): deep-link open=webplayer với tập embed "
         "thật TRƯỚC vòng driver; trong WebPlayer: VERIFY_STREAM (motion), OSD, tua ±, "
-        "tạm dừng/phát lại, nút Tốc độ nếu hiện (probe F47).",
+        "tạm dừng/phát lại, nút Tốc độ nếu hiện (probe F47). "
+        "H1 (trial 9 run 43217017298): như mission VOD — OSD WebPlayer không có "
+        "đồng hồ nên gate không đòi đọc (playback_no_clock).",
         max_steps=12, min_steps=4,
         required_activity="WebPlayerActivity",
         needs_motion=True, needs_vision=True, needs_playback_progress=True,
+        playback_no_clock=True,
         directed_launch="LAUNCH_WEB_PLAYER",
         target_desc="WebPlayerActivity đang phát phim embed thật, OSD điều khiển hiển thị",
     ),

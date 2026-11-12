@@ -687,6 +687,25 @@ def main():
             g.record_vision(True, "step_010.jpg", seq[-1][0], "phim đang phát")
         return g
 
+    def _gate_pb_clocked(seq, vision=True):
+        # Spec tổng hợp cho player CÓ đồng hồ (native player có seekbar
+        # "00:25 / 45:36"): luật CI-T7 "unknown -> FAIL" vẫn giữ nguyên ở
+        # đó — chỉ mission WebPlayer (không đồng hồ) được miễn (H1 trial 9).
+        from gate import MissionSpec as _MS6
+        _clocked = _MS6("MISSION_CLOCKED_TEST", "Player có đồng hồ (test)",
+                        "spec tổng hợp: player có đồng hồ elapsed/total",
+                        max_steps=10, min_steps=4,
+                        required_activity="WebPlayerActivity",
+                        needs_motion=True, needs_vision=True,
+                        needs_playback_progress=True)
+        g = _EG6(_clocked)
+        for t, pb in seq:
+            g.observe("com.kenhlive.tv/.phim.WebPlayerActivity", [], [], False, True, t)
+            g.observe_playback(pb, t)
+        if vision:
+            g.record_vision(True, "step_010.jpg", seq[-1][0], "phim đang phát")
+        return g
+
     # Đóng băng 00:20 qua 10 quan sát -> FAIL, lý do nêu playback.
     _seq_frozen = [(float(i * 10), 20) for i in range(1, 11)]
     _gf = _gate_pb(_seq_frozen)
@@ -707,13 +726,54 @@ def main():
     # do nữa (CI-T7 mục 4; luật CI-T6 cũ cho unknown PASS là lỗ false-pass
     # — CI-T6 readings [] + unknown ở mọi mission player mà vẫn PASS).
     # Live: FAIL ở max_steps; replay downgrade thành UNVERIFIED.
+    # H1 (trial 9): luật này CHỈ còn áp cho player CÓ đồng hồ — mission
+    # WebPlayer (không đồng hồ) được miễn ở khối H1 dưới. Kiểm bằng spec
+    # tổng hợp có đồng hồ để luật CI-T7 không bị mất theo.
     _seq_un = [(float(i * 10), None) for i in range(1, 11)]
-    _gu = _gate_pb(_seq_un)
+    _gu = _gate_pb_clocked(_seq_un)
     assert _gu.playback_status() == "unknown"
     assert any(m.startswith("playback:") for m in _gu.missing_summary())
     _vu, _ru, _ = _gu.evaluate("step_010.jpg")
-    print("playback unknown x10 ->", _vu, "|", _ru)
+    print("playback unknown x10 (player có đồng hồ) ->", _vu, "|", _ru)
     assert _vu == "FAIL" and "playback" in _ru
+    # --- H1 (trial 9 run 43217017298): OSD WebPlayer không có đồng hồ ---
+    # Mission #14 FAIL oan: gate đòi đọc đồng hồ không tồn tại (step_065,
+    # tour t_013–015: chỉ back/pause/"Tua tới 10s"/list/"TỐC ĐỘ 1X").
+    # Cả 2 mission WebPlayer khai playback_no_clock=True: unknown + motion +
+    # vision -> PASS (đúng kịch bản trial 9: cảnh đổi liên tục + pause icon,
+    # F63 khỏi); unknown + KHÔNG motion -> vẫn FAIL (nhánh motion), không
+    # PASS giả; đồng hồ đọc được mà đóng băng -> vẫn FAIL playback (khối
+    # frozen trên đã kiểm bằng đúng spec WebPlayer này).
+    assert specs["MISSION_VOD_PLAYER_SEEK_AND_RESUME"].playback_no_clock is True
+    assert specs["MISSION_WEBPLAYER_DIRECTED_REAL_FILM"].playback_no_clock is True
+    _gh1 = _gate_pb(_seq_un)
+    assert _gh1.playback_status() == "unknown"
+    assert not any(m.startswith("playback:") for m in _gh1.missing_summary())
+    _vh1, _rh1, _ = _gh1.evaluate("step_010.jpg")
+    print("H1 WebPlayer unknown + motion + vision ->", _vh1, "|", _rh1)
+    assert _vh1 == "PASS"
+    # Chưa có vision: chỉ còn thiếu vision -> VISION_PENDING (đường gọi
+    # vision-confirm được mở; trial 9 #14 kẹt CONTINUE vì thiếu cả vision
+    # lẫn playback nên vision không bao giờ được gọi).
+    _gh1p = _EG6(specs["MISSION_VOD_PLAYER_SEEK_AND_RESUME"])
+    for _t, _pb in [(10.0, None), (20.0, None), (30.0, None), (40.0, None)]:
+        _gh1p.observe("com.kenhlive.tv/.phim.WebPlayerActivity", [], [], False, True, _t)
+        _gh1p.observe_playback(_pb, _t)
+    _vp, _rp, _ = _gh1p.evaluate("step_004.jpg")
+    print("H1 WebPlayer unknown + motion, chưa vision ->", _vp)
+    assert _vp == "VISION_PENDING", \
+        "chỉ thiếu vision thì phải VISION_PENDING, không CONTINUE (được %s)" % _vp
+    # Không motion: không clock + không cảnh đổi -> FAIL, lý do nêu motion
+    # (không phải playback) — WebPlayer đóng băng thật vẫn bị bắt.
+    _gh1n = _EG6(specs["MISSION_VOD_PLAYER_SEEK_AND_RESUME"])
+    for _t, _pb in _seq_un:
+        _gh1n.observe("com.kenhlive.tv/.phim.WebPlayerActivity", [], [], False, False, _t)
+        _gh1n.observe_playback(_pb, _t)
+    _gh1n.record_vision(True, "step_010.jpg", _seq_un[-1][0], "phim đang phát")
+    _vh1n, _rh1n, _ = _gh1n.evaluate("step_010.jpg")
+    print("H1 WebPlayer unknown + KHÔNG motion ->", _vh1n, "|", _rh1n)
+    assert _vh1n == "FAIL" and "motion" in _rh1n
+    print("H1_WEBPLAYER_NO_CLOCK_OK")
     # Đơn điệu (CI-T7 mục 4): dãy mắt đọc CI-T6 00:20->00:00->00:30->00:20
     # có max-min=30s nên playback_status() cũ vẫn 'increasing' -> PASS oan
     # dù frame đóng băng 60,3s (step_055 = step_059 pixel-identical).

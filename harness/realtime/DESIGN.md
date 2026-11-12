@@ -1926,3 +1926,54 @@ quy A18), A8/A9/A15 còn, A18/A19/A20 mới, M10 WebPlayer còn, chỉ
 chỉ ghi): A18, A19, A20, A8/A9/A15, M10 WebPlayer, H1 (gate đồng hồ
 WebPlayer) + mission billboard đã có bằng chứng hồi quy; sau đó trial
 mới + tour đủ màn rồi mới xét switch.
+
+### 15.22. Vòng sửa sau trial 9 — H1: gate đồng hồ WebPlayer (Evelyn duyệt 2026-11-12)
+
+**Gốc rễ (VISUAL-REVIEW trial 9 §6, run.log run 43217017298 dòng 1481):**
+mission #14 `MISSION_VOD_PLAYER_SEEK_AND_RESUME` FAIL sau 10 bước, còn
+thiếu 2 tín hiệu: "vision: chưa có xác nhận vision" + "playback: không
+đọc được đồng hồ phát sau 10 quan sát". Nhưng **OSD WebPlayer KHÔNG CÓ
+đồng hồ nào** (step_065, tour t_013–015: chỉ back / pause / "Tua tới
+10s" / list / "TỐC ĐỘ 1X" — khác native player có seekbar "00:25 /
+45:36"). Gate đòi đọc một UI không tồn tại. F63 đã KHỎI (WebPlayer phát
+thật, cảnh đổi liên tục + pause = đang phát); mission directed #15 cùng
+WebPlayer PASS vì lần đó OCR/vision-quote đọc được cặp giờ (đồng hồ lúc
+ẩn lúc hiện theo OSD, không phải UI cố định) — tức cùng một WebPlayer,
+đọc được giờ thì PASS, không đọc được thì FAIL: gate đo sự may rủi của
+OCR chứ không đo app.
+
+**Hệ quả thứ hai (mới phát hiện khi sửa):** thiếu cả 2 tín hiệu nên
+`evaluate()` trả CONTINUE thay vì VISION_PENDING — vision-confirm
+không bao giờ được gọi cho mission #14 ở trial 9. Sửa gate đồng hồ
+đồng thời mở đường vision.
+
+**Sửa (1 commit, harness-only):**
+- `gate.py` — `MissionSpec` thêm cờ `playback_no_clock=False`; nhánh
+  `playback_status() == "unknown"` trong `_missing()`: mission có cờ thì
+  KHÔNG ghi missing đồng hồ; bằng chứng phát lúc đó là motion (cảnh đổi
+  giữa 2 frame quan sát, đã bắt buộc riêng qua `needs_motion`) + vision
+  (đã bắt buộc riêng qua `needs_vision`).
+- `missions.py` — cả 2 mission WebPlayer (`MISSION_VOD_PLAYER_SEEK_AND_RESUME`,
+  `MISSION_WEBPLAYER_DIRECTED_REAL_FILM`) khai `playback_no_clock=True`.
+- `mock_test.py` — N6: trường hợp unknown→FAIL chuyển sang spec tổng hợp
+  player CÓ đồng hồ (luật CI-T7 giữ nguyên ở đó); thêm khối H1.
+
+**Vì sao không PASS giả:**
+- Không clock + không motion → FAIL ở nhánh motion ("video chưa từng
+  chuyển động"). Video đóng băng thật có pixel-diff ≈ 0 nên motion không
+  bao giờ xanh — gate vẫn bắt được (mock H1: unknown + KHÔNG motion →
+  FAIL, lý do nêu motion).
+- Đồng hồ NẾU đọc được mà đứng yên / không đơn điệu thì 2 nhánh
+  `frozen` / `playback_monotonic` vẫn tố như cũ (mock frozen + không đơn
+  điệu chạy bằng đúng spec WebPlayer, vẫn FAIL).
+- Màn "Đang tải…" có spinner quay nhưng motion bị chặn bởi guard H4
+  (runner không tính motion trên màn tải) nên không cứu được video chưa
+  phát.
+- Luật CI-T7 "unknown → FAIL" giữ nguyên cho mọi player CÓ đồng hồ
+  (native player, spec tổng hợp trong mock).
+
+**Chưa chắc chắn, cần trial kiểm:** (1) mission #14 có PASS thật ở trial
+sau không (cần cả motion lẫn vision-confirm trên khung đang phát);
+(2) mission #15 có còn PASS như cũ không (đồng hồ đọc được thì luật
+frozen/monotonic vẫn áp); (3) không có mission nào khác bị ảnh hưởng —
+chỉ 2 mission WebPlayer mang cờ này, mọi mission khác giữ nguyên.
