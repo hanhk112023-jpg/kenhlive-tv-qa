@@ -156,6 +156,7 @@ class RealtimeRunner:
                              "logo_check_frames": []}
         self._global_step = 0
         self._prev_obs_png = None  # frame observation trước (CI-T5: fallback pixel_diff)
+        self._prev_activity = None  # activity observation trước (H5: lưu khung khi VÀO player)
         self._saved_shot_hashes = {}  # CI-T7 mục 6: sha256 PNG -> rel path shot đã lưu (dedup)
         self._hero_frame = None  # frame hero Home để vision check cuối run (CI-T5 mục 7)
         self._player_title_frame = None  # frame title player để vision check (CI-T5 mục 7)
@@ -367,6 +368,18 @@ class RealtimeRunner:
         if findings or (self._global_step % 5 == 0):
             if not (duplicate_frame and not findings):
                 saved = self._save_frame(png, frame_ref.replace(".jpg", ""))
+        # H5 (trial 5 run 43183031119): mission ExoPlayer không có shot nào
+        # lưu (bước 21, t=200.7, motion 29.64) — tour cứu được nhưng không
+        # đủ làm bằng chứng ảnh. Lưu frame bằng chứng ở observation ĐẦU
+        # TIÊN thấy PlayerActivity sau khi ở activity khác (vào 1 lần thì
+        # lưu 1 khung, không lưu mỗi bước). 'PlayerActivity' cũng khớp
+        # WebPlayerActivity (chuỗi con) nên vào WebPlayer cũng được lưu —
+        # bằng chứng vào player nào cũng cần. Dedup theo nội dung trong
+        # _save_frame nên khung trùng shot đã lưu chỉ trả lại path cũ.
+        if saved is None and "PlayerActivity" in (activity or "") \
+                and "PlayerActivity" not in (self._prev_activity or ""):
+            saved = self._save_frame(png, frame_ref.replace(".jpg", ""))
+        self._prev_activity = activity
         # CI-T8 mục 3: _save_frame dedup theo nội dung — frame trùng shot
         # đã lưu thì trả lại path CŨ; finding trích dẫn frame_ref MỚI sẽ
         # trỏ file không tồn tại (step_035/042 CI-T7). Viết lại evidence

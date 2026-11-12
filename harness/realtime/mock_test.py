@@ -2484,6 +2484,8 @@ def main():
     # --- H2 (vòng sửa sau trial 5, run 43183031119) ---
     test_h2_episode_dialog_detected()
     test_h2_episode_picker_player_is_not_fail()
+    # --- H5 (vòng sửa sau trial 5, run 43183031119) ---
+    test_h5_player_entry_frame_saved()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -3918,6 +3920,57 @@ def test_h2_episode_picker_player_is_not_fail():
     assert _r.device.keys.count("OK") == 2, \
         "chỉ bấm OK 2 lần (mở dialog, chọn Tập 1), keys: %s" % _r.device.keys
     print("H2_EPISODE_PICKER_PLAYER_IS_NOT_FAIL_OK")
+
+
+def test_h5_player_entry_frame_saved():
+    """H5 (trial 5 run 43183031119): mission ExoPlayer không có shot nào
+    lưu (bước 21, t=200.7, motion 29.64) — tour cứu được nhưng không đủ
+    làm bằng chứng ảnh. Giờ _observe lưu frame ở observation ĐẦU TIÊN
+    thấy PlayerActivity sau khi ở activity khác.
+    - obs ở MainActivity (ngoài chu kỳ lưu, không defect) -> không lưu;
+    - obs vào PlayerActivity -> frame_file có + file tồn tại trên đĩa;
+    - obs tiếp theo vẫn ở PlayerActivity -> không lưu thêm (chỉ lưu lúc
+      vào, không lưu mỗi bước)."""
+    import shutil as _sh
+    _sh.rmtree("/tmp/qa_mock_h5", ignore_errors=True)
+    _orig_dev = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = FakeDevice
+    try:
+        _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_h5", serial=None,
+                                       vision_budget=0, no_vision=True)
+        # obs 1: MainActivity, ngoài chu kỳ lưu (global_step 1), không defect.
+        _r._global_step = 1
+        _r.device._activity = "com.kenhlive.tv/.MainActivity"
+        _r.device._dump = dict(FakeDevice.HOME_DUMP)
+        _r.watcher._latest_png = _fake_png(0)
+        _r.watcher._stable_streak = 5
+        _r._prev_obs_png = None
+        _o1 = _r._observe("MISSION_PLAYER_STREAMING_AND_CONTROLS")
+        assert _o1["frame_file"] is None, \
+            "ở MainActivity, ngoài chu kỳ lưu, không defect thì không lưu frame"
+        # obs 2: vào PlayerActivity -> phải lưu.
+        _r._global_step = 2
+        _r.device._activity = "com.kenhlive.tv/.PlayerActivity"
+        _r.device._dump = dict(FakeDevice.HOME_DUMP)
+        _r.watcher._latest_png = _fake_png(5)
+        _r.watcher._stable_streak = 5
+        _o2 = _r._observe("MISSION_PLAYER_STREAMING_AND_CONTROLS")
+        assert _o2["frame_file"] is not None, \
+            "observation đầu tiên vào PlayerActivity phải lưu frame bằng chứng"
+        _p2 = os.path.join("/tmp/qa_mock_h5", "shots",
+                           os.path.basename(_o2["frame_file"]))
+        assert os.path.exists(_p2), \
+            "frame bằng chứng vào player phải tồn tại trên đĩa: %s" % _p2
+        # obs 3: vẫn ở PlayerActivity -> không lưu thêm.
+        _r._global_step = 3
+        _r.watcher._latest_png = _fake_png(6)
+        _r.watcher._stable_streak = 5
+        _o3 = _r._observe("MISSION_PLAYER_STREAMING_AND_CONTROLS")
+        assert _o3["frame_file"] is None, \
+            "đã ở trong player thì không lưu thêm mỗi bước (chỉ lưu lúc vào)"
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev
+    print("H5_PLAYER_ENTRY_FRAME_SAVED_OK")
 
 
 if __name__ == "__main__":
