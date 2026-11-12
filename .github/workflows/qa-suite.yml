@@ -51,9 +51,11 @@ jobs:
       # proxy VN — lay node VLESS VN moi nhat tu file GitHub cong khai Au1rxx
       # (free-vpn-subscriptions/output/country/VN/singbox-0001.json), chay bang
       # sing-box v1.14.4 (ban da kiem tren may ao Astra 2026-11-12).
-      # Tai sing-box: chinh = gh release download (qua api.github.com, tranh
-      # lop github.com/releases/download da 404 x3 tren runner, run 43161910696);
-      # fallback = APT deb.sagernet.org. BO YUNA (Evelyn 2026-11-12): khong can secret nao nua.
+      # Tai sing-box: chinh = APT deb.sagernet.org (da cai thanh cong ngay lan 1
+      # tren runner, run 43164647966); fallback = gh release download (qua
+      # api.github.com; that bai x3 tren runner cung run do, 'no assets match
+      # the file pattern' — chua ro nguyen nhan, xem DESIGN.md 15.16).
+      # BO YUNA (Evelyn 2026-11-12): khong can secret nao nua.
       # FAIL ON AO neu khong lay duoc file / khong co node song / exit IP
       # khong phai VN — tuyet doi khong chay lang le khong proxy (loi cu).
       - name: Set up proxy VN (file GitHub Au1rxx)
@@ -62,28 +64,35 @@ jobs:
           python3 harness/gh_vn_to_singbox.py /tmp/singbox_ci.json || { echo "::error::Khong lay duoc file proxy VN tu GitHub"; exit 1; }
           SB_VER=v1.14.4
           SB_TGZ="sing-box-${SB_VER}-linux-amd64-glibc.tar.gz"
-          OK_DL=0
-          # Nguon chinh: gh release download — di qua api.github.com, bo qua
-          # lop redirect github.com/releases/download (tra 404 x3 tren runner,
-          # run 43161910696). Runner da cai san gh + GITHUB_TOKEN.
-          for try in 1 2 3; do
-            rm -f "/tmp/${SB_TGZ}"
-            if gh release download "${SB_VER}" --repo SagerNet/sing-box --pattern "${SB_TGZ}" --dir /tmp --clobber && gzip -t "/tmp/${SB_TGZ}" 2>/dev/null; then OK_DL=1; break; fi
-            echo "gh release download lan $try loi, thu lai sau 15s"; sleep 15
-          done
           SB=""
-          if [ "$OK_DL" = "1" ]; then
-            tar xzf "/tmp/${SB_TGZ}" -C /tmp
-            SB="/tmp/sing-box-${SB_VER}-linux-amd64-glibc/sing-box"
-          else
-            # Fallback: APT deb.sagernet.org (host khac han, khong phu thuoc GitHub).
-            echo "gh release download that bai sau 3 lan — thu fallback APT deb.sagernet.org"
-            sudo install -d -m 0755 /etc/apt/keyrings
-            if sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc && sudo chmod a+r /etc/apt/keyrings/sagernet.asc && printf 'Types: deb\nURIs: https://deb.sagernet.org/\nSuites: *\nComponents: *\nEnabled: yes\nSigned-By: /etc/apt/keyrings/sagernet.asc\n' | sudo tee /etc/apt/sources.list.d/sagernet.sources >/dev/null && (sudo apt-get update -qq -o Acquire::http::Timeout=30 -o Acquire::Retries=3 || true) && sudo apt-get install -y -qq sing-box; then
-              SB="$(command -v sing-box || true)"
-            fi
-            [ -n "$SB" ] && [ -x "$SB" ] || { echo "::error::Khong tai/cai duoc sing-box (gh x3 + APT that bai)"; exit 1; }
+          # Nguon chinh: APT deb.sagernet.org (host khac han, khong phu thuoc
+          # GitHub; da cai thanh cong ngay lan 1 tren runner, run 43164647966,
+          # sing-box 1.14.4, exit IP VN 150.95.109.109).
+          sudo install -d -m 0755 /etc/apt/keyrings
+          if sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc && sudo chmod a+r /etc/apt/keyrings/sagernet.asc && printf 'Types: deb\nURIs: https://deb.sagernet.org/\nSuites: *\nComponents: *\nEnabled: yes\nSigned-By: /etc/apt/keyrings/sagernet.asc\n' | sudo tee /etc/apt/sources.list.d/sagernet.sources >/dev/null && (sudo apt-get update -qq -o Acquire::http::Timeout=30 -o Acquire::Retries=3 || true) && sudo apt-get install -y -qq sing-box; then
+            SB="$(command -v sing-box || true)"
+          fi
+          if [ -n "$SB" ] && [ -x "$SB" ]; then
             echo "dung sing-box tu APT: $SB"
+          else
+            # Fallback: gh release download (qua api.github.com, tranh lop
+            # github.com/releases/download da 404 x3, run 43161910696).
+            # Luu y: gh that bai x3 tren runner run 43164647966 ('no assets
+            # match the file pattern') du van chay tren may ao — neu fallback
+            # nay cung that bai, xem DESIGN.md 15.16.
+            echo "APT that bai — thu fallback gh release download"
+            OK_DL=0
+            for try in 1 2 3; do
+              rm -f "/tmp/${SB_TGZ}"
+              if gh release download "${SB_VER}" --repo SagerNet/sing-box --pattern "${SB_TGZ}" --dir /tmp --clobber && gzip -t "/tmp/${SB_TGZ}" 2>/dev/null; then OK_DL=1; break; fi
+              echo "gh release download lan $try loi, thu lai sau 15s"; sleep 15
+            done
+            if [ "$OK_DL" = "1" ]; then
+              tar xzf "/tmp/${SB_TGZ}" -C /tmp
+              SB="/tmp/sing-box-${SB_VER}-linux-amd64-glibc/sing-box"
+            fi
+            [ -n "$SB" ] && [ -x "$SB" ] || { echo "::error::Khong tai/cai duoc sing-box (APT + gh x3 that bai)"; exit 1; }
+            echo "dung sing-box tu gh release download: $SB"
           fi
           "$SB" version | head -1
           "$SB" check -c /tmp/singbox_ci.json
