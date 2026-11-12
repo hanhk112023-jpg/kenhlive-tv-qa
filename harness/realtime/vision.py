@@ -224,6 +224,9 @@ class VisionClient:
         self.latencies = []
         self.provider = self._detect_provider()
         self.endpoint_host = self._detect_endpoint_host()
+        # CI-T8 mục 5: fallback provider (dùng khi primary lỗi 503/timeout).
+        self.fallback_provider = None
+        self.fallback_used = 0
 
     def _detect_endpoint_host(self):
         """Host thật mà request vision được gửi tới — KHÁC provider khi
@@ -278,11 +281,110 @@ class VisionClient:
             stats = LIMITER.stats()
             stats["provider"] = self.provider
             stats["endpoint_host"] = self.endpoint_host
+            stats["fallback_provider"] = self.fallback_provider
+            stats["fallback_used"] = self.fallback_used
             return stats
         except Exception:
             return {"requests_used": 0, "limit_per_min": 30,
                     "hit_429": False, "hits_429": 0, "provider": self.provider,
-                    "endpoint_host": self.endpoint_host}
+                    "endpoint_host": self.endpoint_host,
+                    "fallback_provider": self.fallback_provider,
+                    "fallback_used": self.fallback_used}
+
+    @staticmethod
+    def _provider_configured(name):
+        """Provider có đủ thông tin để gọi không (base + key, hoặc
+        surrogate cho NVIDIA_NIM)? Dùng khi chọn fallback."""
+        if name == "DEEPSEEK_WEB":
+            return bool(DEEPSEEK_BASE)
+        if name == "ANTIGRAVITY":
+            return bool(ANTIGRAVITY_KEY and ANTIGRAVITY_BASE)
+        if name == "KILO":
+            return bool(KILO_KEY and KILO_BASE)
+        if name == "OPENAI":
+            return bool(OPENAI_KEY and OPENAI_BASE)
+        if name == "NVIDIA_NIM":
+            try:
+                sys_path = "/opt/muse/skills/custom-connector-setup/bin"
+                if sys_path not in sys.path:
+                    sys.path.insert(0, sys_path)
+                import dynamic_credentials  # noqa: F401
+                return True
+            except Exception:
+                return False
+        return False
+
+    def _pick_fallback(self):
+        """Provider dự phòng đầu tiên (theo thứ tự ưu tiên) đã được cấu hình
+        VÀ có endpoint host khác primary — cùng host thì lỗi hạ tầng của
+        primary cũng đánh sập fallback (CI-T7: OPENAI qua
+        integrate.api.nvidia.com, NVIDIA_NIM cùng host nên không làm
+        fallback cho nhau). Trả tên provider hoặc None (CI không có provider
+        thứ 2 thì None — chạy như cũ, không crash)."""
+        from urllib.parse import urlparse
+        _hosts = {
+            "NVIDIA_NIM": urlparse(NVIDIA_NIM_BASE).netloc.lower(),
+            "OPENAI": urlparse(_normalize_url(OPENAI_BASE) or "").netloc.lower(),
+            "DEEPSEEK_WEB": urlparse(_normalize_url(DEEPSEEK_BASE) or "").netloc.lower(),
+            "ANTIGRAVITY": urlparse(_normalize_url(ANTIGRAVITY_BASE) or "").netloc.lower(),
+            "KILO": urlparse(_normalize_url(KILO_BASE) or "").netloc.lower(),
+        }
+        _primary_host = _hosts.get(self.provider, "")
+        for name in ("DEEPSEEK_WEB", "ANTIGRAVITY", "KILO", "OPENAI", "NVIDIA_NIM"):
+            if name == self.provider:
+                continue
+            if not self._provider_configured(name):
+                continue
+            if _hosts.get(name, "") and _hosts[name] == _primary_host:
+                continue
+            return name
+        return None
+
+    def _chat_once(self, provider, msgs, max_tokens, timeout, user="qa_realtime"):
+        """Một lần gửi tới đúng 1 provider. Trả raw text (raise khi lỗi)."""
+        if provider == "NVIDIA_NIM":
+            return _post(NVIDIA_NIM_BASE, "",
+                         {"model": NVIDIA_NIM_MODEL, "temperature": 0.1,
+                          "max_tokens": _max_tokens_for(NVIDIA_NIM_MODEL, max_tokens),
+                          "messages": msgs}, timeout, user=user,
+                         surrogate="custom.nvidia",
+                         surrogate_host="integrate.api.nvidia.com")
+        elif provider == "DEEPSEEK_WEB":
+            return _post(_normalize_url(DEEPSEEK_BASE), DEEPSEEK_KEY,
+                         {"model": DEEPSEEK_MODEL, "temperature": 0.1,
+                          "max_tokens": _max_tokens_for(DEEPSEEK_MODEL, max_tokens),
+                          "messages": msgs}, timeout, user=user)
+        elif provider == "ANTIGRAVITY":
+            return _post(_normalize_url(ANTIGRAVITY_BASE), ANTIGRAVITY_KEY,
+                         {"model": ANTIGRAVITY_MODEL, "temperature": 0.1,
+                          "max_tokens": _max_tokens_for(ANTIGRAVITY_MODEL, max_tokens),
+                          "messages": msgs}, timeout)
+        elif provider == "KILO":
+            return _post(KILO_BASE, KILO_KEY,
+                         {"model": KILO_MODEL, "temperature": 0.1,
+                          "max_tokens": _max_tokens_for(KILO_MODEL, max_tokens),
+                          "messages": msgs}, timeout)
+        else:
+            return _post(_normalize_url(OPENAI_BASE), OPENAI_KEY,
+                         {"model": OPENAI_MODEL, "temperature": 0.1,
+                          "max_tokens": _max_tokens_for(OPENAI_MODEL, max_tokens),
+                          "messages": msgs}, timeout, user=user)
+
+    def _attempt(self, provider, msgs, max_tokens, timeout, reason, user="qa_realtime"):
+        """Một lần gửi tới 1 provider, có đếm call + latency riêng (fallback
+        cũng là 1 call thật). Trả (raw, err)."""
+        t0 = time.time()
+        raw = ""
+        err = None
+        try:
+            raw = self._chat_once(provider, msgs, max_tokens, timeout, user)
+        except Exception as e:
+            err = str(e)[:120]
+        dt = round(time.time() - t0, 1)
+        self.calls_total += 1
+        self.calls_by_reason[reason] = self.calls_by_reason.get(reason, 0) + 1
+        self.latencies.append(dt)
+        return raw, err
 
     def _chat(self, prompt, image_bytes, max_tokens, timeout, reason, user="qa_realtime",
               max_side=960):
@@ -294,43 +396,17 @@ class VisionClient:
             content.append({"type": "image_url",
                             "image_url": {"url": "data:image/jpeg;base64,%s" % b64}})
         msgs = [{"role": "user", "content": content}]
-        t0 = time.time()
-        raw = ""
-        err = None
-        try:
-            if self.provider == "NVIDIA_NIM":
-                raw = _post(NVIDIA_NIM_BASE, "",
-                            {"model": NVIDIA_NIM_MODEL, "temperature": 0.1,
-                             "max_tokens": _max_tokens_for(NVIDIA_NIM_MODEL, max_tokens),
-                             "messages": msgs}, timeout, user=user,
-                            surrogate="custom.nvidia",
-                            surrogate_host="integrate.api.nvidia.com")
-            elif self.provider == "DEEPSEEK_WEB":
-                raw = _post(_normalize_url(DEEPSEEK_BASE), DEEPSEEK_KEY,
-                            {"model": DEEPSEEK_MODEL, "temperature": 0.1,
-                             "max_tokens": _max_tokens_for(DEEPSEEK_MODEL, max_tokens),
-                             "messages": msgs}, timeout, user=user)
-            elif self.provider == "ANTIGRAVITY":
-                raw = _post(_normalize_url(ANTIGRAVITY_BASE), ANTIGRAVITY_KEY,
-                            {"model": ANTIGRAVITY_MODEL, "temperature": 0.1,
-                             "max_tokens": _max_tokens_for(ANTIGRAVITY_MODEL, max_tokens),
-                             "messages": msgs}, timeout)
-            elif self.provider == "KILO":
-                raw = _post(KILO_BASE, KILO_KEY,
-                            {"model": KILO_MODEL, "temperature": 0.1,
-                             "max_tokens": _max_tokens_for(KILO_MODEL, max_tokens),
-                             "messages": msgs}, timeout)
-            else:
-                raw = _post(_normalize_url(OPENAI_BASE), OPENAI_KEY,
-                            {"model": OPENAI_MODEL, "temperature": 0.1,
-                             "max_tokens": _max_tokens_for(OPENAI_MODEL, max_tokens),
-                             "messages": msgs}, timeout, user=user)
-        except Exception as e:
-            err = str(e)[:120]
-        dt = round(time.time() - t0, 1)
-        self.calls_total += 1
-        self.calls_by_reason[reason] = self.calls_by_reason.get(reason, 0) + 1
-        self.latencies.append(dt)
+        raw, err = self._attempt(self.provider, msgs, max_tokens, timeout, reason, user)
+        # CI-T8 mục 5: primary lỗi (503/timeout/rỗng) -> thử ĐÚNG 1
+        # provider dự phòng khác host (nếu có) rồi mới ghi UNVERIFIED.
+        if (err or not raw) and self.remaining() > 0:
+            fb = self._pick_fallback()
+            if fb:
+                self.fallback_provider = fb
+                self.fallback_used += 1
+                raw, err = self._attempt(fb, msgs, max_tokens, timeout, reason, user)
+                if err or not raw:
+                    return None, "error:%s (fallback %s)" % ((err or "empty"), fb)
         if err or not raw:
             return None, "error:%s" % (err or "empty")
         return _extract_json(raw), None

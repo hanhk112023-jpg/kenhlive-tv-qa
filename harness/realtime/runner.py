@@ -996,6 +996,12 @@ class RealtimeRunner:
         # NIM — xem DESIGN §8.1).
         report["vision_provider"] = self.vision.provider
         report["vision_endpoint_host"] = self.vision.endpoint_host
+        # CI-T8 mục 5: fallback provider đã dùng (nếu có) — ghi rõ để biết
+        # bao nhiêu vision call chạy qua provider dự phòng (nim_usage cũng
+        # có fallback_provider/fallback_used).
+        if getattr(self.vision, "fallback_used", 0):
+            report["vision_fallback"] = {"provider": self.vision.fallback_provider,
+                                         "used": self.vision.fallback_used}
         # NIM usage (luật cứng 40 req/phút): requests đã dùng + có chạm 429?
         report["nim_usage"] = self.vision.nim_stats()
         report["screenshots"] = [(e.get("mission", {}).get("id", ""), e.get("screenshot"))

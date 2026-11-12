@@ -2206,6 +2206,71 @@ def main():
         "503 chỉ retry đúng 1 lần (tổng 2 lần gửi), được %d" % _calls21["n"]
     print("VISION_RETRY_ONCE_OK")
 
+    # --- Test N22: fallback provider khi primary lỗi 503 (CI-T8 mục 5) ---
+    # Primary lỗi -> thử đúng 1 provider dự phòng KHÁC HOST rồi mới ghi
+    # UNVERIFIED. Ở CI chỉ có 1 provider (OPENAI qua integrate.api.nvidia.
+    # com) nên fallback là no-op — kiểm chứng bằng stub _post ở đây.
+    # Thứ tự ưu tiên: KILO > OPENAI nên test dùng KILO làm primary,
+    # OPENAI làm fallback (host khác nhau).
+    import vision as _vis22
+    import urllib.error as _urlerr22
+    _orig22 = {k: getattr(_vis22, k) for k in ("OPENAI_BASE", "OPENAI_KEY", "OPENAI_MODEL",
+                                               "KILO_BASE", "KILO_KEY", "KILO_MODEL",
+                                               "DEEPSEEK_BASE")}
+    _vis22.OPENAI_BASE = "https://primary.example/v1"
+    _vis22.OPENAI_KEY = "k1"
+    _vis22.OPENAI_MODEL = "m1"
+    _vis22.KILO_BASE = "https://api.kilo.ai/api/gateway/v1/chat/completions"
+    _vis22.KILO_KEY = "k2"
+    _vis22.KILO_MODEL = "kilo-auto/free"
+    _vis22.DEEPSEEK_BASE = ""
+    _orig_post22 = _vis22._post
+    _calls22 = {"primary": 0, "fallback": 0}
+
+    def _fake_post22(url, key, payload, timeout, user=None, surrogate=None,
+                     surrogate_host=None):
+        # _post thật trả CONTENT string (đã parse body) — stub giữ đúng mức.
+        if "kilo" in (url or ""):
+            _calls22["primary"] += 1
+            raise _urlerr22.HTTPError(url, 503, "Service Unavailable", {}, None)
+        _calls22["fallback"] += 1
+        return '{"found": true}'
+
+    _vis22._post = _fake_post22
+    try:
+        _vc22 = _vis22.VisionClient(budget=40)
+        assert _vc22.provider == "KILO", "primary phải là KILO, được %s" % _vc22.provider
+        _res22, _err22 = _vc22.check_visual(_fake_png(0), "có lỗi gì không?")
+        print("fallback -> res:", _res22, "| err:", _err22,
+              "| fallback_provider:", _vc22.fallback_provider, "| used:", _vc22.fallback_used)
+        assert _res22 is not None and _res22.get("found") is True, \
+            "fallback OPENAI phải trả kết quả khi primary 503"
+        assert _vc22.fallback_used == 1 and _vc22.fallback_provider == "OPENAI", \
+            "phải ghi nhận 1 lần dùng fallback OPENAI"
+        assert _vc22.calls_total == 2, "primary + fallback = 2 call thật, được %d" % _vc22.calls_total
+        # Cùng host thì không làm fallback cho nhau (OPENAI qua
+        # integrate.api.nvidia.com vs NVIDIA_NIM): tắt mọi provider khác
+        # -> _pick_fallback phải trả None.
+        _vis22.KILO_KEY = ""
+        _orig_pc22 = _vis22.VisionClient._provider_configured
+        _vis22.VisionClient._provider_configured = staticmethod(lambda name: False)
+        try:
+            _vc22b = _vis22.VisionClient(budget=40)
+            assert _vc22b._pick_fallback() is None, \
+                "không có provider dự phòng thì _pick_fallback phải trả None"
+            _res22b, _err22b = _vc22b.check_visual(_fake_png(0), "có lỗi gì không?")
+            assert _res22b is None and _err22b and "error" in _err22b, \
+                "không fallback thì trả (None, error) như cũ"
+            assert _vc22b.fallback_used == 0 and _vc22b.calls_total == 1, \
+                "không fallback thì chỉ 1 call, được %d" % _vc22b.calls_total
+        finally:
+            _vis22.VisionClient._provider_configured = _orig_pc22
+    finally:
+        _vis22._post = _orig_post22
+        for _k22, _v22 in _orig22.items():
+            setattr(_vis22, _k22, _v22)
+    print("VISION_FALLBACK_OK")
+
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
