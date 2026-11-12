@@ -2475,6 +2475,8 @@ def main():
     # --- H3/H4 (vòng sửa sau trial 5, run 43183031119) ---
     test_h3_sports_multi_source_seek_cola()
     test_h4_iptv_hold_and_no_tab_switch_in_player()
+    # --- H1 (vòng sửa sau trial 5, run 43183031119) ---
+    test_h1_total_only_reading_dropped()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -3474,6 +3476,66 @@ def test_h4_iptv_hold_and_no_tab_switch_in_player():
     assert _a.type == "SWITCH_TAB" and _a.param == "2" and _a.rule == "goto_tab", \
         "ngoài player thì sai tab vẫn phải SWITCH_TAB về tab đích (được %s %s)" % (_a.type, _a.rule)
     print("H4_IPTV_HOLD_NO_TAB_SWITCH_IN_PLAYER_OK")
+
+
+def test_h1_total_only_reading_dropped():
+    """H1 (vòng sửa sau trial 5, run 43183031119): lần đọc đồng hồ bằng
+    đúng giờ tổng (13:53 = 833s) phải bị bỏ qua — đó là lúc cả 2 lượt OCR
+    đều mất chữ giờ phát mà chỉ đọc được giờ tổng (vals=[833,833]).
+    Dãy đọc trial 5: 114, 833, 134, 144, 144, 833, 833, 174, 174, 194,
+    204 — bỏ 833 thì còn 114->204 tăng đơn điệu, mission không FAIL oan.
+    Quy tắc: cặp elapsed/total phải có 2 giá trị KHÁC nhau; mọi giá trị
+    đọc được đều bằng nhau thì lần đọc mơ hồ -> None (không đoán)."""
+    from runner import _playback_seconds_from_text as _pb_txt
+    from runner import RealtimeRunner as _RR
+    from detectors import BOTTOM_BAR_BAND as _BBB
+    from gate import EvidenceGate
+    from missions import get_missions
+    # Cặp bằng nhau (elapsed == tổng) thì mơ hồ -> None, không lấy min.
+    assert _pb_txt("13:53 / 13:53") is None, \
+        "cặp elapsed/total bằng nhau thì không phân biệt được, phải None"
+    assert _pb_txt("03:24 / 13:53") == 204
+    assert _pb_txt("00:59 / 13:53") == 59
+    assert _RR._parse_time_token("13:53/13:53") is None
+    assert _RR._parse_time_token("0224/1353") == 144
+    assert _RR._parse_time_token("02:24") == 144, "token lẻ giữ nguyên"
+    _r = _RR(out_dir="/tmp/qa_mock_h1", serial=None,
+             vision_budget=0, no_vision=True)
+
+    def _extract(boxes):
+        _r.detector_ctx["_ocr_cache"] = {("step_001.jpg", _BBB): boxes}
+        return _r._extract_playback_s({"all_visible_texts": []}, "step_001.jpg")
+
+    # Cả 2 lượt OCR chỉ đọc được giờ tổng -> bỏ qua (trial 5: 833 oan).
+    assert _extract([{"text": "13:53"}, {"text": "13:53"}]) is None, \
+        "2 lượt OCR đều chỉ đọc được giờ tổng thì lần đọc phải bị bỏ qua"
+    # 1 box gộp toàn giờ tổng cũng vậy.
+    assert _extract([{"text": "13:53/13:53"}]) is None
+    # Cặp đủ -> elapsed; box lẻ elapsed + box lẻ tổng -> elapsed.
+    assert _extract([{"text": "02:24/13:53"}]) == 144
+    assert _extract([{"text": "02:24"}, {"text": "13:53"}]) == 144
+    # Dãy trial 5 qua _extract + gate: 833 bị bỏ, còn lại tăng đơn điệu.
+    _specs = {s.name: s for s in get_missions()}
+    _g = EvidenceGate(_specs["MISSION_WEBPLAYER_DIRECTED_REAL_FILM"])
+    _trial5 = [114, 833, 134, 144, 144, 833, 833, 174, 174, 194, 204]
+    _kept = []
+    for _i, _v in enumerate(_trial5):
+        _m, _s = divmod(_v, 60)
+        if _v == 833:
+            _got = _extract([{"text": "13:53"}, {"text": "13:53"}])
+        else:
+            _got = _extract([{"text": "%02d:%02d/13:53" % (_m, _s)}])
+        _want = None if _v == 833 else _v
+        assert _got == _want, "lần đọc %s phải ra %s, được %s" % (_v, _want, _got)
+        if _got is not None:
+            _g.observe_playback(_got, float(_i * 10))
+            _kept.append(_got)
+    assert _kept == [114, 134, 144, 144, 174, 174, 194, 204], \
+        "833 xen giữa phải bị bỏ, dãy còn lại: %s" % _kept
+    assert _g.playback_monotonic()[0] is True, \
+        "bỏ 833 thì dãy còn lại phải tăng đơn điệu: %s" % _kept
+    assert _g.playback_status() == "increasing"
+    print("H1_TOTAL_ONLY_READING_DROPPED_OK", _kept)
 
 
 if __name__ == "__main__":

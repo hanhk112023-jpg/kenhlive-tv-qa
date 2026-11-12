@@ -82,13 +82,20 @@ def _playback_seconds_from_text(text):
     đó. Dùng chung cho dump text và quote vision (CI-T7 mục 4).
     CI-T9 B(1): cũng nhận cặp gộp OCR ('00:20/13:53', '0020/1353' —
     dấu ':' có thể mất). Chỉ cặp mới tính: 1 token lẻ ('24:14') vẫn None
-    (không phân biệt được elapsed/total)."""
+    (không phân biệt được elapsed/total).
+    H1 (trial 5 run 43183031119): cặp có 2 giá trị BẰNG nhau thì mơ hồ —
+    không phân biệt được elapsed với tổng (VD '13:53 / 13:53' khi giờ
+    phát đã bằng giờ tổng, hoặc OCR đọc nhầm giờ phát thành giờ tổng).
+    Trả None (không đọc được) thay vì đoán 833s rồi tố đóng băng oan ở
+    gate đơn điệu. Cặp khác nhau thì min vẫn là elapsed như cũ."""
     vals = []
     m = _TIME_PAIR_RE.search(text or "")
     if not m:
         return None
     vals.append(_time_tok_to_s(m.group(1), m.group(2), m.group(3)))
     vals.append(_time_tok_to_s(m.group(4), m.group(5), m.group(6)))
+    if vals[0] == vals[1]:
+        return None
     return min(vals)
 
 
@@ -359,8 +366,12 @@ class RealtimeRunner:
     def _parse_time_token(txt):
         """'MM:SS' / 'H:MM:SS' -> giây, hoặc None. CI-T9 B(1): cũng nhận box
         OCR gộp 'elapsed/total' ('00:20/13:53', '0020/1353') -> elapsed
-        (số nhỏ hơn trong cặp)."""
+        (số nhỏ hơn trong cặp). H1: >= 2 giá trị mà đều bằng nhau thì mơ
+        hồ (chỉ đọc được giờ tổng, VD '13:53/13:53') -> None; token lẻ
+        giữ nguyên."""
         vals = _times_in_text(txt)
+        if len(vals) >= 2 and min(vals) == max(vals):
+            return None
         return min(vals) if vals else None
 
     def _extract_playback_s(self, ui_state, frame_ref, png=None):
@@ -385,7 +396,11 @@ class RealtimeRunner:
         _times_in_text (cặp gộp tính đủ 2 giá trị); (b) trên nền video
         SÁNG, band OCR PSM 11 mất hẳn chữ đồng hồ (chữ nhỏ, tương phản
         thấp) — đọc ÉP dải đồng hồ cố định góc dưới-trái bằng read_text
-        (chỉ khi band chưa đủ 2 giá trị)."""
+        (chỉ khi band chưa đủ 2 giá trị).
+        H1 (trial 5 run 43183031119): khi cả 2 lượt đều mất chữ giờ phát
+        mà chỉ đọc được giờ tổng thì vals toàn bằng nhau (VD [833, 833])
+        — lần đọc mơ hồ, trả None (xem cuối hàm), không lấy min làm giờ
+        phát rồi tố 'không tăng đơn điệu' oan."""
         texts = [t for _, t in ui_state.get("all_visible_texts", [])]
         for t in texts:
             v = _playback_seconds_from_text(t or "")
@@ -420,6 +435,14 @@ class RealtimeRunner:
             except Exception:
                 strip = ""
             vals.extend(_times_in_text(strip))
+        # H1 (trial 5 run 43183031119): mọi giá trị đọc được đều bằng nhau
+        # (VD [833, 833] — cả 2 lượt OCR đều mất chữ giờ phát, chỉ đọc
+        # được giờ tổng '13:53') thì lần đọc mơ hồ: không phân biệt được
+        # elapsed với tổng. Bỏ qua (None) thay vì lấy min làm giờ phát rồi
+        # tố 'không tăng đơn điệu' oan ở gate. Cần >= 2 giá trị KHÁC nhau
+        # mới tính (cặp elapsed/total, hoặc elapsed + tổng đọc rời).
+        if len(vals) >= 2 and min(vals) == max(vals):
+            return None
         return min(vals) if len(vals) >= 2 else None
 
     def _note_seek_if_needed(self, gate, action, activity):
