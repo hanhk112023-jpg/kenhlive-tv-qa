@@ -1270,8 +1270,9 @@ runner, F63 kiểm được hay chưa).
   HIGH #1 GIẢ (OCR đọc nhiễu từ video đang chạy, step_067 không có chữ
   cắt); HIGH #2 THẬT (hàng LIVE 13:00 WNZT hiện giờ kickoff không tỉ số,
   họ A6); A1 còn (vision check `player_title` nhìn nhầm khung step_076 là
-  dialog lỗi, trong khi step_061/064 thấy rõ tiêu đề kép); IPTV VTV Cần
-  Thơ phát rõ nhưng vision không xác nhận (false-negative); ExoPlayer
+  dialog lỗi, trong khi step_061/064 thấy rõ tiêu đề kép); IPTV: khung lưu
+  step_046 thấy kênh phát rõ nhưng dải EPG không đọc được tên/giờ chương
+  trình nên vision không xác nhận chưa chắc là false-negative; ExoPlayer
   FAIL do chọn trận KUW–SYR đá ngày mai; rail không mở (A5 còn); **A10
   mới: hàng nút dưới player native tràn mép phải** ("ÂM THANH & PHỤ ĐỀ"
   bị cắt, step_054/078). Video phủ ~100% cửa sổ hành động (1291.4s ghi /
@@ -1289,7 +1290,7 @@ runner, F63 kiểm được hay chưa).
   QA: verdict NEEDS_FIX, điểm 69, QA 1394s (23m14s, <30 phút), 88 bước,
   12/18 PASS (cùng 6 mission FAIL như Thử 3), 6 vision calls (provider
   OPENAI), 0×HTTP 429. **F63 lần 2: WebPlayer PHÁT ĐƯỢC qua proxy VN**
-  (motion 7–38 bước 63–72, đồng hồ mắt đọc 00:20/01:00/01:20 trên 13:53),
+  (motion 7–38 ở bước 63–70 — bước 71 khựng 0.01 trước khi lỗi, đồng hồ mắt đọc 00:20/01:00/01:20 trên 13:53),
   nhưng kết bằng dialog `video_error` giống hệt Thử 3 (step_075, sha256
   trùng frame step_076 Thử 3) — cả 2 mission WebPlayer FAIL vì gate bằng
   chứng (harness ghi `playback_s: null` dù mắt đọc được đồng hồ). Eye-review
@@ -1306,8 +1307,11 @@ runner, F63 kiểm được hay chưa).
   ("Thứ Năm, 12/11/2026" — step_006) nên A9 có thể chỉ sai ở tab Lịch hoặc
   đã hết — cần khung tab Lịch có ngày mới kết luận. IPTV Thử 4: khung duy
   nhất step_045 đen + "Đang tải luồng..." nên vision không xác nhận là
-  ĐÚNG với khung này (khác Thử 3 là false-negative). Video phủ ~100% cửa
-  sổ hành động (1129.1s ghi / 25.5–1130.5s), 7 chunk đủ, reel đúng cảnh.
+  ĐÚNG với khung này (khác Thử 3 — ở đó khung lưu phát rõ nhưng EPG không
+  đọc được nên phủ định chưa chắc sai). Video phủ ~100% cửa
+  sổ hành động (1129.1s ghi / 25.5–1130.5s), 7 chunk đủ, reel 2/2 segment
+  nhưng nội dung khớp 1/2 (entry step_014 content_verified: False,
+  content_diff: 2.61).
   **KHÔNG switch.**
 - **KẾT LUẬN mục 8: HOÀN THÀNH.** 2 trial liên tiếp chứng minh bước proxy qua,
   exit IP VN 150.95.109.109 (lần kiểm 1, cả 2 lần), F63 kiểm được thật (phim
@@ -1328,3 +1332,17 @@ runner, F63 kiểm được hay chưa).
   Dữ liệu trực tiếp từ 2 nguồn/khung giờ khác nhau, không đồng bộ.
 - A10 (Thử 3) còn ở Thử 4 (step_053/076/077). A9 chưa kết luận (ngày đúng
   12/11/2026 ở màn hình chi tiết trận, step_006 Thử 4).
+
+**Ghi nợ sau review độc lập (2026-11-12, không chặn, KHÔNG sửa ngay — sửa
+phải kèm trial kiểm chứng vì động vào bước proxy):**
+- APT không pin version: `apt-get install -y sing-box` không kèm `=1.14.4*`
+  (SB_VER chỉ pin nhánh `gh`). Cả 2 trial đều cài đúng 1.14.4, nhưng nếu
+  `deb.sagernet.org` lên bản mới thì CI âm thầm đổi version — nên pin hoặc
+  kiểm version sau cài.
+- `sudo install -d -m 0755 /etc/apt/keyrings` nằm NGOÀI khối `if` APT — nếu
+  nó fail, `set -e` kill step ngay, fallback `gh` không bao giờ chạy (vẫn
+  đỏ job, nhưng mất fallback cho lỗi này). Nên đưa vào trong khối `if`.
+- Đính chính sau review: motion Thử 4 là 7–38 ở bước 63–70 (bước 71 khựng
+  0.01); reel Thử 4 chỉ khớp nội dung 1/2 (entry step_014); nhãn
+  "false-negative" cho vision IPTV Thử 3 là nói quá — khung lưu phát rõ
+  nhưng EPG không đọc được nên phủ định chưa chắc sai.
