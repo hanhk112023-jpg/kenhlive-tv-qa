@@ -33,22 +33,69 @@ except Exception:
     VideoRecorder = None
 
 
+def _time_tok_to_s(h, mi, s):
+    """'H', 'MM', 'SS' (SS có thể None) -> giây."""
+    h, mi = int(h), int(mi)
+    return h * 3600 + mi * 60 + int(s) if s else h * 60 + mi
+
+
+# CI-T9 B(1): tesseract PSM 11 trả đồng hồ elapsed/total trên frame thật
+# thành MỘT box duy nhất ('00:20/13:53', thậm chí '0020/1353' khi dấu ':'
+# bị đọc mất vì chữ nhỏ, sát nhau) — fullmatch 'MM:SS' trên box đó luôn
+# trượt nên _extract_playback_s trả None suốt 2 trial dù mắt đọc được
+# đồng hồ 00:20→01:20/13:53. Cặp phải có dấu '/' (tránh nhận nhầm số đếm
+# '10/20', ngày '12/11'); mỗi vế là MM:SS hoặc MMSS (dấu ':' có thể mất).
+_TIME_PAIR_RE = re.compile(
+    r"(\d{1,2})[:.\-]?(\d{2})(?::(\d{2}))?\s*/\s*(\d{1,2})[:.\-]?(\d{2})(?::(\d{2}))?")
+# Bản OCR-khoan-dung (chỉ cho box OCR/dải strip, KHÔNG cho dump text hay
+# quote vision): tesseract còn đọc nhầm ':' thành '/' ('01/00/13:53'
+# thay vì '01:00/13:53'). Chỉ khoan dung ở ĐÂY vì dải dưới player không
+# có ngày tháng ('12/11/2026' sẽ khớp cặp này — dump/quote dùng bản
+# chặt ở trên nên không dính).
+_TIME_PAIR_OCR_RE = re.compile(
+    r"(\d{1,2})[:.\-/]?(\d{2})(?::(\d{2}))?\s*/\s*(\d{1,2})[:.\-/]?(\d{2})(?::(\d{2}))?")
+_TIME_SINGLE_RE = re.compile(r"(\d{1,2})[:.\-](\d{2})(?::(\d{2}))?")
+
+
+def _times_in_text(text):
+    """Mọi giá trị thời gian (giây) trong một chuỗi OCR/dump, theo thứ tự
+    xuất hiện. Cặp 'elapsed/total' cho 2 giá trị (đủ điều kiện >=2 của
+    _extract_playback_s: cặp đã tự phân biệt elapsed/total nên min là
+    elapsed); token lẻ cho 1 giá trị. [] nếu không có thời gian nào."""
+    text = text or ""
+    vals = []
+    spans = []
+    for m in _TIME_PAIR_OCR_RE.finditer(text):
+        vals.append(_time_tok_to_s(m.group(1), m.group(2), m.group(3)))
+        vals.append(_time_tok_to_s(m.group(4), m.group(5), m.group(6)))
+        spans.append(m.span())
+    for m in _TIME_SINGLE_RE.finditer(text):
+        if any(a <= m.start() < b for a, b in spans):
+            continue  # đã tính trong cặp, không đếm trùng
+        vals.append(_time_tok_to_s(m.group(1), m.group(2), m.group(3)))
+    return vals
+
+
 def _playback_seconds_from_text(text):
     """Giây elapsed từ chuỗi 'elapsed / total' (VD '00:20 / 01:05:24',
     '00:20 / 24:14') — lấy số nhỏ hơn (elapsed). None nếu không có cặp
-    đó. Dùng chung cho dump text và quote vision (CI-T7 mục 4)."""
-    m = re.search(r"(\d{1,2}:\d{2}(?::\d{2})?)\s*/\s*(\d{1,2}:\d{2}(?::\d{2})?)",
-                  text or "")
+    đó. Dùng chung cho dump text và quote vision (CI-T7 mục 4).
+    CI-T9 B(1): cũng nhận cặp gộp OCR ('00:20/13:53', '0020/1353' —
+    dấu ':' có thể mất). Chỉ cặp mới tính: 1 token lẻ ('24:14') vẫn None
+    (không phân biệt được elapsed/total)."""
+    vals = []
+    m = _TIME_PAIR_RE.search(text or "")
     if not m:
         return None
+    vals.append(_time_tok_to_s(m.group(1), m.group(2), m.group(3)))
+    vals.append(_time_tok_to_s(m.group(4), m.group(5), m.group(6)))
+    return min(vals)
 
-    def _to_s(tok):
-        parts = [int(p) for p in tok.split(":")]
-        if len(parts) == 3:
-            return parts[0] * 3600 + parts[1] * 60 + parts[2]
-        return parts[0] * 60 + parts[1]
 
-    return min(_to_s(m.group(1)), _to_s(m.group(2)))
+# CI-T9 B(1)(b): dải đồng hồ cố định góc dưới-trái của player (hệ tọa độ
+# tham chiếu 1920x1080) — nơi WebPlayer/native player luôn vẽ
+# 'elapsed / total' (đo trên khung thật T3/T4: chữ ở x~250–400, y~1010–1040).
+CLOCK_STRIP = (180, 970, 660, 1060)
 
 
 class RealtimeRunner:
@@ -308,12 +355,11 @@ class RealtimeRunner:
 
     @staticmethod
     def _parse_time_token(txt):
-        """'MM:SS' / 'H:MM:SS' -> giây, hoặc None."""
-        m = re.fullmatch(r"(\d{1,2}):(\d{2})(?::(\d{2}))?", (txt or "").strip())
-        if not m:
-            return None
-        h, mi, s = m.groups()
-        return int(h) * 3600 + int(mi) * 60 + int(s) if s else int(h) * 60 + int(mi)
+        """'MM:SS' / 'H:MM:SS' -> giây, hoặc None. CI-T9 B(1): cũng nhận box
+        OCR gộp 'elapsed/total' ('00:20/13:53', '0020/1353') -> elapsed
+        (số nhỏ hơn trong cặp)."""
+        vals = _times_in_text(txt)
+        return min(vals) if vals else None
 
     def _extract_playback_s(self, ui_state, frame_ref, png=None):
         """Đồng hồ elapsed (giây) của player ở observation này, hoặc None.
@@ -330,7 +376,14 @@ class RealtimeRunner:
         band dưới TRỐNG -> hàm này luôn None. Sửa: cache trống thì OCR ÉP
         band dưới TRỰC TIẾP TỪ ẢNH (không qua osd_visible từ dump), và ghi
         vào cache để detector sau dùng chung (không OCR lại). Chỉ chạy cho
-        2 mission VOD (caller đã gate needs_playback_progress)."""
+        2 mission VOD (caller đã gate needs_playback_progress).
+        CI-T9 B(1): 2 tầng gốc rễ trên frame THẬT (kiểm bằng replay T3/T4):
+        (a) band OCR CÓ đọc được đồng hồ nhưng thành 1 box gộp
+        ('0020/1353') mà _parse_time_token fullmatch trượt — sửa bằng
+        _times_in_text (cặp gộp tính đủ 2 giá trị); (b) trên nền video
+        SÁNG, band OCR PSM 11 mất hẳn chữ đồng hồ (chữ nhỏ, tương phản
+        thấp) — đọc ÉP dải đồng hồ cố định góc dưới-trái bằng read_text
+        (chỉ khi band chưa đủ 2 giá trị)."""
         texts = [t for _, t in ui_state.get("all_visible_texts", [])]
         for t in texts:
             v = _playback_seconds_from_text(t or "")
@@ -351,9 +404,20 @@ class RealtimeRunner:
         boxes = cache.get(key, [])
         vals = []
         for box in boxes or []:
-            v = self._parse_time_token(box.get("text", ""))
-            if v is not None:
-                vals.append(v)
+            # CI-T9 B(1): 1 box OCR có thể chứa CẢ cặp 'elapsed/total'
+            # ('0020/1353') — tính đủ 2 giá trị, không gom thành 1 rồi loại
+            # vì 'chỉ 1 token lẻ'. Box đơn vẫn cho 1 giá trị như cũ.
+            vals.extend(_times_in_text(box.get("text", "")))
+        if len(vals) < 2 and png is not None and ocr_mod.available():
+            # CI-T9 B(1)(b): band PSM 11 mất chữ đồng hồ trên nền video
+            # sáng — đọc ép dải đồng hồ cố định góc dưới-trái (nơi WebPlayer
+            # luôn vẽ 'elapsed / total', đo trên khung thật T3/T4).
+            # read_text PSM 6 + upscale 3x; chỉ chạy khi band chưa đủ.
+            try:
+                strip = ocr_mod.read_text(png, region=CLOCK_STRIP)
+            except Exception:
+                strip = ""
+            vals.extend(_times_in_text(strip))
         return min(vals) if len(vals) >= 2 else None
 
     def _note_seek_if_needed(self, gate, action, activity):

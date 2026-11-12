@@ -2451,6 +2451,9 @@ def main():
     test_ci_t9_exoplayer_no_live_unverified()
     # --- CI-T9 mục 1: focus-ring nhận vòng tròn/ellipse ---
     test_ci_t9_focus_ring_circle()
+    # --- CI-T9 mục 6 + 7, nhóm B (1)(2) (hàm test_ci_t9_* ở cuối file) ---
+    test_ci_t9_playback_merged_clock_token()
+    test_ci_t9_playback_trial_frames()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -2537,6 +2540,99 @@ def test_ci_t9_fake_score_context():
     assert len(_ff) == 1 and "12 : 3" in _ff[0]["issue"], \
         "bóng đá 12:3 phi lý thật vẫn phải bị tố"
     print("CI_T9_FAKE_SCORE_CONTEXT_OK")
+
+
+def test_ci_t9_playback_merged_clock_token():
+    """CI-T9 B(1)(a): box OCR gộp 'elapsed/total' phải đọc được.
+    Gốc rễ: tesseract PSM 11 trả đồng hồ thành 1 box duy nhất ('0020/1353',
+    '00:20/13:53') — _parse_time_token fullmatch cũ trượt nên playback_s
+    null suốt 2 trial. Cặp gộp tính đủ 2 giá trị (đủ điều kiện >=2);
+    token lẻ vẫn None (không đoán elapsed/total)."""
+    import re as _re
+    from runner import _playback_seconds_from_text as _pb_txt, \
+        _times_in_text as _times
+    from runner import RealtimeRunner as _RR
+    assert _times("00:20 / 13:53") == [20, 833]
+    assert _times("0020/1353") == [20, 833]
+    assert _times("00:20/13:53") == [20, 833]
+    assert _times("01/00/13:53") == [60, 833], \
+        "OCR đọc nhầm ':' thành '/' ('01/00/13:53') vẫn phải đọc được"
+    assert _times("00:20") == [20] and _times("24:14") == [1454]
+    assert _times("Tập 01") == [] and _times("10/20") == [] \
+        and _times("12/11") == []
+    assert _pb_txt("phim đang phát 00:20 / 01:05:24") == 20
+    assert _pb_txt("00:00 / 24:14") == 0
+    assert _pb_txt("0020/1353") == 20, "quote vision gộp cũng đọc được"
+    assert _pb_txt("không thấy đồng hồ") is None
+    assert _pb_txt("chỉ có 24:14 lẻ") is None
+    # fullmatch cũ trượt trên chính token gộp, parser mới đọc được.
+    assert _re.fullmatch(r"(\d{1,2}):(\d{2})(?::(\d{2}))?", "0020/1353") is None
+    assert _RR._parse_time_token("0020/1353") == 20
+    assert _RR._parse_time_token("00:20") == 20
+    assert _RR._parse_time_token("Tập 01") is None
+    # _extract: 1 box gộp -> 20; 1 box lẻ -> None; 2 box lẻ -> min.
+    from detectors import BOTTOM_BAR_BAND as _BBB
+    _r = _RR(out_dir="/tmp/qa_mock_pb_t9", serial=None,
+             vision_budget=0, no_vision=True)
+    _r.detector_ctx["_ocr_cache"] = {
+        ("step_001.jpg", _BBB): [{"text": "0020/1353"}]}
+    assert _r._extract_playback_s({"all_visible_texts": []}, "step_001.jpg") == 20
+    _r.detector_ctx["_ocr_cache"] = {
+        ("step_001.jpg", _BBB): [{"text": "24:14"}]}
+    assert _r._extract_playback_s({"all_visible_texts": []}, "step_001.jpg") is None
+    _r.detector_ctx["_ocr_cache"] = {
+        ("step_001.jpg", _BBB): [{"text": "00:20"}, {"text": "13:53"}]}
+    assert _r._extract_playback_s({"all_visible_texts": []}, "step_001.jpg") == 20
+    print("CI_T9_PLAYBACK_MERGED_TOKEN_OK")
+
+
+def test_ci_t9_playback_trial_frames():
+    """CI-T9 B(1): replay trên khung THẬT T3/T4 — trước: null hết; sau: đọc
+    đúng giá trị mắt đọc. Khung OSD ẩn (không đồng hồ) vẫn None, không bịa.
+    Đồng hồ tăng đơn điệu qua các khung -> gate increasing."""
+    import os as _os
+    from gate import EvidenceGate
+    from missions import get_missions
+    import runner as _rm
+    _base = _os.path.expanduser("~/workspace/kenhlive-plan")
+    _frames = [
+        ("qa-run-43168594823", "step_056_vod_play.jpg", 20),   # 00:20
+        ("qa-run-43168594823", "step_061_vod_play.jpg", 60),   # 01:00
+        ("qa-run-43164647966", "step_061_vod_play.jpg", 79),   # 01:19
+        ("qa-run-43164647966", "step_064_vod_play.jpg", 119),  # 01:59
+    ]
+    _vals = []
+    for _run, _shot, _want in _frames:
+        _p = _os.path.join(_base, _run, "artifact", "shots", _shot)
+        _png = open(_p, "rb").read()
+        _r = _rm.RealtimeRunner(out_dir="/tmp/qa_mock_pb_t9f", serial=None,
+                                vision_budget=0, no_vision=True)
+        _r.detector_ctx["_ocr_cache"] = {}
+        _v = _r._extract_playback_s({"all_visible_texts": []}, _shot, _png)
+        print("playback khung thật %s/%s -> %s (mắt đọc %s)" % (_run[-5:], _shot, _v, _want))
+        assert _v is not None and abs(_v - _want) <= 2, \
+            "khung %s: đọc được %s, mắt đọc %s" % (_shot, _v, _want)
+        _vals.append(_v)
+    assert _vals == sorted(_vals) and len(set(_vals)) == len(_vals), \
+        "đồng hồ phải tăng đơn điệu qua các khung: %s" % _vals
+    # Khung OSD ẩn (066/071, video fullscreen, không đồng hồ) -> None.
+    for _run, _shot in (("qa-run-43168594823", "step_066_webplaye.jpg"),
+                        ("qa-run-43168594823", "step_071_webplaye.jpg")):
+        _p = _os.path.join(_base, _run, "artifact", "shots", _shot)
+        _r = _rm.RealtimeRunner(out_dir="/tmp/qa_mock_pb_t9f", serial=None,
+                                vision_budget=0, no_vision=True)
+        _r.detector_ctx["_ocr_cache"] = {}
+        assert _r._extract_playback_s(
+            {"all_visible_texts": []}, _shot, open(_p, "rb").read()) is None, \
+            "khung OSD ẩn %s không có đồng hồ thì phải None, không bịa" % _shot
+    _specs = {s.name: s for s in get_missions()}
+    _g = EvidenceGate(_specs["MISSION_VOD_PLAYER_SEEK_AND_RESUME"])
+    for _i, _v in enumerate(_vals):
+        _g.observe_playback(_v, float(_i * 30))
+    assert _g.playback_status() == "increasing", \
+        "đọc 20->60->79->119 thì gate phải increasing, được %s" % _g.playback_status()
+    assert _g.playback_monotonic()[0] is True
+    print("CI_T9_PLAYBACK_TRIAL_FRAMES_OK", _vals)
 
 
 def test_ci_t9_video_coverage_action_time():
