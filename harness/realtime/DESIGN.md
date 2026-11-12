@@ -1823,3 +1823,106 @@ H1/H4/H6–H10 giữ nguyên trạng thái từ trial 6. Biên bản đầy đ�
 nào để giao Evelyn. Việc tiếp theo (chưa duyệt, chỉ ghi): fix A17 trên
 app + re-review độc lập + dispatch **trial 9 full** từ app head mới.
 
+### 15.21. KL8 Polish Phase 2 — LIVE TRIAL thử 9 (run 43217017298, 2026-11-12)
+
+Trial kiểm chứng fix A17 (`1179104`, khôi phục `anchorRow` GONE, reviewer
+độc lập GO) + toàn bộ đợt polish Phase 2 (app `1179104`, QA head
+`34671d3`, không đổi harness). Dispatch 19:20:35 VN, full (quick=false).
+
+**Workflow SUCCESS sau 25m32s (job 19:20:35–19:46:07 VN); QA 1168s
+= 19m28s. Verdict NEEDS_FIX, điểm 74/100** (log dòng 1541: "Score:
+74/100 · 14/16 · 2 findings · 1 unverified") — cao nhất từ trước tới
+nay (trial 5: 48, trial 6: 18). **14/16 PASS; 2 FAIL (#6 billboard,
+#14 WebPlayer); 2 UNVERIFIED (#5 ExoPlayer, #8 Schedule LIVE — tab
+Lịch toàn trận KẾT THÚC, không có hàng LIVE nào).** Vision: 5 calls
+(3 confirm_target + 2 check_visual), provider OPENAI qua
+integrate.api.nvidia.com, 6 requests, **0×429**, 0 throttled wait.
+Exit IP: country VN ở lần kiểm 2 (lần 1 `?`, y hệt trial 6); IP in ra
+vẫn `?`. RAM PSS 514,8 MB / 520,9 MB.
+Build qua ngay lần thử 1 (`processDebugResources` + `compileDebugKotlin`
+đều qua) → **A16/A17 KHỎI**.
+
+**Mắt kiểm: 29/29 ảnh evidence + tour 262,6s @4x (ghi 1050,2s) +
+reel 12,2s + timelapse 26,3s** (biên bản đầy đủ:
+`~/workspace/kenhlive-plan/qa-run-43217017298/VISUAL-REVIEW.md`).
+
+**Judge: 2 HIGH — CẢ 2 ĐỀU LÀ GIẢ (mắt + code bác).** (1) "Phụ đề
+đè lên seekbar" (step_019): crop zoom cho thấy vùng đó chỉ có nhãn OSD
+(speaker, 00:00, seekbar đỏ, "Về trực tiếp", "TRỰC TIẾP", "Tùy chọn")
+— không có phụ đề nào; các mảnh judge trích CHÍNH LÀ các nhãn OSD.
+Reel entry 2 cũng sai nội dung (hiện tab Lịch). (2) "Focus lọt xuống
+nền khi Dialog đang mở" (step_012): viền trắng bao thẻ "Trận cùng giờ"
+đầu tiên TRONG dialog (`dialog_match_detail.xml:150`) — điều hướng
+D-pad nội bộ, không phải rò rỉ (trial 6 kết luận cùng tọa độ là rò rỉ
+THẬT cho layout run đó; trial 9 viền bao đúng nội dung dialog).
+**Judge 0 HIGH thật; đồng thời BỎ LỌT A15** (spinner đè video, thấy rõ
+ở ≥8 khung) — 1 false negative trên lỗi đã biết từ trial 6.
+
+**F63 KHỎI — WebPlayer phát thật:** step_052 đen "Đang tải…" →
+056 cảnh 1 → 061 cảnh 2 → 065 cảnh 3 (phụ đề "[sao vẫn không nghe
+máy?]") → 067 credits; tour cảnh đổi liên tục, pause = đang phát;
+mission directed #15 PASS. **A1 KHỎI** (thanh trên WebPlayer chỉ
+"<" + "STREAMC HD", không tiêu đề) và **A10 KHỎI** ("Âm thanh & Phụ đề"
+hiện đủ, không cắt 2 đầu — lần đầu kiểm được).
+
+**Mission #14 FAIL là OAN (H1 CÒN):** gate đòi "đọc đồng hồ phát", nhưng
+**OSD WebPlayer không có đồng hồ nào** (step_065: chỉ back/pause/"Tua
+tới 10s"/list/"TỐC ĐỘ 1X" — khác native player có seekbar
+"00:25 / 45:36"). Gate đọc một UI không tồn tại → mission FAIL dù
+F63 khỏi. **Mission #6 FAIL là HỒI QUY, KHÔNG OAN (A18):** hàng Home
+là "PHIM MỚI CẬP NHẬT" (`HomeHubFragment.kt:180`) — trial 5/6 mission
+billboard đều PASS (thấy text trong 4–5 bước), trial 9 FAIL sau
+8 bước vì 3 hàng giữa Home không render (xem A18).
+
+**Lỗi MỚI (sau A15):** **A18 (HIGH) — 3 hàng giữa Home không render:**
+ĐANG PHÁT → KÊNH NỔI BẬT → GIẢI ĐẤU HÀNG ĐẦU, thiếu TIẾP TỤC XEM /
+TRẬN SẮP DIỄN RA / PHIM MỚI CẬP NHẬT (đều GONE; dữ liệu cho cả 3
+hàng đều tồn tại ở chỗ khác trong cùng run: "TIẾP TỤC XEM 1 phim" ở
+Kho Phim, trận SẮP ĐÁ đầy ở Lịch, phim mới ở Kho Phim).
+**A19 (HIGH visual) — artifact của focus scale M1 (1.06×):** (a) thẻ
+focus bị xẻ đôi hàng dưới (pill "Xem ngay", tên BLV, "5 phòng" cắt
+một nửa — scale tràn mép + clip); (b) viền focus đôi (2 outline
+trắng lệch nhau) trên mọi phần tử focus. Không có trong biên bản
+trial 6. **A20 (LOW) — toast "Tự chuyển sang kênh VTV1 HD…" đè lên
+2 nút OSD "EPG", "Yêu thích"** (step_043).
+**Lỗi cũ:** A8 CÒN (trận KẾT THÚC không tỉ số chung cuộc, cả Lịch lẫn
+hàng ĐANG PHÁT của Home), A9 CÒN ("Thứ Bảy, 03/10", lệch 40 ngày,
+y hệt trial 6), A15 CÒN (spinner đè video đang phát, ≥8 khung).
+A6 không tái hiện trên thẻ LIVE (mọi thẻ LIVE đều có tỉ số); A11/A12/
+A13/A14 không tái hiện.
+
+**Polish — chỉ 2 mục xác minh khỏi hoàn toàn → F69, F70:**
+**F69 = OD-1** (`windowBackground` → `#000000`: đen đồng nhất mọi
+chuyển cảnh, cold start không flash). **F70 = S6/R3** (rail mở dim
+nền — step_036/037, dim rõ; 50% không đo được bằng mắt).
+**Khỏi một phần (không ghi số F):** M10 — native KHỎI (step_067 không
+OSD 7s sau phím cuối; `hideOnce` 5000L TV, `PlayerActivity.kt:4172`),
+**WebPlayer CÒN** (step_065 OSD vẫn hiện 46s sau phím cuối 12:38:18
+→ 12:39:04, dù code đặt timer 5s `WebPlayerActivity.kt:1520`; nguyên
+nhân chưa rõ — cần vòng sửa điều tra); T2 — native/IPTV/dialog
+sentence-case ✓ nhưng WebPlayer "TỐC ĐỘ 1X" vẫn caps; D6 — nút "ĐÓNG"
+trắng ✓ (crop xác nhận) nhưng nút destructive đỏ chưa kiểm được
+(dialog Cài đặt hệ thống chưa mở); D7+H2 — panel bo tròn + scrim +
+không rainbow ✓, nhưng thẻ BLV vẫn không có tên nguồn/lượt xem (3
+thẻ TOP 01/02/03 giống hệt nhau); M1 — scale 1.06× nhìn rõ nhưng kèm
+artifact A19. **Không kiểm được:** M7, M3, M4 (không đo được ở video
+4x / hero tĩnh), M9 (1 khung mờ dần nhưng không đo được 200ms), O6
+(ident iQIYI không cụm nút giữa nhưng OSD cũng đang ẩn), OD-2/RV-1/
+RV-2 (code-only), C2 (hàng Kho Phim chưa từng hiện).
+
+**Video tour CHƯA ĐỦ để giao:** `full_qa_tour.mp4` có Home, Thể thao,
+Lịch, IPTV/EPG, Kho Phim (skeleton, chi tiết phim, dialog chọn tập —
+18 tập khả dụng, khác trial 6), WebPlayer, native player + dialog Cài
+đặt, tìm kiếm + bàn phím, rail, chaos. **Thiếu: tab/màn hình Cài đặt,
+dialog "Xóa bộ nhớ đệm", màn phản hồi Telegram QR, MultiView.**
+Cần mission mới mở Cài đặt → storage dialog → Telegram QR; MultiView
+cần mission riêng. Harness vết nứt khác: vision hero timeout
+(`step_028_home_bil.jpg` được cite nhưng **không có trong `shots/`**);
+reel 1/2 đúng nội dung; `qa_report.json` chỉ liệt kê 19/29 frame.
+
+**KHÔNG switch** — NEEDS_FIX 74 (2 FAIL đều đã rõ: 1 oan H1, 1 hồi
+quy A18), A8/A9/A15 còn, A18/A19/A20 mới, M10 WebPlayer còn, chỉ
+2 F mới (F69/F70), tour thiếu 4 màn. Vòng sửa tiếp theo (chưa duyệt,
+chỉ ghi): A18, A19, A20, A8/A9/A15, M10 WebPlayer, H1 (gate đồng hồ
+WebPlayer) + mission billboard đã có bằng chứng hồi quy; sau đó trial
+mới + tour đủ màn rồi mới xét switch.
