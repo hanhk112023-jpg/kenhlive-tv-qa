@@ -2083,3 +2083,102 @@ có đóng dialog không, hay dialog này chặn BACK (mock giả định BACK �
 vd bấm 'Đóng'); (2) BACK đầu mission có làm mất focus/tab đích không
 (reset chạy trước tab-switch nên tab được đặt lại sau, focus trong danh
 sách Cài đặt do driver tự đi tới).
+
+### 15.25. Vòng sửa sau trial 9 — LIVE TRIAL thử 10 (run 43227207645, 2026-11-12)
+
+Trial kiểm chứng 7 fix app (A8 `7bc8dc2`, A9 `b208cdd`, A18 `2b18484`,
+A15 `fc9d737`, M10 `a3c00a9`, A20 `c0e1b00`, A19 `c7dc9e5`) + H1 gate
+(`69b3343`) + 3 mission tour mới (`1087fe4`) + blocker reset dialog
+(`8dd396a`). Heads xác minh trước dispatch: QA `8dd396a`, app `c7dc9e5`
+(chứa đủ 7 fix), tesseract + `tesseract-ocr-vie` có sẵn. Dispatch
+20:25:49 VN, full (quick=false).
+
+**Workflow SUCCESS sau 25m13s (job 13:25:54–13:51:02 UTC); QA 1146s
+= 19m06s. Verdict NEEDS_FIX, điểm 72/100** (thấp hơn trial 9: 74).
+**17/21 PASS; 4 FAIL (#14 VOD WebPlayer, #17 MultiView, #19 storage
+dialog, #20 Telegram QR); 0 unverified.** Vision: 7 calls (4
+confirm_target + 1 stuck_assist + 2 check_visual), provider OPENAI qua
+integrate.api.nvidia.com, 8 requests, **0×429**, 0 retry. Exit IP: country
+VN ở lần kiểm 2 (lần 1 `?`, y hệt trial 6/9); IP `150.95.109.109` (cùng
+node trial 9). RAM PSS 495,7 → 574,3 MB, rồi rơi về 68,5 → 64,3 MB sau
+mission QR (process restart do reset; app vẫn foreground).
+
+**Mắt kiểm: 32/32 ảnh evidence + tour 236,6s @4x (16 khung mẫu 15s +
+6 khung dày WebPlayer + 5 khung dày MultiView) + reel 12,2s (4 khung) +
+timelapse 23,7s (4 khung) + 2 crop zoom** = 69 khung (biên bản đầy đủ:
+`~/workspace/kenhlive-plan/qa-run-43227207645/VISUAL-REVIEW.md`).
+
+**Kết quả từng fix (chỉ ghi số F cho mục xác minh khỏi bằng mắt):**
+**F71 = A18** (3 hàng giữa Home render: ĐANG PHÁT t_001, TRẬN SẮP DIỄN
+RA 54 trận t_005/step_004, PHIM MỚI CẬP NHẬT 12 phim step_025;
+TIẾP TỤC XEM không kiểm được — tour không quay lại Home sau VOD).
+**F72 = A19** (1 viền focus duy nhất ôm đúng mép ở mọi khung focus;
+không viền đôi, không thẻ xẻ đôi). **F73 = A15** (spinner chỉ thoáng qua
+lúc buffer: step_021 → t_004 sạch, step_037 → step_038 sạch).
+**F74 = M10 WebPlayer** (OSD tự ẩn: step_063 QA 706,5s còn OSD →
+tour w_014 ≈ QA 708 chỉ còn control embed; độ trễ ~5–13s, không đo
+chính xác 5s; không còn kẹt 46s như trial 9). **F75 = A20** (không toast
+nào đè nút OSD trong toàn bộ bằng chứng IPTV; toast chuyển kênh không
+xuất hiện lần nào). **F76 = A9** (Lịch "● Hôm nay" đúng ngày, 12 trận,
+không còn "Thứ Bảy, 03/10", không trống).
+**Không ghi số:** A8 (không có trận kết thúc nào trong bằng chứng để
+kiểm), H1 (mission #14 FAIL vì lý do khác — xem dưới),
+blocker `8dd396a` (chưa chứng minh được; có bằng chứng ngược).
+
+**Judge: 2 HIGH — 1 THẬT, 1 GIẢ.** (1) MultiView launch fail: THẬT
+(mission FAIL + tour xác nhận). (2) "Phụ đề đè lên seekbar" (step_019):
+GIẢ lần 2 liên tiếp — crop zoom dải OSD dưới cho thấy chỉ có nhãn OSD
+(speaker, 00:00, seekbar đỏ sạch kết thúc trước pill, "Về trực tiếp",
+"TRỰC TIẾP", "Tùy chọn"), không có phụ đề nào; các mảnh judge trích
+chính là nhãn OSD. Tiêu chí switchover "0 HIGH giả" vẫn CHƯA ĐẠT.
+**Mắt kiểm 0 false PASS** (17/17 PASS đều có evidence thật).
+**Judge bỏ lọt:** hộp "Đang tải luồng…" đè nút ▶ Phát lúc đang tải
+(step_019 crop giữa); tên đội/phim cắt cụt + pill "Xem ngay" cắt mép thẻ
+khắp nơi (đã biết từ polish Phase 1, chưa sửa); poster Yozakura đen
+thui (step_025); meta "Tổng 27 tập" vs server 18 tập (step_048).
+
+**Lỗi MỚI: A21 (HIGH) — MultiView directed launch không mở được
+activity.** `LAUNCH_MULTIVIEW` chạy 13:44:14,9 → FAIL 13:44:47,8 (30s),
+`MultiViewActivity` không xuất hiện. Tour mv_frames_01/03/05 + reel
+r_014: dialog "Cài Đặt" của mission 16 còn mở bất động suốt cửa sổ
+launch; reel r_020 sau FAIL: màn đen + toast "Mạng chập chờn – tự thử
+lại lần 6…". Nguyên nhân chưa rõ (dialog tàn dư chặn foreground và/hoặc
+resolver kẹt mạng).
+
+**Mission #14 FAIL không phải do H1:** trang embed lỗi tải
+`net::ERR_CONNECTION_RESET` (step_051 = tour t_010/t_011, kẹt ~2 phút
+QA), nút THỬ LẠI đã focus nhưng driver chỉ DPAD_RIGHT probe, không bao
+giờ bấm OK lên THỬ LẠI → kẹt cấp 2. Tính chất nhất thời (cùng phim/tập
+phát được 2 phút sau ở mission #15). **Mission #15 PASS thật**
+(00:10/46:01, motion 5,25, vision `player_title` 1 tiêu đề duy nhất).
+**F63 KHỎI (xác nhận lần 3), A1 KHỎI (xác nhận lại).** H1 chưa kiểm được
+— gate chưa bao giờ được thử thách.
+
+**Mission tour mới: 1 PASS (màn Cài đặt có trong tour), 2 FAIL — cả 2
+đều lỗi harness, không phải lỗi app.** #19 storage: `goto_texts=["dung
+lượng bộ nhớ đệm"]` (§15.23 căn cứ code) KHÔNG khớp nhãn thật
+**"Xóa bộ nhớ đệm ảnh"** → driver mở nhầm dialog chất lượng hình, bấm
+OK 6 lần trên listview, chọn nhầm "Cao nhất (nét)"; dialog storage chưa
+bao giờ mở; bộ nhớ KHÔNG bị xóa (Cài đặt còn nguyên). #20 QR: driver ĐÃ
+tới hàng "Liên hệ & Báo lỗi" (step_086) nhưng không bấm OK lần nào
+(focus view không mang text nên luật open_dialog không nhận ra hàng đích);
+dialog QR chưa bao giờ mở. **Blocker `8dd396a` chưa chứng minh được:**
+kịch bản §15.24 không xảy ra (storage dialog không mở), nhưng dialog
+settings của player (mission 16) sống sót qua reset đầu mission 17 và
+còn mở suốt cửa sổ launch MultiView (chỉ biến khi mission 18 sang tab
+Tìm kiếm); log không có dòng BACK/reset nào quanh 13:44:14–13:44:47.
+
+**Video tour VẪN CHƯA ĐỦ để giao (thiếu 3 màn như trial 9 trừ Cài đặt):
+dialog "Xóa bộ nhớ đệm", màn Telegram QR, MultiView.**
+`full_qa_tour.mp4` 236,6s @4x trong artifact run 43227207645.
+
+**KHÔNG switch** — NEEDS_FIX 72, 1 HIGH thật mới (A21), 1 HIGH giả,
+H1/A8 chưa kiểm được, 2 mission tour FAIL vì harness, tour thiếu 3 màn,
+blocker `8dd396a` chưa chứng minh được. Vòng sửa tiếp theo (chưa duyệt,
+chỉ ghi): A21 + kiểm lại reset `8dd396a` trên dialog settings của player;
+harness tour (storage goto_text → "xóa bộ nhớ đệm ảnh", QR sửa luật
+open_dialog nhận diện hàng đích qua text con, #14 bấm THỬ LẠI khi gặp
+trang lỗi); mission Lịch cuộn tìm trận kết thúc + quay lại Home sau VOD
+kiểm TIẾP TỤC XEM; polish còn sót (tên cắt cụt, pill cắt mép, poster
+đen, meta 27 vs 18 tập). Sau đó trial mới + tour đủ màn rồi mới xét
+switch.
