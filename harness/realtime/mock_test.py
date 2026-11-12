@@ -578,25 +578,40 @@ def main():
     assert _o15b["ui_state"]["has_dialog"] is False
     print("SYNC_SHOT_DUMP_OK")
 
-    # --- Test N16: IPTV_EPG cần vision_confirm EPG text (CI-T7 mục 8) ---
+    # --- Test N16: IPTV_EPG cần vision_confirm tên kênh đang phát (CI-T7 mục 8,
+    # H4 trial 5) ---
     # CI-T6 PASS mềm: frame chỉ thấy list kênh, không thấy EPG text mà vẫn
-    # PASS cứng. Giờ mission bắt buộc vision (xác nhận tên kênh + EPG trong
-    # frame): đủ tín hiệu rẻ mà chưa có vision thì VISION_PENDING, không PASS.
+    # PASS cứng. Giờ mission bắt buộc vision (xác nhận tên kênh + kênh đang
+    # phát trong frame): đủ tín hiệu rẻ mà chưa có vision thì VISION_PENDING,
+    # không PASS.
+    # H4 (trial 5 run 43183031119): target cũ đòi EPG TRONG PLAYER là sai với
+    # app thật — OSD player chỉ hiện tên kênh, EPG chỉ có ở thẻ lưới
+    # (step_041: 'Khám phá Việt Nam…' dưới tên kênh). Target mới chỉ đòi tên
+    # kênh + đang phát; EPG lấy từ thẻ lưới qua required_texts=['kênh']
+    # (lưới đã thấy trong mission). Vision xác nhận tên kênh đang phát (không
+    # cần EPG trong khung player) thì PASS.
     from gate import EvidenceGate as _EG16
     _spec16 = specs["MISSION_IPTV_EPG_AND_ZAPPING_PLAYER"]
     assert _spec16.needs_vision is True, "IPTV_EPG phải cần vision_confirm"
-    assert "EPG" in _spec16.target_desc and "tên kênh" in _spec16.target_desc, \
-        "target_desc phải yêu cầu thấy tên kênh + EPG text trong frame"
+    assert "tên kênh" in _spec16.target_desc, \
+        "target_desc phải yêu cầu thấy tên kênh đang phát trong frame"
+    assert "EPG" not in _spec16.target_desc, \
+        "H4: target không được đòi EPG trong player — OSD player không hiện EPG, EPG chỉ có ở thẻ lưới"
+    assert "kênh" in _spec16.required_texts, \
+        "H4: EPG lấy từ thẻ lưới — mission phải yêu cầu text 'kênh' (lưới đã thấy)"
     _g16 = _EG16(_spec16)
-    for _t in (10.0, 20.0, 30.0, 40.0):
+    # Bước lưới (tab IPTV): thấy header đếm kênh -> bank text 'kênh'.
+    _g16.observe("com.kenhlive.tv/.MainActivity", ["Địa Phương — 66 kênh"],
+                 [], False, False, 10.0)
+    for _t in (20.0, 30.0, 40.0):
         _g16.observe("com.kenhlive.tv/.PlayerActivity", [], [], False, True, _t)
     _v16, _r16, _ = _g16.evaluate("step_004.jpg")
     print("IPTV_EPG đủ tín hiệu rẻ, chưa vision ->", _v16, "|", _r16)
-    assert _v16 == "VISION_PENDING", "chỉ thấy list/player mà chưa vision thì không được PASS"
+    assert _v16 == "VISION_PENDING", "chỉ thấy lưới/player mà chưa vision thì không được PASS"
     _g16.record_vision(True, "step_004.jpg", 40.0,
-                       "đang phát VTV1, EPG: Thời sự 19:00")
+                       "đang phát VTV Cần Thơ, tên kênh hiện trên OSD")
     _v16b, _r16b, _ = _g16.evaluate("step_004.jpg")
-    assert _v16b == "PASS", "vision xác nhận có EPG text thì PASS"
+    assert _v16b == "PASS", "vision xác nhận tên kênh đang phát thì PASS (không cần EPG trong player)"
     print("IPTV_EPG_VISION_OK")
 
     # --- Test N17: detector điểm số trực tiếp ở Schedule (CI-T7 mục 9) ---
@@ -2457,8 +2472,9 @@ def main():
     test_ci_t9_player_title_frame_skips_error_dialog()
     test_ci_t9_player_title_question_asks_duplicate()
     test_ci_t9_keyboard_open_type_unverified()
-    # --- H3 (vòng sửa sau trial 5, run 43183031119) ---
+    # --- H3/H4 (vòng sửa sau trial 5, run 43183031119) ---
     test_h3_sports_multi_source_seek_cola()
+    test_h4_iptv_hold_and_no_tab_switch_in_player()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -3379,6 +3395,85 @@ def test_h3_sports_multi_source_seek_cola():
     assert _a.rule != "seek_target_text", \
         "đã thấy text mục tiêu thì không được quét nữa (rule: %s)" % _a.rule
     print("H3_SPORTS_MULTI_SEEK_COLA_OK")
+
+
+def test_h4_iptv_hold_and_no_tab_switch_in_player():
+    """H4 (trial 5 run 43183031119): mission IPTV_EPG FAIL oan 2× vision deny.
+    (a) Driver SWITCH_TAB giết player đang phát: ở PlayerActivity, dump có
+    nút OSD 'VỀ TRỰC TIẾP' nên detect_tab trả 0 ≠ tab 2 -> luật goto_tab nổ
+    -> `am start MainActivity` -> player thoát về lưới (log run: SWITCH_TAB 2
+    [goto_tab] giữa lúc kênh đang phát, motion 10.37) -> vision chạy trên
+    khung lưới rồi khung tải luồng. Giờ goto_tab CẤM trong player.
+    (b) Kênh đã phát (motion_seen) thì driver GIỮ NGUYÊN (WAIT) thay vì probe
+    DPAD_RIGHT, để observation kế tiếp — lúc runner gọi vision-confirm —
+    vẫn là khung kênh đang phát, không phải màn 'Đang tải luồng...'.
+    (c) Hồi quy: ExoPlayer không bị luật giữ kênh IPTV chạm tới; ngoài player
+    thì goto_tab vẫn chạy như cũ."""
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+    _specs = {s.name: s for s in get_missions()}
+    _iptv = _specs["MISSION_IPTV_EPG_AND_ZAPPING_PLAYER"]
+    _exo = _specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]
+
+    def _drv(spec, tab, motion_seen=False):
+        _dev = FakeDevice()
+        _dev._tab = tab
+        _g = EvidenceGate(spec)
+        if motion_seen:
+            _g.observe("com.kenhlive.tv/.PlayerActivity", [], [], False, True, 10.0)
+        return Driver(_dev, _g, spec)
+
+    # Dump player IPTV kiểu thử 5: OSD có 'VỀ TRỰC TIẾP', focus 'QUAY LẠI'.
+    _ui_player = {
+        "focused_sig": "btnBack#[100,900][300,1000]",
+        "focused_text": "◀ QUAY LẠI",
+        "focused_bounds": "[100,900][300,1000]",
+        "all_visible_texts": [("btnBack", "◀ QUAY LẠI"),
+                              ("btnLive", "VỀ TRỰC TIẾP"),
+                              ("channelName", "VTV Cần Thơ")],
+        "all_visible_nodes": [
+            {"id": "btnBack", "text": "◀ QUAY LẠI", "bounds": "[100,900][300,1000]"},
+            {"id": "btnLive", "text": "VỀ TRỰC TIẾP", "bounds": "[400,900][700,1000]"}],
+        "has_dialog": False, "dialog_ids": []}
+
+    # (a) trong player + tab detect lệch (0 ≠ 2) + kênh đang phát -> WAIT giữ
+    # kênh, TUYỆT ĐỐI không SWITCH_TAB.
+    _a = _drv(_iptv, 0, motion_seen=True).next_action(
+        _ui_player, "com.kenhlive.tv/.PlayerActivity", None, 0.0)
+    print("IPTV trong player, tab lệch, đang phát ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.type != "SWITCH_TAB", \
+        "SWITCH_TAB trong player giết playback (thử 5) — không được chạy khi đang ở PlayerActivity"
+    assert _a.rule == "hold_playing_channel" and _a.type == "WAIT", \
+        "kênh đang phát thì phải WAIT giữ khung phát (được %s %s)" % (_a.type, _a.rule)
+    # (a2) trong player + tab lệch + kênh CHƯA phát xong motion -> WAIT chờ
+    # stream, cũng không SWITCH_TAB.
+    _a = _drv(_iptv, 0, motion_seen=False).next_action(
+        _ui_player, "com.kenhlive.tv/.PlayerActivity", None, 0.0)
+    print("IPTV trong player, tab lệch, chưa có motion ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.type != "SWITCH_TAB" and _a.rule == "wait_stream", \
+        "chưa có motion thì WAIT chờ stream, không SWITCH_TAB (được %s %s)" % (_a.type, _a.rule)
+    # (b) kênh đã phát, focus có text -> trước đây probe DPAD_RIGHT, giờ WAIT.
+    _a = _drv(_iptv, 2, motion_seen=True).next_action(
+        _ui_player, "com.kenhlive.tv/.PlayerActivity", None, 0.0)
+    assert _a.rule == "hold_playing_channel", \
+        "IPTV đã phát thì giữ kênh, không probe DPAD_RIGHT (được %s)" % _a.rule
+    # (c1) hồi quy ExoPlayer: đang phát thì vẫn probe như cũ, không giữ kênh.
+    _a = _drv(_exo, 0, motion_seen=True).next_action(
+        _ui_player, "com.kenhlive.tv/.PlayerActivity", None, 0.0)
+    print("ExoPlayer trong player, đang phát ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.rule == "probe_player", \
+        "luật giữ kênh chỉ áp mission IPTV, ExoPlayer vẫn probe như cũ (được %s)" % _a.rule
+    # (c2) ngoài player thì goto_tab vẫn chạy: lưới IPTV nhưng detect tab 0.
+    _ui_grid = dict(_ui_player, focused_sig="channelCard#[100,400][500,700]",
+                    focused_text="VTV Cần Thơ",
+                    focused_bounds="[100,400][500,700]")
+    _a = _drv(_iptv, 0).next_action(
+        _ui_grid, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("IPTV ở MainActivity, tab lệch ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.type == "SWITCH_TAB" and _a.param == "2" and _a.rule == "goto_tab", \
+        "ngoài player thì sai tab vẫn phải SWITCH_TAB về tab đích (được %s %s)" % (_a.type, _a.rule)
+    print("H4_IPTV_HOLD_NO_TAB_SWITCH_IN_PLAYER_OK")
 
 
 if __name__ == "__main__":

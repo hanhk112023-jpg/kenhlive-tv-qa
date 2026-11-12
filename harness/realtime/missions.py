@@ -152,11 +152,22 @@ ALL_MISSIONS = [
         "CI-T7 mục 8: CI-T6 PASS mềm — frame chỉ thấy list kênh, không thấy "
         "EPG text — nên mission này bắt buộc vision_confirm (xác nhận có "
         "thấy tên kênh + thông tin EPG/lịch phát sóng trong frame), không "
-        "PASS cứng khi chỉ thấy list.",
+        "PASS cứng khi chỉ thấy list. "
+        "H4 (trial 5 run 43183031119): target cũ SAI với app thật — OSD "
+        "player chỉ hiện TÊN KÊNH, KHÔNG có thông tin EPG (tên/giờ chương "
+        "trình); EPG chỉ có ở thẻ lưới (step_041: 'Khám phá Việt Nam…' dưới "
+        "tên kênh). Vision xác nhận đúng lúc kênh đang phát (tour t≈95s, "
+        "VTV Cần Thơ, motion 10.37) nhưng driver SWITCH_TAB giết player rồi "
+        "vision chạy trên khung lưới/khung tải luồng nên 2× deny oan. Giờ "
+        "target vision chỉ đòi tên kênh + đang phát (đúng cái OSD hiện); "
+        "EPG lấy từ thẻ lưới qua required_texts=['kênh'] — bằng chứng lưới "
+        "đã thấy trong mission. Driver giữ kênh đang phát + không SWITCH_TAB "
+        "trong player (xem driver.py).",
         max_steps=7, min_steps=3,
         required_activity="PlayerActivity",
+        required_texts=["kênh"],
         needs_motion=True, needs_vision=True,
-        target_desc="trình phát IPTV đang phát một kênh truyền hình, màn hình hiện tên kênh và thông tin EPG/lịch phát sóng của chương trình đang phát (tên chương trình và giờ phát)",
+        target_desc="trình phát IPTV đang phát một kênh truyền hình, màn hình hiện tên kênh đang phát",
         tab=2,
     ),
     MissionSpec(

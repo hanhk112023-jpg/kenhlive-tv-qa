@@ -539,7 +539,16 @@ class Driver:
         # -- 0b. Sai tab: mission khai tab đích mà đang ở tab khác -> chuyển tab.
         # (Runner đã reset tab đầu mission; luật này là lưới an toàn khi BACK
         # hoặc điều hướng làm lạc tab giữa chừng.)
-        if m.tab is not None:
+        # H4: CẤM khi đang trong player (PlayerActivity/WebPlayerActivity) —
+        # SWITCH_TAB chạy `am start MainActivity` nên GIẾT player đang phát.
+        # Trial 5 (run 43183031119): IPTV đang phát thật (motion 10.37) mà
+        # luật này nổ vì dump player chứa nút OSD 'VỀ TRỰC TIẾP' (detect_tab
+        # trả 0 ≠ tab 2) -> SWITCH_TAB 2 -> player thoát về lưới -> vision
+        # chạy trên khung lưới/khung tải luồng, deny oan 2 lần. Trong player
+        # thì tab không còn ý nghĩa (player mới là đích), ra khỏi player rồi
+        # luật này mới được chạy lại.
+        if m.tab is not None and "PlayerActivity" not in act \
+                and "WebPlayerActivity" not in act:
             cur_tab = self.device.detect_tab_index(ui_state)
             if cur_tab is not None and cur_tab != m.tab:
                 return Action("SWITCH_TAB", str(m.tab), rule="goto_tab",
@@ -706,6 +715,19 @@ class Driver:
                     self._webplayer_waited = True
                 return Action("WAIT", "2.0", rule="wait_stream",
                               thought="Chờ video tải và chuyển động")
+            # H4: IPTV_EPG — kênh ĐÃ phát (motion_seen) thì GIỮ NGUYÊN, không
+            # bấm probe DPAD_RIGHT. Runner gọi vision-confirm ở observation
+            # kế tiếp khi gate đủ tín hiệu rẻ; bấm lung tung lúc này có thể
+            # nhảy kênh / rơi vào màn 'Đang tải luồng...' đúng lúc vision soi
+            # (trial 5: kênh phát thật ở bước trước nhưng vision kiểm trên
+            # khung tải luồng, deny oan). Chỉ giữ mission này (theo tên) để
+            # không đổi hành vi ExoPlayer/VOD.
+            if m.name == "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER" \
+                    and gate.motion_seen:
+                return Action("WAIT", "2.0", rule="hold_playing_channel",
+                              thought="Kênh IPTV đang phát — giữ nguyên khung phát "
+                                      "để vision xác nhận, không bấm kẻo rơi vào "
+                                      "màn tải luồng")
             if focused_sig == "NONE":
                 return Action("KEY", "OK", rule="wake_osd",
                               thought="OSD ẩn (focus NONE) — bấm OK gọi OSD lên")
