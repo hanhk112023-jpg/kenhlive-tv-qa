@@ -1346,3 +1346,163 @@ phải kèm trial kiểm chứng vì động vào bước proxy):**
   0.01); reel Thử 4 chỉ khớp nội dung 1/2 (entry step_014); nhãn
   "false-negative" cho vision IPTV Thử 3 là nói quá — khung lưu phát rõ
   nhưng EPG không đọc được nên phủ định chưa chắc sai.
+
+### 15.17. CI-T9 vòng sửa — LIVE TRIAL thử 5 (run 43183031119, 2026-11-12)
+
+Trial trực tiếp của code vòng sửa CI-T9 (QA head `eedeff6`, 13 commit; app
+`22582030e610d25b2b9703903bd69cfbebd64a5e`, 6 fix A1/A5/A6/A10/A11/A12).
+Workflow SUCCESS, job `qa` 27m45s. Artifact `qa-report-realtime` đã tải về
+`~/workspace/kenhlive-plan/qa-run-43183031119/` (29 ảnh, tour 306,63s @ 4,0×,
+reel 24,5s, timelapse 30,7s, `qa_report.json`, `qa_session.json`, `run.log`).
+Kiểm bằng mắt toàn bộ 29 ảnh + 33 khung mẫu tour + 4/4 segment reel +
+3 khung timelapse; chi tiết đầy đủ ở `VISUAL-REVIEW.md` trong cùng thư mục.
+
+**Verdict: NEEDS_FIX — KHÔNG switch.**
+
+| Số liệu | Giá trị |
+|---|---|
+| Verdict / điểm | NEEDS_FIX / **48** (T3/T4: 69) |
+| Thời gian QA | **1351s = 22m31s** (< 1800s ✅; T4: 1394s) |
+| Bước / mission | 81 bước, 18 mission, **14/18 PASS** (T3/T4: 12/18), 0 UNVERIFIED |
+| Vision | 6 call (confirm_target 4, check_visual 2), provider **OPENAI** qua `integrate.api.nvidia.com`, model `nvidia/nemotron-3.5-super-vl-120b-a12b`, 7 request, **0×429**, 0 retry, `fallback_used` 0, latency TB 24,7s/call, `vision_s` 148,3s |
+| Video | ghi 1226,2s, tour 306,63s @ 4,0×, `graceful_stop` true, `screenrecord_exited` true, 7 chunk |
+| Reel | 4 entry, **4/4 `content_verified`**, timebase `chunk_map` |
+| Findings | **4 HIGH, cả 4 đều THẬT** (0 HIGH giả) |
+
+**Điểm rơi 69 → 48 dù PASS tăng:** công thức `judge.py`
+(100 − 12×HIGH − round(FAIL/18×20)): thử này 100 − 48 − 4 = 48
+(T3/T4: 100 − 24 − 7 = 69). Điểm phạt theo số HIGH, không theo số PASS —
+4 HIGH (thêm A13 mới + hàng LIVE 15:00/15:30 tách thành 2 finding) kéo
+điểm xuống dù app đã sửa được A1/A5.
+
+**Proxy VN (mục 8): ổn định lần 3 liên tiếp.** APT cài sing-box 1.14.4 ngay
+lần 1 (`dung sing-box tu APT: /usr/bin/sing-box`); `gh release download`
+không chạy. **Exit IP trên runner: VN, lần kiểm 1** (06:30:33 UTC):
+`150.95.109.109`, `HAS_PROXY=1` — cùng node 3 trial liên tiếp. 2 nợ nhỏ ở
+§15.16 đã được sửa trong run này: APT pin version (`sing-box=${SB_VER#v}*`,
+cài đúng `sing-box_1.14.4_amd64.deb`) và `sudo install -d` đã nằm trong
+khối `if` APT.
+
+**F63 — phát thật lần 3, KHÔNG có video_error:**
+- VOD mission PASS: `playback_s` 0 → 59 (mắt đọc step_056: 00:59/13:53).
+- Directed mission readings: `114, 833, 134, 144, 144, 833, 833, 174, 174,
+  194, 204` — bỏ các lần đọc **833 = 13:53 (giờ tổng)**, giờ phát còn lại
+  tăng đơn điệu 114 → 204. Mắt đọc 4 khung: 00:59 → 02:24 → 02:54 →
+  **03:24** / 13:53, 4 cảnh phim khác nhau, tiến trình 7% → 25%. Có đệm
+  (spinner ở step_066/068, motion 0.01 ở bước 65) nhưng hồi phục.
+- **B1 (gate đọc đồng hồ): sửa được một nửa** — `playback_s` đã đọc được
+  (thử 3/4 toàn null), nhưng OCR của harness đọc cả 2 số trên OSD
+  "MM:SS / 13:53", lúc lấy giờ phát lúc lấy giờ tổng → gate "không tăng
+  đơn điệu" FAIL oan. Lỗi harness (H1 dưới), không phải video đóng băng.
+- **video_error KHÔNG tái hiện:** 0 lần trong log/report/session; khung
+  WebPlayer cuối step_068 (03:24) không có dialog; tour t223–243 cho thấy
+  harness rời WebPlayer sạch sang player native (00:10 → 00:53). Dialog
+  này là của embed player (app/embed-side), không phải harness render;
+  nguyên nhân gốc chưa xác định được — phiên phát kết thúc ở 03:24 khi
+  chuyển mission, có thể lỗi chỉ kịp xảy ra nếu phát tiếp.
+- **B2 (player_title): sửa xong** — vision chạy đúng khung step_068
+  (không còn chạy nhầm khung dialog lỗi vì lần này không có dialog),
+  `not_found` đúng (chỉ 1 dòng tiêu đề).
+
+**Findings — mắt kiểm (4/4 THẬT):**
+- #1 `blvScore` hiện `'0 - 0 · null'` — **THẬT, A13 MỚI** (§15.17 cuối).
+- #2/#3 hàng LIVE chỉ hiện giờ kickoff `'15:00'` (Tasmania) và `'15:30'`
+  (Adelaide) — **THẬT, A6 còn**, ổn định qua 3 lần quan sát.
+- #4 focus lọt xuống nền khi Dialog mở — **THẬT, A11 CÒN** (viền trắng ở
+  thẻ nền `cardRoot#[180,808][839,1044]`, y hệt thử 4).
+
+**Mission FAIL (4) — đối chiếu bằng mắt:**
+- SPORTS_MULTI_SOURCE (thiếu text `'cola'`): khớp 2 khung đã lưu (chỉ có
+  badge "SOCO"), nhưng app CÓ hiện "COLA" ở thẻ khác cùng tab (step_036)
+  — mission đi sai hàng, lỗi harness (H3).
+- IPTV_EPG (vision 2× deny): khớp khung kiểm step_044 (màn đen + "Đang
+  tải luồng..."), nhưng kênh **ĐÃ PHÁT THẬT** trước đó (tour t≈95s,
+  VTV Cần Thơ, đúng bước PlayerActivity t=388.9, motion 10.37); OSD
+  player không hiện thông tin EPG (chỉ có ở thẻ lưới) — target/vision
+  sai thời điểm (H4).
+- PHIM_EPISODE_PICKER: **FAIL oan** — dialog "CHỌN SERVER & TẬP PHIM" đã
+  mở đúng (step_051, Tập 1 focus), OK → player đúng tập (step_052,
+  00:18); thông báo FAIL dùng nhầm mẫu mission thể thao + gate coi "kết
+  thúc ở Player" là lỗi (H2).
+- WEBPLAYER_DIRECTED: **FAIL oan một nửa** — phim phát thật (§F63); "lùi
+  699s" là OCR đọc giờ tổng (H1); "vision chưa xác nhận" là thật — mission
+  này không gọi vision lần nào (4 confirm_target của run: ExoPlayer ✓,
+  VOD ✓, IPTV ✗✗).
+
+**Từng fix app vòng này (mắt kiểm):**
+- **A1 — KHỎI.** WebPlayer 1 dòng tiêu đề duy nhất (4/4 khung); player
+  native "Tuyệt Thế Chiến Hồn" / "Tập 01" (không lặp).
+- **A5 — KHỎI.** Rail mở được (step_036, đủ 7 mục, TRỰC TIẾP focus).
+- **A6 — CÒN.** Lịch thiếu tỉ số (Tasmania 15:00, Adelaide 15:30); thẻ
+  thể thao "Adelaide VS Melbo…", "Kawas… VS Kashiw…", "Bangla… VS
+  Sri Lan…", "New Z… VS India" LIVE không tỉ số. Nhưng Thailand 0:2 và
+  APIA 0:0 có tỉ số — thiếu theo từng trận.
+- **A10 — CÒN (dạng mới).** Hàng nút vừa màn hình (không còn tràn mép,
+  không có nút thứ 5 lộ ra), nhưng nút "ÂM THANH & PHỤ ĐỀ" quá hẹp:
+  chữ bị cắt cả 2 đầu (Â cắt viền trái, Ề cắt viền phải) — crop phóng 2×
+  step_052/070/071.
+- **A11 — CÒN.** step_016 y hệt thử 4; thêm: dialog Cài Đặt của player
+  native cũng để lại viền trắng ở nút nền "ÂM THANH & PHỤ ĐỀ"
+  (step_070/071). Fix trong app 2258203 không có tác dụng.
+- **A12 — dạng cũ không thấy, biến thể mới.** NZ vs India chỉ còn "VS"
+  khắp nơi; nhưng **Adelaide vs Melbourne United: tab TRỰC TIẾP hiện
+  0:0 (step_036), tab LỊCH TRÌNH chỉ hiện "15:30" không tỉ số
+  (step_018/019/030/031)** — cùng trận, 2 cách hiện khác nhau giữa 2 tab.
+- **A9 — không tái hiện.** Detail trận ghi đúng "Thứ Năm, 12/11/2026,
+  04/10 ÂL · Ất Tỵ" (step_023); tab Lịch chỉ hiện "Hôm nay" nên không
+  kiểm được ngày ở đó.
+- **Đính chính "thời lượng tập đổi" (thử 3/4): không phải lỗi.** WebPlayer
+  hiện phải = TỔNG (13:53); player native hiện phải = CÒN LẠI (00:18/
+  13:35, 01:03/12:49, 00:10/13:43 → 00:53/13:00 — cộng lại luôn = 13:53).
+  Native tuân thủ đúng luật KL8 "VOD right label = remaining time".
+- ExoPlayer **mở đúng trận đang đá**: khung PlayerActivity không lưu
+  trong shots, nhưng tour t≈45s + timelapse t=5s thấy rõ trận live,
+  OSD "Hiệp 1: 35' · THA 0 - 2 QAT", "BLV GIÀ LÀNG". Vision quote lấy từ
+  khung detail step_023 (sau khi rời player) — quote đúng, nhưng bằng
+  chứng player thật nằm ở tour.
+- SEARCH mục 7 **ĐẠT**: bàn phím QWERTY mở thật, gõ "uefa", "0 kết quả
+  cho "uefa"" (step_076/081/082, tour t265–305); `keyboard_open_image=true`
+  ở bước 73–81.
+- Hero vision `not_found` ĐÚNG (không có giờ đè tiêu đề, step_027).
+  "PHIM MỚI CẬP NHẬT — 12 phim" (thử 3: 120, thử 4: 72): dữ liệu live đổi,
+  không phải lỗi. Phút trận nhảy 32' → 35' trong ~31s (feed refresh /
+  đồng hồ luồng khác API): chỉ ghi nhận.
+
+**Video phủ:** tour 306,63s @4× = 1226,2s ghi / 1069,8s hành động =
+114,6% (thô 90,8% theo 1351s cả finalize); 7 chunk đủ; reel 4/4 nội
+dung khớp (mắt kiểm 4 khung mẫu reel t=3/9/15/21 đúng cảnh); timelapse
+30,7s là nội dung phiên thật.
+
+**Lỗi harness ghi cho vòng sửa sau (CHỈ GHI):**
+- **H1 — OCR đồng hồ WebPlayer:** chỉ đọc số trái (trước dấu `/`), hoặc
+  bỏ qua lần đọc bằng đúng tổng thời lượng.
+- **H2 — Mission chọn tập:** sửa thông báo FAIL (đang dùng mẫu mission
+  thể thao) + gate (chọn tập phải mở player, không phải lỗi).
+- **H3 — Mission đa nguồn:** tìm `'cola'` sai chỗ (hàng NBL/JLC chỉ có
+  "SOCO"); điều hướng tới đúng hàng hoặc tìm không phân biệt hoa/thường.
+- **H4 — Mission IPTV:** vision chạy trên khung tải luồng; OSD player
+  không có EPG — hoặc kiểm đúng lúc phát, hoặc đổi target.
+- **H5 — Không lưu khung PlayerActivity** cho mission ExoPlayer (bước 21,
+  t=200.7, motion 29.64): lần này tour cứu được, nên lưu frame khi vào
+  PlayerActivity.
+- Ghi nhận: `image_focus_ring=true` ở 5 bước (51, 54, 60, 61, 68; box
+  bước 51 khớp nút đang focus trong step_052) — khác CI-T8 là 0/95 bước,
+  cơ chế mục 1 đã chạy. `duplicate_frame=true` ở bước 61 (khung trùng
+  bước 60).
+
+**Lỗi app mới ghi cho fix loop sau (CHỈ GHI, không sửa code app):**
+- **A13 (MỚI, thử 5 run 43183031119):** thẻ phòng BLV hiện chuỗi `null`
+  thô — dialog "Phòng bình luận" trận APIA vs Adelaide City: cả 3 thẻ
+  TOP 01/02/03 ghi "0 - 0 · null" (step_015/016). Mẫu là `{tỉ số} ·
+  {phút trận}`; trận Thailand cùng loại ghi đúng "0 - 2 · Hiệp 1: 32'"
+  (step_021) nên `null` xuất hiện khi thiếu dữ liệu phút — cần fallback
+  chuỗi rỗng/mặc định trước khi gán TextView.
+- A10 còn ở dạng mới (chữ tràn khỏi nút, §trên). A12 biến thể mới
+  (Adelaide 0:0 ở tab TRỰC TIẾP, chỉ "15:30" ở tab Lịch).
+
+**Đối chiếu switchover:** QA <30 phút ✅ (1351s); 0×429 ≤40 req ✅ (7 req);
+mọi frame bằng chứng tồn tại ✅ (29/29); reel khớp ✅ (4/4); 0 HIGH giả ✅
+(4/4 thật); 0 false pass ✅; WebPlayer tới đích + OSD thấy bằng mắt ✅~;
+mắt kiểm khớp báo cáo một phần (2/4 FAIL là oan do H1/H2, 2 FAIL khớp khung
+nhưng cần H3/H4 mới công bằng; A13/A10-dạng-mới/A12-biến-thể bị harness bỏ
+lỡ). **KHÔNG switch** — còn 4/18 FAIL và lỗi app thật A6/A10/A11/A13.
