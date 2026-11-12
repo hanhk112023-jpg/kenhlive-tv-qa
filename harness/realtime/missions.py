@@ -332,17 +332,27 @@ ALL_MISSIONS = [
         "Cài Đặt: Phản Hồi Telegram QR",
         "Tab Cài đặt (tab 4, tour trial 9 thiếu màn này): hàng 'Liên hệ & Báo "
         "lỗi' (value 'Nhóm Telegram: @kenhlivetv') mở FeedbackDialog với mã QR "
-        "Telegram (dialog_feedback.xml). Text đích 'quét mã qr' ('Quét mã QR để "
-        "vào nhóm') CHỈ có trong dialog — danh sách Cài đặt không có — nên "
-        "mission không PASS được khi chưa mở dialog. AN TOÀN: dialog này mang "
+        "Telegram (dialog_feedback.xml). SỬA wave 5 (trial 11 run 43287392690, "
+        "mission #21 FAIL): dialog MỞ ĐƯỢC thật (step_097/098) nhưng gate cũ "
+        "đòi 'quét mã qr' — text 'Quét mã QR để vào nhóm' là KL3.Text.Micro "
+        "ở cuối QR card trong ScrollView, bị khuất dưới fold khi dialog mở "
+        "(lỗi app A27, wave app riêng sửa hiển thị) nên harness không bao giờ "
+        "thấy. Gate mới dùng 'nhóm telegram' — text NHÌN THẤY ĐƯỢC trong "
+        "dialog (body + 'Nhóm Telegram: @kenhlivetv'). Lưu ý text này cũng có "
+        "trong danh sách Cài đặt nên bản thân nó KHÔNG chứng minh dialog đã "
+        "mở — needs_dialog/dialog_seen vẫn bắt buộc như cũ, danh sách đơn "
+        "độc không PASS được. needs_scroll_top=True: mission #20 phía trước "
+        "để lại danh sách Cài đặt đang cuộn sâu (hàng dung lượng), explore "
+        "chỉ đi DOWN/RIGHT — UP x8 đầu mission đưa về đầu danh sách xác định. "
+        "AN TOÀN: dialog này mang "
         "btnCloseFeedback nên luật dismiss có thể đóng nó bằng OK trên 'ĐÃ HIỂU "
         "/ ĐÓNG' (nút đóng an toàn, focus mặc định) SAU khi bằng chứng đã ghi "
         "vào gate; nút 'VÀO NHÓM TELEGRAM' không bao giờ bị bấm nên không mở "
         "intent trình duyệt ngoài app.",
         max_steps=8, min_steps=4,
         required_activity="MainActivity",
-        required_texts=["quét mã qr"],
-        needs_dialog=True,
+        required_texts=["nhóm telegram"],
+        needs_dialog=True, needs_scroll_top=True,
         target_desc="hộp thoại phản hồi Telegram đang mở với mã QR và nút Vào Nhóm Telegram",
         tab=4, goto_texts=["liên hệ"],
     ),

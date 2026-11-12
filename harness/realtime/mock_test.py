@@ -4152,8 +4152,10 @@ def test_tour_settings_and_multiview_missions():
       dialog đang mở nên nút xóa thật không bị bấm (kể cả khi focus đang
       đứng trên chính nút đỏ).
     - SETTINGS_FEEDBACK_TELEGRAM_QR: hàng 'Liên hệ & Báo lỗi' mở
-      FeedbackDialog với mã QR — text đích 'quét mã qr' chỉ có trong
-      dialog nên danh sách Cài đặt đơn độc không PASS được; nút 'VÀO NHÓM
+      FeedbackDialog với mã QR — wave 5 sửa gate: 'quét mã qr' là text
+      Micro bị khuất dưới fold (A27) nên harness không thấy; gate dùng
+      'nhóm telegram' (nhìn thấy được) + dialog_seen vẫn bắt buộc nên
+      danh sách Cài đặt đơn độc không PASS được; nút 'VÀO NHÓM
       TELEGRAM' không bao giờ bị bấm (focus ở đó thì driver BACK, focus ở
       'ĐÃ HIỂU / ĐÓNG' thì OK đóng an toàn sau khi bằng chứng đã ghi).
     - MULTIVIEW_DIRECTED: launch thẳng MultiViewActivity (không có đường
@@ -4283,22 +4285,35 @@ def test_tour_settings_and_multiview_missions():
     print("storage: list x2 + dialog x2 ->", _v, "|", _r)
     assert _v == "PASS"
 
-    # --- (2) Telegram QR: text đích chỉ có trong dialog; nút mở nhóm không bị bấm.
+    # --- (2) Telegram QR: gate text nhìn thấy được; nút mở nhóm không bị bấm.
     _fb = _specs["MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR"]
-    assert _fb.tab == 4 and _fb.required_texts == ["quét mã qr"]
+    assert _fb.tab == 4 and _fb.required_texts == ["nhóm telegram"]
     assert _fb.needs_dialog is True and _fb.goto_texts == ["liên hệ"]
+    assert _fb.needs_scroll_top is True, \
+        "mission #20 phía trước để lại danh sách Cài đặt cuộn sâu — cần " \
+        "scroll_top để explore (chỉ DOWN/RIGHT) với tới được hàng đích"
     _gf = EvidenceGate(_fb)
-    _gf.observe("com.kenhlive.tv/.MainActivity",
-                [t for _, t in _ui_list_fb["all_visible_texts"]], [], False, False, 10.0)
-    assert "quét mã qr" not in _gf.texts_seen, \
-        "danh sách Cài đặt có 'Nhóm Telegram' nhưng không có 'quét mã qr' — không được PASS khi chưa mở dialog"
-    # FeedbackDialog mở (dialog_feedback.xml): QR + 2 nút, focus mặc định 'ĐÃ HIỂU / ĐÓNG'.
+    for _t in (10.0, 20.0):
+        _gf.observe("com.kenhlive.tv/.MainActivity",
+                    [t for _, t in _ui_list_fb["all_visible_texts"]], [], False, False, _t)
+    # 'nhóm telegram' CÓ trong danh sách (value hàng phản hồi) nên text_seen
+    # đã đủ — nhưng dialog_seen=False nên gate KHÔNG được PASS.
+    assert "nhóm telegram" in _gf.texts_seen, \
+        "danh sách Cài đặt có 'Nhóm Telegram: @kenhlivetv' — text gate mới " \
+        "đã thấy từ list"
+    _vgf, _rgf, _ = _gf.evaluate("step_004.jpg")
+    assert _vgf != "PASS" and "dialog" in _rgf, \
+        "list đơn độc (chưa mở dialog) không được PASS (được %s | %s)" % (_vgf, _rgf)
+    # FeedbackDialog mở (dialog_feedback.xml): QR + 2 nút, focus mặc định
+    # 'ĐÃ HIỂU / ĐÓNG'. LƯU Ý: 'Quét mã QR để vào nhóm' (KL3.Text.Micro cuối
+    # QR card trong ScrollView) bị khuất dưới fold khi dialog mở (A27,
+    # trial 11 step_098) nên KHÔNG nằm trong all_visible_texts — fixture
+    # này phản ánh đúng những gì harness thật sự đọc được.
     _ui_fb = {
         "focused_sig": "btnCloseFeedback#[100,900][500,1000]",
         "focused_text": "ĐÃ HIỂU / ĐÓNG", "focused_bounds": "[100,900][500,1000]",
         "all_visible_texts": [("dlgTitle", "THÔNG BÁO"),
                               ("dlgSub", "NHÓM THẢO LUẬN & HỖ TRỢ TRỰC TUYẾN"),
-                              ("qrGuide", "Quét mã QR để vào nhóm"),
                               ("tgHandle", "Nhóm Telegram: @kenhlivetv"),
                               ("btnOpenTelegram", "VÀO NHÓM TELEGRAM"),
                               ("btnCloseFeedback", "ĐÃ HIỂU / ĐÓNG")],
