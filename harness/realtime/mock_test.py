@@ -4140,8 +4140,9 @@ def test_tour_settings_and_multiview_missions():
     """Tour đủ màn sau trial 9 (DESIGN §15.23, VISUAL-REVIEW trial 9 §8):
     3 mission mới lấp 4 màn thiếu (Cài đặt, dialog 'Xóa bộ nhớ đệm',
     màn phản hồi Telegram QR, MultiView).
-    - SETTINGS_STORAGE_DIALOG: hàng 'Dung lượng bộ nhớ đệm' mở dialog
-      'Xóa toàn bộ bộ nhớ đệm' (đỏ, D6) — driver KHÔNG BAO GIỜ bấm OK khi
+    - SETTINGS_STORAGE_DIALOG: hàng 'Xóa bộ nhớ đệm ảnh' (nhãn thật trên
+      màn hình — trial 10 chứng minh 'Dung lượng bộ nhớ đệm' không khớp)
+      mở dialog 'Xóa toàn bộ bộ nhớ đệm' (đỏ, D6) — driver KHÔNG BAO GIỜ bấm OK khi
       dialog đang mở nên nút xóa thật không bị bấm (kể cả khi focus đang
       đứng trên chính nút đỏ).
     - SETTINGS_FEEDBACK_TELEGRAM_QR: hàng 'Liên hệ & Báo lỗi' mở
@@ -4175,26 +4176,28 @@ def test_tour_settings_and_multiview_missions():
             "all_visible_texts": [("nav_settings", "Cài đặt"),
                                   ("rowFeedback", "Liên hệ & Báo lỗi"),
                                   ("rowFeedbackSub", "Nhóm Telegram: @kenhlivetv"),
-                                  ("rowStorage", "Dung lượng bộ nhớ đệm"),
+                                  ("rowStorage", "Xóa bộ nhớ đệm ảnh"),
                                   ("rowStorageVal", "Đệm 120 MB · APK 45 MB")],
             "all_visible_nodes": [
                 {"id": "rowFeedback", "text": "Liên hệ & Báo lỗi",
                  "bounds": "[100,300][900,420]"},
-                {"id": "rowStorage", "text": "Dung lượng bộ nhớ đệm",
+                {"id": "rowStorage", "text": "Xóa bộ nhớ đệm ảnh",
                  "bounds": "[100,450][900,570]"}],
             "has_dialog": False, "dialog_ids": [],
             "selected_ids": ["nav_settings"]}
 
     _ui_list_fb = _ui_settings("Liên hệ & Báo lỗi",
                                "rowFeedback#[100,300][900,420]", "[100,300][900,420]")
-    _ui_list_st = _ui_settings("Dung lượng bộ nhớ đệm",
+    _ui_list_st = _ui_settings("Xóa bộ nhớ đệm ảnh",
                                "rowStorage#[100,450][900,570]", "[100,450][900,570]")
 
     # --- (1) Storage dialog: spec + driver đi tới hàng đích rồi OK mở dialog.
     _st = _specs["MISSION_SETTINGS_STORAGE_DIALOG"]
     assert _st.tab == 4 and _st.required_activity == "MainActivity"
     assert _st.required_texts == ["xóa toàn bộ bộ nhớ đệm"]
-    assert _st.needs_dialog is True and _st.goto_texts == ["dung lượng bộ nhớ đệm"]
+    assert _st.needs_dialog is True and _st.goto_texts == ["xóa bộ nhớ đệm ảnh"], \
+        "goto_texts phải khớp nhãn thật trên màn hình 'Xóa bộ nhớ đệm ảnh' " \
+        "(trial 10: 'dung lượng bộ nhớ đệm' không khớp gì -> mở nhầm dialog chất lượng)"
     _dev = FakeDevice()
     _dev._tab = 4
     _drv = Driver(_dev, EvidenceGate(_st), _st)
@@ -4397,17 +4400,17 @@ def test_reset_clears_leftover_dialog_between_missions():
     # Danh sách Cài đặt sau khi BACK đóng dialog (focus ở hàng dung lượng).
     _SETTINGS_LIST = {
         "focused_sig": "rowStorage#[100,450][900,570]",
-        "focused_text": "Dung lượng bộ nhớ đệm",
+        "focused_text": "Xóa bộ nhớ đệm ảnh",
         "focused_bounds": "[100,450][900,570]",
         "all_visible_texts": [("nav_settings", "Cài đặt"),
                               ("rowFeedback", "Liên hệ & Báo lỗi"),
                               ("rowFeedbackSub", "Nhóm Telegram: @kenhlivetv"),
-                              ("rowStorage", "Dung lượng bộ nhớ đệm"),
+                              ("rowStorage", "Xóa bộ nhớ đệm ảnh"),
                               ("rowStorageVal", "Đệm 120 MB · APK 45 MB")],
         "all_visible_nodes": [
             {"id": "rowFeedback", "text": "Liên hệ & Báo lỗi",
              "bounds": "[100,300][900,420]"},
-            {"id": "rowStorage", "text": "Dung lượng bộ nhớ đệm",
+            {"id": "rowStorage", "text": "Xóa bộ nhớ đệm ảnh",
              "bounds": "[100,450][900,570]"}],
         "has_dialog": False, "dialog_ids": [],
         "selected_ids": ["nav_settings"]}
