@@ -439,6 +439,12 @@ def detect_schedule_live_no_score(ui_state, activity, ctx, frame_ref, t_offset):
     _time_re = re.compile(r"^\d{1,2}:\d{2}$")
     _score_re = re.compile(r"^\d{1,2}\s+[:\-]\s+\d{1,2}$")
     _live_re = re.compile(r"\blive\b", re.IGNORECASE)
+    # CI-T9 mục 3: LOẠI node nằm trong vùng nav (band y 0–112 theo 1080p,
+    # ngưỡng 140 chừa biên) khi gom hàng — hàng nav chứa nhãn "TRỰC TIẾP"
+    # (CI-T8: cờ schedule_live_seen bị đặt oan bởi nav, không phải hàng
+    # trận thật). Gom hàng dùng tâm dọc nên loại theo cùng khóa: node có
+    # tâm dọc y < 140 thì không phải hàng trận, không được đếm.
+    _NAV_Y = 140
     # Gom node có bounds theo hàng (tâm dọc).
     rows = []
     for n in nodes:
@@ -450,6 +456,8 @@ def detect_schedule_live_no_score(ui_state, activity, ctx, frame_ref, t_offset):
             continue
         y1, y2 = int(m[1]), int(m[3])
         cy = (y1 + y2) / 2.0
+        if cy < _NAV_Y:
+            continue  # node vùng nav — không phải hàng trận
         placed = False
         for r in rows:
             if abs(cy - r["cy"]) <= 60:

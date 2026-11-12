@@ -2435,6 +2435,9 @@ def main():
     assert _cm26b[0]["qa_start_s"] == 180.0, "qa_start phải là của chunk được giữ"
     print("CHUNK_MAP_TRIM_OK")
 
+    # --- CI-T9 mục 3 (hàm test_ci_t9_* ở cuối file) ---
+    test_ci_t9_nav_excluded_from_live_rows()
+
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -2449,6 +2452,46 @@ def main():
           and report2["nim_usage"]["requests_used"] == 0)
     print("MOCK_RUNNER_OK" if ok else "MOCK_RUNNER_FAIL")
     return 0 if ok else 1
+
+
+def test_ci_t9_nav_excluded_from_live_rows():
+    """CI-T9 mục 3: hàng nav 'TRỰC TIẾP' (band y 0–112) không được đặt cờ
+    schedule_live_seen, không được đếm là hàng trận. Bằng chứng CI-T8:
+    cờ bị đặt oan bởi nav nên mission SCHEDULE_LIVE_DIRECTED PASS mềm."""
+    import detectors as _det
+    # Chỉ có hàng nav + ngữ cảnh lịch (id 'sched'): không cờ nào được đặt.
+    _nodes_nav = [
+        {"id": "schedHeader", "text": "Hôm nay", "bounds": "[0,150][1920,260]"},
+        {"id": "nav_schedule", "text": "TRỰC TIẾP", "bounds": "[362,0][563,112]"},
+    ]
+    _ctx = {"reported": set()}
+    assert _det.detect_schedule_live_no_score(
+        {"all_visible_nodes": _nodes_nav}, "com.kenhlive.tv/.MainActivity",
+        _ctx, "step_001.jpg", 0.0) == [], "chỉ có nav thì detector không tố"
+    print("chỉ nav TRỰC TIẾP -> live_seen:", _ctx.get("schedule_live_seen"),
+          "| rows:", _ctx.get("schedule_live_rows"))
+    assert _ctx.get("schedule_live_seen") is not True, \
+        "hàng nav TRỰC TIẾP không được đặt cờ schedule_live_seen"
+    assert _ctx.get("schedule_live_rows", 0) == 0, \
+        "hàng nav không được đếm là hàng trận"
+    # Nav + 1 hàng trận LIVE thật (giờ kickoff, y 300–400): chỉ hàng trận
+    # được đếm (rows == 1), nav vẫn không tính.
+    _nodes_mix = _nodes_nav + [
+        {"id": "schedMatch", "text": "LIVE", "bounds": "[100,300][300,400]"},
+        {"id": "schedMatch", "text": "18:30", "bounds": "[400,300][600,400]"},
+        {"id": "schedMatch", "text": "Đội A", "bounds": "[700,300][900,400]"},
+    ]
+    _ctx2 = {"reported": set()}
+    _det.detect_schedule_live_no_score(
+        {"all_visible_nodes": _nodes_mix}, "com.kenhlive.tv/.MainActivity",
+        _ctx2, "step_001.jpg", 0.0)
+    print("nav + 1 hàng LIVE thật -> live_seen:", _ctx2.get("schedule_live_seen"),
+          "| rows:", _ctx2.get("schedule_live_rows"))
+    assert _ctx2.get("schedule_live_seen") is True, \
+        "hàng trận LIVE thật vẫn phải đặt cờ"
+    assert _ctx2.get("schedule_live_rows", 0) == 1, \
+        "chỉ đếm 1 hàng trận thật, nav không được đếm thêm"
+    print("CI_T9_NAV_EXCLUDED_OK")
 
 
 if __name__ == "__main__":
