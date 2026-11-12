@@ -1523,3 +1523,170 @@ mọi frame bằng chứng tồn tại ✅ (29/29); reel khớp ✅ (4/4); 0 HIG
 mắt kiểm khớp báo cáo một phần (2/4 FAIL là oan do H1/H2, 2 FAIL khớp khung
 nhưng cần H3/H4 mới công bằng; A13/A10-dạng-mới/A12-biến-thể bị harness bỏ
 lỡ). **KHÔNG switch** — còn 4/18 FAIL và lỗi app thật A6/A10/A11/A13.
+
+### 15.18. CI-T9 vòng sửa sau trial 5 — LIVE TRIAL thử 6 (run 43201685772, 2026-11-12)
+
+Trial trực tiếp của code vòng sửa sau trial 5 (QA head `4c0cf00`, 7 commit
+H1–H5 + 3 commit fix sau review; app `6880652`, 8 commit A6/A10/A11/A12/A13
++ fix sau review). Workflow SUCCESS, job `qa` 21m54s. Artifact
+`qa-report-realtime` đã tải về
+`~/workspace/kenhlive-plan/qa-run-43201685772/` (27 ảnh, tour 214,8s @ 4,0×,
+reel 42,9s, timelapse 21,5s, `qa_report.json`, `qa_session.json`, `run.log`).
+Kiểm bằng mắt toàn bộ 27 ảnh + 19 khung mẫu tour + 7/7 segment reel +
+4 khung timelapse; chi tiết đầy đủ ở `VISUAL-REVIEW.md` trong cùng thư mục.
+
+**Verdict: NEEDS_FIX — KHÔNG switch.**
+
+| Số liệu | Giá trị |
+|---|---|
+| Verdict / điểm | NEEDS_FIX / **18** (T5: 48) |
+| Thời gian QA | **970s = 16m10s** (< 1800s ✅; T5: 1351s) |
+| Bước / mission | 62 bước, 18 mission, **12/16 PASS** (12 PASS, 4 FAIL, 2 UNVERIFIED; T5: 14/18, 0 UNVERIFIED) |
+| Vision | 4 call (confirm_target 2, check_visual 2), provider **OPENAI** qua `integrate.api.nvidia.com`, 4 request, **0×429**, 0 retry, `fallback_used` 0 |
+| Video | ghi 859,0s, tour 214,8s @ 4,0×, `graceful_stop` true, `screenrecord_exited` true, 5 chunk |
+| Reel | 7 entry, **7/7 nội dung khớp** (4/4 `content_verified` + 3 directed đúng nội dung tour) |
+| Findings | **6 HIGH + 1 MEDIUM, 6/6 HIGH đều THẬT** (0 HIGH giả) |
+
+**Điểm rơi 48 → 18:** công thức `judge.py` (100 − 12×HIGH −
+round(FAIL/tổng×20)) cộng MEDIUM: 100 − 72 − 5 − 5 = 18. 6 HIGH (2 A6 +
+1 A11 + 3 directed) + 1 MEDIUM. Mẫu số 16 = 18 check − 2 UNVERIFIED (bị
+loại khỏi cả tử lẫn mẫu) — điểm 18 không "phạt" 2 mission chưa kiểm được,
+chỉ phạt 4 FAIL + 6 HIGH + 1 MEDIUM. Lưu ý: số trừ MEDIUM −5 là tái tạo từ
+số học (`judge.py` không có trong artifact); log "0 unverified" là độ dài
+list finding chưa xác minh, không phải số mission UNVERIFIED (H10).
+
+**Proxy VN (mục 8): vẫn ổn định, có vết nứt đầu tiên.** APT cài sing-box
+1.14.4 ngay lần 1 (pin `=1.14.4*` còn); **exit IP VN lần 4 liên tiếp cùng
+IP 150.95.109.109** — nhưng lần kiểm 1 trả `?` (ipwho.is timeout/rỗng),
+lần 2 mới ra VN (log dòng 532–534). Proxy không phải nguyên nhân FAIL nào
+lần này (không mission nào tới bước cần proxy).
+
+**F63 — KHÔNG ĐƯỢC KIỂM: WebPlayer chưa từng mở.**
+- `playback_s` = null ở cả 62/62 bước; activities trong timeline chỉ có
+  `MainActivity` và `PlayerActivity` — **không một lần `WebPlayerActivity`**.
+- 3 mission directed đều FAIL 0 bước ("LAUNCH_WEB_PLAYER /
+  LAUNCH_VOD_PLAYER không mở được trong 30s", log 10:51:50 / 10:52:23 /
+  10:52:59 UTC; QA t≈653,7 / 686,5 / 722,9).
+- Tour t=158–175: màn hình đứng yên dialog "CHỌN SERVER & TẬP PHIM" của
+  phim **"Gặp Ánh Trăng"** với dòng **"Chưa có tập phim khả dụng"**, 5 khung
+  giống hệt nhau, không player nào mở. Giả thuyết mạnh nhất (chưa chứng
+  minh được từ artifact — cần kiểm code resolver/deep-link): bộ giải tập
+  phim của directed launch nhắm vào phim spotlight không có tập khả dụng
+  (mission chọn tập ngay trước đó cũng nhận "Chưa có tập phim khả dụng").
+- `video_error` 0 lần trong log/report/session — **không kết luận được**
+  (chưa phát, không phải lỗi đã hết). **H1 (bỏ qua lần đọc bằng đúng giờ
+  tổng) cũng không kiểm được**: 0 lần đọc nào để đối chiếu.
+
+**Findings — mắt kiểm (6/6 HIGH THẬT):**
+- #1/#2 hàng LIVE chỉ hiện giờ kickoff `'17:00'` (Hwacheon KSPO WFC,
+  KoGas vs Goyang Sono) — **THẬT, A6 còn**, ổn định qua 4 khung
+  (step_014/015/029/031).
+- #3 focus lọt xuống nền khi Dialog mở — **THẬT, A11 CÒN** (viền trắng ở
+  thẻ nền `cardRoot#[180,808][839,1044]`, y hệt thử 4/5).
+- #4/#5/#6 directed launch không mở được player trong 30s (2 WebPlayer +
+  1 VOD) — **THẬT (sự kiện)**, cùng 1 lỗi gốc: 1 lỗi gốc = 3 HIGH + 3 FAIL.
+- MEDIUM duy nhất — nửa đúng: viền trắng thừa trên mục TRANG CHỦ nav
+  (step_049/050/051) nhưng focus vẫn di chuyển được — "kẹt focus" nói quá;
+  cùng họ A11.
+
+**Mission FAIL / UNVERIFIED — đối chiếu bằng mắt:**
+- IPTV_EPG FAIL — kênh **ĐÃ PHÁT THẬT** (step_046 VTV Cần Thơ) nhưng
+  vision **0 lần gọi** cho mission này (2 confirm_target duy nhất đều
+  thuộc ExoPlayer, bị từ chối đúng); 6/7 bước WAIT "hold_playing_channel";
+  OSD player không có EPG — lỗi harness (H4).
+- VOD WebPlayer / WebPlayer Directed / VOD Native FAIL — directed launch
+  0 bước (§F63).
+- ExoPlayer + Schedule Live UNVERIFIED — "không hàng LIVE nào có tỉ số"
+  (trung thực); nhưng ExoPlayer còn mở nhầm trận tương lai (A14/H6).
+  Mâu thuẫn cờ tổng: `schedule_live_with_score: true` trong khi 2 mission
+  UNVERIFIED + toàn bộ khung Lịch đều không tỉ số ở hàng LIVE (H8).
+
+**Từng fix vòng này (mắt kiểm):**
+- **H1 — KHÔNG KIỂM ĐƯỢC.** 0 lần đọc `playback_s`, 0 khung WebPlayer.
+- **H2 — KHỎI.** `dialog_seen: true`, mission chọn tập PASS, không còn
+  FAIL oan mẫu thể thao. Caveat: dialog ghi "Chưa có tập phim khả dụng"
+  — PASS đúng gate nhưng che mất tín hiệu dữ liệu mà vòng sau cần.
+- **H3 — KHỎI.** `texts_seen: ['cola']`, badge COLA rõ ở mọi khung.
+- **H4 — CÒN (nặng hơn trial 5).** Vision 0 lần gọi; không còn SWITCH_TAB
+  giết player (phần này khỏi); OSD vẫn không có EPG.
+- **H5 — KHỎI.** 3 khung PlayerActivity lưu cho mission ExoPlayer
+  (step_018/020/021).
+- **A6 — CÒN.** Lịch 17:00 Hwacheon + KoGas không tỉ số; nhưng Incheon
+  41:38 → 44:38 → 45:41 tự cập nhật, Hannover 0:0, Leipzig 3:2, Perth 0:0
+  có tỉ số — thiếu theo từng trận/giải (KOR WD1, KBL).
+- **A10 — KHÔNG KIỂM ĐƯỢC.** Không khung player native VOD / dialog Cài
+  Đặt nào (directed VOD launch FAIL 0 bước).
+- **A11 — CÒN.** step_012 y hệt trial 4/5; fix vòng này không có tác dụng.
+- **A12 — KHÔNG KIỂM ĐƯỢC.** Adelaide vs Melbourne United không xuất hiện
+  trong dữ liệu trial này.
+- **A13 — KHÔNG TÁI HIỆN (tạm).** Dialog BLV chỉ TOP 01 "Incheon 41 - 38",
+  grep `· null` = 0 trong toàn bộ ảnh/log/report; mẫu 0:0 thiếu phút không
+  xuất hiện — chưa kết luận khỏi hẳn.
+- **A9 — không tái hiện.** Detail trận ghi đúng "Thứ Năm, 12/11/2026".
+- **A14 (MỚI, HIGH):** Player mở trận chưa đá KUW vs SYR (ngày mai
+  21:00), kẹt màn đen "Đang tải luồng…" ~2 phút rồi mới hiện dialog "Trận
+  đấu chưa bắt đầu" (tour t=60/75 màn đen, t=90 dialog). Phần harness
+  (H6): mission bấm OK khi focus rỗng ở step_018.
+- **A15 (MỚI, MEDIUM):** spinner "Đang tải luồng…" đè giữa màn hình dù
+  VTV Cần Thơ đang phát (step_046 + tour t=135, cách ~23s, nội dung video
+  đã đổi mà spinner còn nguyên).
+
+**Video phủ:** tour 214,8s @4× = 859,0s ghi; 5 chunk đủ;
+`video_graceful_stop: true`, `screenrecord_exited: true`; bước đầu t=25,3,
+bước cuối t=780,1 → phủ 859,0/780,1 = **110,1% cửa sổ hành động** (thô
+88,6% theo 970s cả finalize). Reel khớp 7/7 nội dung. `image_focus_ring:
+true` ở **0/62 bước** (trial 5: 5 bước). Ghi nhận: `observe` trong
+PlayerActivity chậm 43–49s/lần (dump 43s) so với 3–4s ở MainActivity —
+mission ExoPlayer tốn ~190s cho 6 bước.
+
+**Lỗi harness ghi cho vòng sửa sau (CHỈ GHI):**
+- **H1 (giữ nguyên) — OCR đồng hồ WebPlayer:** chưa kiểm được lần này
+  (0 lần đọc). Giữ fix và retest sau khi launch được sửa; không được coi
+  là xong.
+- **H4 (còn) — Mission IPTV hero: vision không được gọi lần nào.** 7 bước
+  gồm 1 OK + 6 WAIT "hold_playing_channel"; khung phát thật chỉ có ở bước
+  cuối mà mission kết thúc ngay không gọi vision. Sửa: gọi confirm_target
+  ngay khi `is_playing` + motion cao **và** khung không còn "Đang tải
+  luồng…", hoặc thêm 1–2 bước WAIT sau khi video đã lên hình. Target vẫn
+  đòi EPG trong player trong khi OSD không có EPG — đổi target hoặc bỏ EPG
+  khỏi target player.
+- **H6 (mới) — Mission ExoPlayer mở nhầm trận tương lai.** Step_018 bấm
+  OK `[open_player]` khi `focused_text` rỗng → mở trúng player trận
+  KUW-SYR ngày mai 21:00. Fix trial 5 ("chỉ chọn trận đang đá") đã không
+  giữ được: mission phải xác minh thẻ đang focus là LIVE + đang đá trước
+  khi bấm OK, và không bấm OK khi focus rỗng.
+- **H7 (mới) — Directed launch không ghi log chẩn đoán + không có phim
+  dự phòng.** Cả 3 lần FAIL chỉ có 1 dòng "không mở được trong 30s". Cần
+  log: resolver đã chọn phim/tập nào, deep-link URI đã bắn, activity sau
+  30s là gì. Và: đừng để 3 mission directed cùng phụ thuộc 1 phim
+  spotlight duy nhất — nếu phim đó không có tập thì cả 3 cùng chết (1 lỗi
+  gốc = 3 HIGH + 3 FAIL = −41 điểm). Cần phim fallback có tập chắc chắn
+  (như "Tuyệt Thế Chiến Hồn" trial 3–5) hoặc skip-with-reason thay vì
+  FAIL khi dữ liệu mục tiêu rỗng.
+- **H8 (mới) — Cờ tổng `schedule_live_with_score: true` mâu thuẫn
+  mission.** Nếu cờ tính trên toàn run (tỉ số ở tab TRỰC TIẾP) thì phải
+  đổi tên/phạm vi cho rõ, hoặc chỉ tính trên tab Lịch như mission kiểm.
+- **H9 (mới, nhỏ) — `defect_reel_entries.seg_start` không phải thời gian
+  trong file reel.** Reel dài 42,9s nhưng `seg_start` ghi tới 172,8
+  (khớp timebase tour, không phải vị trí segment trong reel ~24/30/36s).
+- **H10 (mới, nhỏ) — "0 unverified" trong log gây nhầm.** Log "Score:
+  18/100 · 12/16 · 7 findings · 0 unverified" trong khi có 2 mission
+  UNVERIFIED. Đổi nhãn log thành `unverified_findings` hoặc ghi cả 2 số.
+- Ghi nhận: lần kiểm exit-IP 1 trả `?` rồi lần 2 mới ra VN (§1) — theo
+  dõi thêm 1–2 trial; `duplicate_frame` 6 bước, đều lành.
+
+**Lỗi app ghi cho vòng sửa sau (CHỈ GHI):**
+- **A14 (MỚI):** player trận chưa đá tải đen ~2 phút mới báo "chưa bắt
+  đầu" — mở player trận tương lai thì phải báo ngay.
+- **A15 (MỚI):** spinner "Đang tải luồng…" không tắt dù IPTV đã phát.
+- A6/A11 còn; A10/A12/A13 kiểm lại khi dữ liệu cho phép.
+
+**Đối chiếu switchover:** QA <30 phút ✅ (970s); 0×429 ≤40 req ✅ (4 req);
+mọi frame bằng chứng tồn tại ~ (27/27 ảnh + tour + reel + timelapse đều
+có, nhưng 3 FAIL directed **không có frame nào** — bằng chứng duy nhất là
+tour/reel); reel khớp ✅ (7/7); 0 HIGH giả ✅ (6/6 thật); 0 false pass ✅;
+WebPlayer tới đích + OSD thấy bằng mắt ✗ (**chưa từng mở**); mắt kiểm khớp
+báo cáo ~ (khớp phần lớn, nhưng 3 FAIL directed chung 1 gốc chưa xác định,
+cờ `schedule_live_with_score` mâu thuẫn, harness bỏ lỡ A14/A15).
+**KHÔNG switch** — còn 4 FAIL + 2 UNVERIFIED và lỗi app thật
+A6/A11/A14/A15.
