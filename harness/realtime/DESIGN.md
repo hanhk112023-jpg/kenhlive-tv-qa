@@ -892,3 +892,95 @@ giả); mắt khớp báo cáo MỘT PHẦN.
 9. Per-step p95/mean trong report không khớp session — ghi rõ định nghĩa đo
    hoặc sửa cách tính (p50 = 5,38 khớp; p95 tính lại 20,01 vs report 21,95;
    mean tính lại 8,91 vs report 9,61).
+
+### 15.14. CI-T8 — danh sách sửa đã làm (2026-11-12, fix loop Evelyn duyệt)
+
+Mỗi mục = 1 commit riêng trên main repo QA (lệnh "tất cả làm việc trên
+main"). Không sửa code app, không sửa workflow. Mock + replay kiểm sau mỗi
+cụm fix; reviewer độc lập kiểm lại trước khi dispatch trial.
+
+1. **Focus WebPlayer đọc ẢNH** (commit `7faff57`): `device.py` thêm
+   `detect_focus_ring_anywhere(png)` — quét band OSD (0,850–1920,1080) tìm
+   viền vàng/trắng (connected components, hollow, perimeter ≥ 0,45); ~39ms.
+   `detectors.detect_player_focus_loss` trả [] khi `image_focus_ring` True;
+   `runner._observe` gọi khi ở player mà dump không có focus, ghi
+   `image_focus_ring`/`image_focus_box` vào ui_state + timeline. Mock N18
+   `IMAGE_FOCUS_RING_OK`: viền vàng + viền trắng tìm được, khối đặc không
+   bị nhận nhầm.
+2. **Timebase tour theo chunk + verify reel bằng nội dung** (commit
+   `6c26559`): `video_recorder.py` ghi wall-clock từng chunk (`_chunk_times`),
+   `stop_and_save` dựng `chunk_map` (qa_start/end + raw_start/end theo thời
+   lượng thật file norm, trước bước dọn file tạm) và `qa_to_tour_t(qa_t,
+   chunk_map, speed_factor)` (nội suy trong chunk, kẹp ở khoảng trống +
+   `in_gap`). `judge.build_defect_reel(..., chunk_map=...)` dùng map (ghi
+   `timebase`/`in_gap` từng entry) rồi verify nội dung: trích 5 frame quanh
+   `video_t` (±6s), pixel-diff với shot trích dẫn, dời tâm cắt về vị trí
+   khớp nhất (ngưỡng 1,5%: cùng cảnh ~0,25–1,15, khác cảnh > 2) — đoạn
+   loading không khớp shot nên tự bị tránh. `runner.finish()` truyền
+   chunk_map + ghi `video_timebase`/`video_chunk_map` và số đoạn khớp nội
+   dung vào `defect_reel_coverage`. Mock N19 `CHUNK_MAP_OK` +
+   `REEL_CONTENT_OK` (tour đỏ 0–6s/xanh 6–12s, shot đỏ ở video_t=9 → dời về
+   3s, content_verified True; shot xanh lá → False).
+3. **Đồng bộ frame bằng chứng + FAIL ồn ào** (commit `006f6de`):
+   `_observe` viết lại evidence frame của finding sang path đã lưu thật khi
+   `_save_frame` dedup trả path cũ; `_finish_mission` viết lại evidence
+   frame khi dedup + dùng KHUNG DIALOG ĐÃ THẤY (param `dialog_obs`, ghi ở
+   `run_mission` khi `has_dialog` lần đầu) làm evidence cho mission cần
+   dialog; frame bằng chứng thiếu trên đĩa → FAIL ồn ào (flag
+   `evidence_frame_missing`, lý do "BẰNG CHỨNG THIẾU...") — chỉ lật PASS
+   thành FAIL, UNVERIFIED giữ nguyên. Mock N20 `EVIDENCE_SYNC_OK`.
+4. **Tốc độ** (commit `588ec3c`, cùng mục 5 phần retry): driver kẹt lần 1
+   thử thoát cục bộ `DPAD_DOWN` (`stuck:local_unstick`, ~9s) trước khi tốn
+   vision-assist; vision `_chat` timeout 30s → 60s (nemotron 120B +
+   max_tokens 5000 cần ~45–55s, timeout cũ cắt call thành công rồi thử lại
+   lãng phí); `wait_stable` 8s → 6s. Tiết kiệm kỳ vọng ~250s (cần trial đo
+   lại — mục tiêu 2057s → <1800s). Mock N21 `LOCAL_UNSTICK_OK`.
+5. **Vision retry 1 lần + fallback provider** (commit `588ec3c` phần retry,
+   `3a1bf0e` phần fallback): `_post` tổng 2 lần gửi (1 gốc + retry 1) cho
+   503/timeout/đóng kết nối; `VisionClient._chat` tách `_chat_once` +
+   `_attempt` (đếm call/latency riêng từng lần gửi); primary lỗi →
+   `_pick_fallback()` — provider đầu tiên đã cấu hình VÀ khác host primary
+   (OPENAI qua integrate.api.nvidia.com không fallback sang NVIDIA_NIM vì
+   cùng host); ghi `fallback_provider`/`fallback_used` vào `nim_stats()` +
+   `report["vision_fallback"]`. **Ở CI chỉ có 1 provider nên fallback là
+   no-op — ghi rõ, không giả vờ có.** Mock N21b `VISION_RETRY_ONCE_OK` +
+   N22 `VISION_FALLBACK_OK` (stub: primary KILO 503 → fallback OPENAI trả
+   kết quả, 2 call; không fallback → (None, error), 1 call).
+6. **Bàn phím mở = trạng thái đổi** (commit `a804d75`): `_observe` tính
+   `detect_keyboard_from_image(png)` mỗi bước (~50ms) → `ui_state` +
+   `detector_ctx["keyboard_open_image"]`; `Driver.note_state` reset streak
+   kẹt khi `keyboard_open` (dump) hoặc `keyboard_open_image` (ảnh);
+   `detect_focus_trap` dùng ctx có sẵn thay vì chỉ tính lazy ở điểm sắp tố.
+   Mock N23 `KEYBOARD_STUCK_OK`.
+7. **Schedule LIVE** (commit `687eab2`, sửa ở `11a99ba`): `detect_schedule_live_no_score`
+   ghi `ctx["schedule_live_seen"]` + đếm `schedule_live_rows` mỗi khi thấy
+   hàng LIVE (có tỉ số hay không); mission mới
+   `MISSION_SCHEDULE_LIVE_DIRECTED` (tab 1, `requires_live_row=True`,
+   max_steps 8, required_texts `["live"]` — badge LIVE, không dùng
+   "trực tiếp" vì text nav có sẵn ở mọi tab) — tổng **18 mission**;
+   `run_mission` đổi FAIL/None **và cả PASS** thành `UNVERIFIED` khi mission
+   cần hàng LIVE mà run không có hàng nào (PASS trên text nav mà không thấy
+   hàng LIVE thì mission chưa kiểm được gì); `finish()` ghi
+   `report["schedule_live_seen"]` + entry UNTESTED vào `unverified` khi cả
+   run không có hàng LIVE. Mock N24 `SCHEDULE_LIVE_OK`.
+8. **F63 / proxy VN — KHÔNG CÓ SECRET, trial chạy không proxy.**
+   Kiểm `gh secret list` repo QA (chỉ tên): có APP_CHECKOUT_KEY,
+   IOS_CHECKOUT_KEY, NVIDIA_API_KEY; **không có YUNA_PROXY_YAML,
+   YUNA_SUB_URL, GEMINI_API_KEY, METEOR_API_KEY**. Trial CI-T8 chạy không
+   proxy VN như CI-T7 — F63 (WebPlayer phát thật) vẫn không chứng minh
+   được trong emulator; cần proxy hoặc máy thật. Hạn chế này phải ghi rõ
+   trong báo cáo trial, không được ghi F63 PASS.
+9. **Định nghĩa per-step** (commit `11a99ba`, cùng sửa mục 7):
+   `finish()` ghi `timings["per_step_definition"]` (wall time cả bước =
+   observe + gate + hành động + chờ ổn định) + `observe_p50_s`/
+   `observe_p95_s`/`observe_mean_s` tính từ timeline `observe_s` để 2 dãy
+   số tự khớp; `per_step_*` giữ nguyên. Mock N25 `TIMINGS_DEFINITION_OK`.
+
+- **Mock: XANH, exit 0, 53 marker `_OK`** (43 gốc + 10 mới: N18, N19×2,
+  N20, N21, N21b, N22, N23, N24, N25) — chạy lại toàn bộ sau cụm fix cuối
+  (2026-11-12, `/tmp/mock_all3.log`).
+- **Replay offline (R9):** (chạy sau mock) — kỳ vọng giữ recall R8 (7/8
+  có vision, 0 false pass).
+- **Reviewer độc lập:** (spawn sau replay) — đọc code + chạy mock từng fix.
+- **Trial CI-T8:** (dispatch sau reviewer) — run id + trạng thái cập nhật
+  tại đây; **không tự kiểm chứng trial, không áp dụng switchover**.
