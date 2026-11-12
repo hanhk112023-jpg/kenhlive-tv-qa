@@ -231,6 +231,101 @@ class RealtimeDevice:
         except Exception:
             return -1.0
 
+    @staticmethod
+    def video_scene_diff(png_a, png_b):
+        """% khác biệt trung bình trong VÙNG VIDEO của WebPlayer, LOẠI TRỪ
+        chrome app (top OSD ~15% trên, bottom control ~22% dưới) và hộp
+        giữa (~40% giữa màn: logo 'io' + vòng ▶ — F63 trial 10 w_011–w_017:
+        logo 'io' xoay tạo motion 5.25 nhưng player đóng băng 00:10/46:01,
+        logo xoay KHÔNG được tính là đổi cảnh). Trả -1.0 khi không đo được."""
+        if not png_a or not png_b or not Image:
+            return -1.0
+        try:
+            a = Image.open(io.BytesIO(png_a)).convert("RGB").resize((480, 270))
+            b = Image.open(io.BytesIO(png_b)).convert("RGB").resize((480, 270))
+            diff = ImageChops.difference(a, b).convert("L")
+            W, H = diff.size
+            # Band video giữ lại: x 8%-92%, y 15%-78% (trừ top OSD +
+            # bottom control bar của app lẫn control của embed).
+            bx0, by0, bx1, by1 = (int(0.08 * W), int(0.15 * H),
+                                 int(0.92 * W), int(0.78 * H))
+            # Hộp giữa loại trừ: x 30%-70%, y 28%-72% (logo 'io' + nút play).
+            cx0, cy0, cx1, cy1 = (int(0.30 * W), int(0.28 * H),
+                                 int(0.70 * W), int(0.72 * H))
+            band = diff.crop((bx0, by0, bx1, by1))
+            center = diff.crop((cx0, cy0, cx1, cy1))
+            mb = ImageStat.Stat(band).mean[0]
+            mc = ImageStat.Stat(center).mean[0]
+            ab = band.size[0] * band.size[1]
+            ac = center.size[0] * center.size[1]
+            kept = (mb * ab - mc * ac) / max(1, ab - ac)
+            return float(kept / 255.0 * 100.0)
+        except Exception:
+            return -1.0
+
+    def webplayer_progress_probe(self):
+        """Vị trí phát THẬT của WebPlayerActivity — đọc giá trị mà probe JS
+        của app tự đo, KHÔNG qua OCR đồng hồ.
+
+        WebPlayerActivity chạy queryPlaybackPosition mỗi 3s
+        (webPlaybackProbeJs: <video>.currentTime*1000 / JWPlayer.
+        getPosition()*1000 -> pos ms, kèm paused/duration) và khi
+        currentPositionMs > 5s gọi saveCurrentProgress ->
+        WatchHistoryManager.saveProgressAsync ghi
+        watch_history.position_ms vào SQLite kenhlive_cinema.db mỗi lần
+        probe. Harness đọc lại đúng position_ms đó qua `run-as` (QA cài
+        APK debug nên run-as hoạt động) — cùng một con số probe JS đo được.
+
+        Trả dict {pos_ms, duration_ms, slug, episode_slug,
+        last_watched_at} khi đọc được DB — pos_ms=None nếu đọc được nhưng
+        chưa có hàng tiến độ nào (player chưa lưu lần nào). Trả None khi
+        KÊNH ĐỌC LỖI (run-as từ chối / DB chưa tồn tại / parse hỏng sau 2
+        lần thử) — phân biệt 'không đo được' (gate -> UNVERIFIED) với
+        'đo được mà vị trí không tăng' (gate -> FAIL đóng băng)."""
+        import os
+        import sqlite3
+        import tempfile
+
+        def _read():
+            raw = subprocess.run(
+                ("%s exec-out run-as %s cat /data/data/%s/databases/kenhlive_cinema.db"
+                 % (self.adb, self.pkg, self.pkg)).split(),
+                capture_output=True, timeout=30).stdout
+            if len(raw) < 100 or raw[:16] != b"SQLite format 3\x00":
+                return "NO_DB"
+            fd, tmp = tempfile.mkstemp(suffix=".db")
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(raw)
+                con = sqlite3.connect(tmp)
+                try:
+                    row = con.execute(
+                        "SELECT slug, episode_slug, position_ms, duration_ms, "
+                        "last_watched_at FROM watch_history "
+                        "ORDER BY last_watched_at DESC LIMIT 1").fetchone()
+                finally:
+                    con.close()
+            finally:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+            if row is None:
+                return {"pos_ms": None, "duration_ms": None, "slug": None,
+                        "episode_slug": None, "last_watched_at": None}
+            return {"pos_ms": int(row[2]) if row[2] else None,
+                    "duration_ms": int(row[3]) if row[3] else None,
+                    "slug": row[0], "episode_slug": row[1],
+                    "last_watched_at": int(row[4]) if row[4] else None}
+
+        for _ in range(2):
+            try:
+                res = _read()
+                return None if res == "NO_DB" else res
+            except Exception:
+                continue
+        return None
+
     def dump_ui_state(self):
         """Đọc cây UI qua uiautomator. Trả dict dùng chung cho gate/detector/driver.
         Gộp rm + dump + cat vào MỘT lần gọi adb (CI-T2: mỗi observe gọi 3 lần

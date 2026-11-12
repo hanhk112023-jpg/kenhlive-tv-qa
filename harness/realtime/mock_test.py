@@ -2552,6 +2552,9 @@ def main():
     test_tour_settings_and_multiview_missions()
     # --- Trial 10: WebPlayer trang lỗi tải phải bấm THỬ LẠI (run 43227207645) ---
     test_trial10_webplayer_retry_button()
+    # --- F63 kiểm lại sau trial 10 (DESIGN §15.27): WebPlayer phát thật ---
+    test_f63_webplayer_real_playback()
+    test_f63_webplayer_probe_unavailable_is_unverified()
     # --- Blocker trial-9→10: dọn dialog tàn dư đầu mission (DESIGN §15.24) ---
     test_reset_clears_leftover_dialog_between_missions()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
@@ -4160,8 +4163,8 @@ def test_tour_settings_and_multiview_missions():
     from gate import EvidenceGate
     from missions import get_missions
     _specs = {s.name: s for s in get_missions()}
-    assert len(_specs) == 21, \
-        "18 mission cũ + 3 mission tour mới = 21 (được %d)" % len(_specs)
+    assert len(_specs) == 22, \
+        "18 mission cũ + 3 mission tour + 1 mission F63 (§15.27) = 22 (được %d)" % len(_specs)
     _quick = {s.name for s in get_missions(quick=True)}
     assert len(_quick) == 5 and not (
         {"MISSION_SETTINGS_STORAGE_DIALOG",
@@ -4454,6 +4457,177 @@ def test_trial10_webplayer_retry_button():
         "toast 'tự thử lại' không được nhận là nút THỬ LẠI (được [%s])" \
         % _a3.rule
     print("WEBPLAYER_RETRY_OK")
+
+
+def test_f63_webplayer_real_playback():
+    """F63 (§15.27, trial 10 run 43227207645): mission #15 PASS dựa trên
+    motion 5.25 nhưng FRAME-AUDIT thấy player đóng băng 00:10/46:01 suốt
+    w_011–w_017 — motion chỉ là logo 'io' xoay. Mission mới
+    MISSION_VOD_WEBPLAYER_REAL_PLAYBACK đứng ngay sau #15: PASS chỉ khi
+    (a) vị trí phát THẬT (probe JS app -> watch_history.position_ms, đọc
+    qua run-as — KHÔNG OCR) tăng >=15s giữa 2 mẫu cách >=20s ở CỬA SỔ CUỐI
+    và (b) cảnh video đổi thật giữa 2 frame >=10s (logo xoay không tính).
+    3 case theo yêu cầu: (1) clock tăng + cảnh đổi -> PASS; (2) clock
+    đứng + chỉ logo xoay -> FAIL (đúng case trial 10); (3) clock tăng
+    rồi player lỗi giữa chừng -> FAIL."""
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+    _names = [s.name for s in get_missions()]
+    _specs = {s.name: s for s in get_missions()}
+    _spec = _specs["MISSION_VOD_WEBPLAYER_REAL_PLAYBACK"]
+    _act = "com.kenhlive.tv/.phim.WebPlayerActivity"
+    # --- spec ---
+    assert _spec.directed_launch == "LAUNCH_WEB_PLAYER"
+    assert _spec.required_activity == "WebPlayerActivity"
+    assert _spec.needs_webplayer_real_playback is True
+    assert _spec.needs_motion is True
+    assert _spec.needs_vision is False \
+        and _spec.needs_playback_progress is False \
+        and _spec.playback_no_clock is False, \
+        "mission này không dùng OCR đồng hồ lẫn vision — position+scene là bằng chứng"
+    _i = _names.index("MISSION_VOD_WEBPLAYER_REAL_PLAYBACK")
+    assert _names[_i - 1] == "MISSION_WEBPLAYER_DIRECTED_REAL_FILM", \
+        "mission F63 phải chạy ngay sau mission #15 (cùng đường mở VOD)"
+    # --- driver: WAIT-only, không phím nào (DPAD=tua, OK=pause) ---
+    _drv = Driver(FakeDevice(), EvidenceGate(_spec), _spec)
+    _ui = dict(FakeDevice.HOME_DUMP,
+               focused_sig="view#[0,0][1920,1080]", focused_text="",
+               focused_bounds="[0,0][1920,1080]")
+    for _k in range(3):
+        _a = _drv.next_action(_ui, _act, None, 0.0)
+        assert (_a.type, _a.param, _a.rule) == ("WAIT", "3.0", "wp_realplay_hold"), \
+            "driver phải chỉ WAIT trong WebPlayer (được %s %s [%s])" \
+            % (_a.type, _a.param, _a.rule)
+    # nút THỬ LẠI vẫn được xử lý trước luật WAIT (ưu tiên retry)
+    _ui_retry = dict(_ui,
+                     focused_sig="btnWebRetry#[700,800][1100,900]",
+                     focused_text="THỬ LẠI", focused_bounds="[700,800][1100,900]")
+    _ar = _drv.next_action(_ui_retry, _act, None, 0.0)
+    assert _ar.rule == "webplayer_retry", \
+        "trang lỗi tải vẫn phải bấm THỬ LẠI (được [%s])" % _ar.rule
+
+    def _obs(g, t, motion=True):
+        g.observe(_act, [], [], False, motion, t)
+
+    # --- case (1): clock tăng 10s->35s+ và cảnh đổi -> PASS ---
+    g1 = EvidenceGate(_spec)
+    for _t in (30.0, 45.0, 60.0, 75.0):
+        _obs(g1, _t)
+    g1.note_webplayer_probe_read()
+    g1.observe_webplayer_position(10000.0, 30.0)   # 00:10
+    g1.observe_webplayer_position(25000.0, 50.0)
+    g1.observe_webplayer_position(40000.0, 70.0)   # 00:40 — cửa sổ cuối
+    # (50->70: span 20s, delta 15s = đúng ngưỡng)
+    g1.observe_webplayer_scene(6.5, 70.0)
+    _v1, _r1, _ = g1.evaluate("step_x.jpg")
+    print("F63 case1 (phát thật):", _v1, "|", _r1)
+    assert _v1 == "PASS", "clock tăng + cảnh đổi phải PASS (được %s: %s)" % (_v1, _r1)
+
+    # --- case (2): clock đứng 00:10 + chỉ logo xoay (motion cao) -> FAIL ---
+    g2 = EvidenceGate(_spec)
+    for _i2 in range(_spec.max_steps):
+        _obs(g2, 30.0 + _i2 * 12.0)   # motion True suốt — logo 'io' đang quay
+    for _k2 in range(4):
+        g2.note_webplayer_probe_read()
+    for _t2 in (30.0, 50.0, 70.0, 90.0, 110.0):
+        g2.observe_webplayer_position(10000.0, _t2)  # đóng băng 00:10
+    g2.observe_webplayer_scene(0.4, 110.0)          # chỉ logo xoay -> diff nhỏ
+    _v2, _r2, _e2 = g2.evaluate("step_x.jpg")
+    print("F63 case2 (đóng băng + logo xoay):", _v2, "|", _r2)
+    assert _v2 == "FAIL", "clock đứng + chỉ logo xoay phải FAIL (được %s)" % _v2
+    assert "đóng băng" in (_r2 or "") or "playback_probe" in str(_e2), \
+        "FAIL phải tố vị trí phát đứng yên (F63)"
+
+    # --- case (3): clock tăng rồi player lỗi giữa chừng -> FAIL ---
+    g3 = EvidenceGate(_spec)
+    for _i3 in range(_spec.max_steps):
+        _obs(g3, 30.0 + _i3 * 12.0)
+    for _k3 in range(4):
+        g3.note_webplayer_probe_read()
+    # phát thật tới ~00:45 rồi chết: các mẫu cuối đứng yên
+    g3.observe_webplayer_position(10000.0, 30.0)
+    g3.observe_webplayer_position(30000.0, 50.0)
+    g3.observe_webplayer_position(45000.0, 70.0)
+    g3.observe_webplayer_position(45000.0, 90.0)
+    g3.observe_webplayer_position(45000.0, 110.0)
+    g3.observe_webplayer_scene(7.0, 110.0)
+    _v3, _r3, _ = g3.evaluate("step_x.jpg")
+    print("F63 case3 (lỗi giữa chừng):", _v3, "|", _r3)
+    assert _v3 == "FAIL", \
+        "clock tăng rồi chết giữa chừng phải FAIL — cửa sổ CUỐI đứng yên (được %s)" % _v3
+
+    # --- kênh probe chết -> thiếu tín hiệu đo (runner sẽ lật UNVERIFIED) ---
+    g4 = EvidenceGate(_spec)
+    for _i4 in range(3):
+        _obs(g4, 30.0 + _i4 * 12.0)
+    _miss4 = g4._missing()
+    assert any("playback_probe" in m for m in _miss4), \
+        "0 lần đọc được kênh probe phải báo thiếu playback_probe (được %s)" % _miss4
+    # probe đọc được DB nhưng chưa có hàng tiến độ -> vẫn FAIL (bằng chứng âm)
+    g5 = EvidenceGate(_spec)
+    for _i5 in range(_spec.max_steps):
+        _obs(g5, 30.0 + _i5 * 12.0)
+        g5.note_webplayer_probe_read()
+    _v5, _r5, _ = g5.evaluate("step_x.jpg")
+    assert _v5 == "FAIL" and "playback_probe" in (_r5 or ""), \
+        "DB đọc được nhưng không có mẫu vị trí phải FAIL trung thực (được %s)" % _v5
+
+    # --- video_scene_diff: logo xoay không tính, cảnh đổi mới tính ---
+    from PIL import Image, ImageDraw
+    def _wp_frame(scene_rgb, logo_rgb):
+        im = Image.new("RGB", (960, 540), (10, 10, 12))
+        d = ImageDraw.Draw(im)
+        # vùng video giữ lại: trái + phải của hộp giữa
+        d.rectangle([80, 90, 300, 420], fill=scene_rgb)     # trái
+        d.rectangle([660, 90, 880, 420], fill=scene_rgb)    # phải
+        d.rectangle([330, 110, 630, 430], fill=(20, 20, 24))  # hộp giữa nền
+        d.ellipse([430, 220, 530, 320], fill=logo_rgb)      # logo/nút play
+        return im
+    _a_png = io.BytesIO(); _wp_frame((40, 80, 160), (200, 200, 200)).save(_a_png, "PNG")
+    _b_png = io.BytesIO(); _wp_frame((180, 60, 40), (200, 200, 200)).save(_b_png, "PNG")
+    _c_png = io.BytesIO(); _wp_frame((40, 80, 160), (30, 200, 220)).save(_c_png, "PNG")
+    from device import RealtimeDevice
+    _d_scene = RealtimeDevice.video_scene_diff(_a_png.getvalue(), _b_png.getvalue())
+    _d_logo = RealtimeDevice.video_scene_diff(_a_png.getvalue(), _c_png.getvalue())
+    print("scene_diff cảnh đổi: %.2f%% | chỉ logo đổi: %.2f%%" % (_d_scene, _d_logo))
+    assert _d_scene > 5.0, "cảnh video đổi phải cho diff lớn (được %.2f)" % _d_scene
+    assert 0.0 <= _d_logo < 1.0, \
+        "chỉ logo giữa đổi thì vùng so không được tính (được %.2f)" % _d_logo
+    print("F63_WEBPLAYER_REAL_PLAYBACK_OK")
+
+
+def test_f63_webplayer_probe_unavailable_is_unverified():
+    """Runner-level: mission F63 mà kênh probe vị trí (run-as + SQLite)
+    không đọc được lần nào -> outcome UNVERIFIED (chưa đo được), KHÔNG
+    FAIL oan — player không phát được vẫn FAIL vì probe đọc được DB mà
+    vị trí không tăng."""
+    class _WpDeadDevice(FakeDevice):
+        def launch_web_player(self):
+            self._activity = "com.kenhlive.tv/.phim.WebPlayerActivity"
+            self._note("LAUNCH_WEB_PLAYER")
+
+        def webplayer_progress_probe(self):
+            return None  # run-as/DB lỗi — kênh đo không khả dụng
+
+    _orig_dev = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = _WpDeadDevice
+    try:
+        _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_f63_unverified",
+                                      serial=None, vision_budget=0,
+                                      no_vision=True)
+        _spec = {s.name: s for s in __import__("missions").get_missions()}[
+            "MISSION_VOD_WEBPLAYER_REAL_PLAYBACK"]
+        _res = _r.run_mission(_spec)
+        print("F63 probe chết -> outcome:", _res["outcome"], "|", _res["reason"][:120])
+        assert _res["outcome"] == "UNVERIFIED", \
+            "kênh probe chết phải UNVERIFIED, không FAIL oan (được %s)" % _res["outcome"]
+        # driver không được gửi phím nào trong WebPlayer (chỉ WAIT)
+        assert _r.device.keys == [], \
+            "driver F63 chỉ được WAIT, không DPAD/OK (được %s)" % _r.device.keys
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev
+    print("F63_PROBE_UNAVAILABLE_UNVERIFIED_OK")
 
 
 def test_reset_clears_leftover_dialog_between_missions():

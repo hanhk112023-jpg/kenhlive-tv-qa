@@ -778,6 +778,19 @@ class Driver:
             retry = self._webplayer_retry_action(ui_state)
             if retry is not None:
                 return retry
+            # F63 (§15.27): mission kiểm lại WebPlayer phát thật — TUYỆT
+            # ĐỐI không bấm phím trong WebPlayerActivity: DPAD_LEFT/RIGHT
+            # = webSeekBy(+-10) (WebPlayerActivity.dispatchKeyEvent),
+            # OK/DPAD_CENTER = toggle play/pause khi focus ở WebView — mọi
+            # phím đều làm nhiễu mẫu vị trí phát. Driver chỉ WAIT để app
+            # tự phát (ensureEmbedAutoplay + watchdog của app lo phần
+            # khởi động; nút THỬ LẠI vẫn được xử lý ở retry phía trên).
+            if getattr(m, "needs_webplayer_real_playback", False) \
+                    and "WebPlayerActivity" in act:
+                return Action("WAIT", "3.0", rule="wp_realplay_hold",
+                              thought="Giữ WebPlayer phát — chờ lấy mẫu vị "
+                                      "trí phát cách nhau >=20s, không bấm "
+                                      "phím (tránh tua/pause làm nhiễu F63)")
             if m.needs_motion and not gate.motion_seen:
                 if "WebPlayerActivity" in act:
                     # CI-T5 mục 3: WebPlayer đã mở mà video chưa phát thì

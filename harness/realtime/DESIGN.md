@@ -2234,3 +2234,88 @@ khác (VD nút trong WebView không lộ id), fallback text "thử lại" vẫn 
 được miễn nút có text; (4) mission #14 vẫn có thể FAIL nếu lỗi mạng kéo
 dài quá số lần retry — khi đó hành vi đúng là FAIL trung thực, không phải
 PASS giả.
+
+### 15.27. Kiểm lại F63 — mission WebPlayer phát thật theo vị trí phát (trial 10 run 43227207645)
+
+**Bối cảnh.** Trial 10 mission #15 `MISSION_WEBPLAYER_DIRECTED_REAL_FILM`
+PASS dựa trên `motion=5.25` ở step_062 — nhưng FRAME-AUDIT §1.1 (U-H1) soi
+7 khung liên tiếp `w_011–w_017` thấy player ĐÓNG BĂNG ở `00:10/46:01`: màn
+đen + logo "io" + vòng ▶ (paused), đồng hồ không nhích. Motion 5.25 rất có
+thể chỉ là logo "io" xoay; `run.log` không có lần bấm pause nào của driver
+để giải thích trạng thái paused. Tức PASS cũ đứng trên motion của logo —
+bằng chứng yếu. Quyết định ít xâm lấn: GIỮ nguyên luật PASS của #15, thêm
+mission mới `MISSION_VOD_WEBPLAYER_REAL_PLAYBACK` chạy NGAY SAU #15
+(cùng `directed_launch="LAUNCH_WEB_PLAYER"`, cùng đường mở VOD — không sửa
+luật cũ, không đổi business logic app).
+
+**Kênh đo vị trí phát THẬT (không OCR).** `WebPlayerActivity` đã có sẵn
+probe JS (`webPlaybackProbeJs` -> `queryPlaybackPosition` mỗi 3s:
+`<video>.currentTime*1000` / `JWPlayer.getPosition()*1000` -> `pos` ms);
+khi `currentPositionMs > 5s` app gọi `saveCurrentProgress` ->
+`WatchHistoryManager.saveProgressAsync` ghi `watch_history.position_ms`
+vào `kenhlive_cinema.db`. QA cài APK debug nên `adb exec-out run-as
+com.kenhlive.tv cat .../kenhlive_cinema.db` đọc lại được đúng con số
+probe JS đo — `RealtimeDevice.webplayer_progress_probe()` làm việc đó
+(cat DB về file tạm, sqlite3 đọc `position_ms` mới nhất theo
+`last_watched_at`, thử lại 1 lần nếu file đang ghi dở). OCR đồng hồ bị
+cấm rõ: `needs_playback_progress=False`, `playback_no_clock=False` —
+mission này không đi đường `_extract_playback_s` cũ.
+
+**Cảnh đổi thật (logo xoay không tính).** `RealtimeDevice.video_scene_diff`
+so 2 frame WebPlayer cách nhau >=10s trên vùng 480x270: GIỮ band video
+x 8–92%, y 15–78% (trừ top OSD ~15% và bottom control ~22% của app lẫn
+control embed) rồi TRỪ hộp giữa x 30–70%, y 28–72% — chính vùng logo "io"
++ nút play tròn. Logo xoay chỉ đụng hộp giữa nên bị loại khỏi tử số; cảnh
+phim đổi ở band hai bên vẫn được tính. Ngưỡng `% diff >= 1.5` (giá trị
+đo trên pixel 0–255 chuẩn hóa).
+
+**Driver WAIT-only trong WebPlayer.** `WebPlayerActivity.dispatchKeyEvent`:
+DPAD_LEFT/RIGHT = `webSeekBy(+-10)`, OK/DPAD_CENTER = toggle play/pause
+khi focus ở WebView — MỌI phím đều làm nhiễu mẫu vị trí. Driver của
+mission này trả `WAIT 3.0` (`wp_realplay_hold`) cho mọi observation trong
+WebPlayerActivity; nút THỬ LẠI (trang lỗi embed, §15.26) vẫn được xử lý
+trước. `runner` cũng truyền `motion_state=None` cho `note_state` trong
+WebPlayer của mission này để streak kẹt không bắn `local_unstick`/vision
+vào player.
+
+**Luật PASS/FAIL cuối cùng.**
+- PASS: đủ `steps >= min_steps(4)` + activity `WebPlayerActivity` từng
+  xuất hiện + `motion_seen` (sanity, không phải bằng chứng chính) + probe
+  đọc được kênh DB (`wp_probe_reads >= 1`) + **vị trí phát tăng >=15s
+  (15000ms) giữa 2 mẫu cách nhau >=20s — đo trên CỬA SỔ CUỐI** (neo =
+  lần đọc mới nhất cách mẫu cuối >=20s) + **cảnh video cặp frame cuối
+  đủ 10s có `% diff >= 1.5`**. `needs_vision=False` cố ý: vision không
+  phân biệt được logo xoay vs cảnh phim (chính là lỗ hổng F63); position
+  + scene là bằng chứng mạnh và định lượng hơn.
+- FAIL trung thực: probe đọc được DB nhưng vị trí đứng yên/thiếu mẫu
+  (player đóng băng hoặc không phát được — bằng chứng âm, KHÔNG phải
+  thiếu dữ liệu); player tăng rồi chết giữa chừng cũng FAIL vì cửa sổ
+  cuối đứng yên (không ăn theo đoạn phát đầu tiên); cảnh chỉ đổi do logo
+  thì `% diff` thấp -> FAIL.
+- UNVERIFIED chỉ khi KHÔNG đo được: `wp_probe_reads == 0` suốt mission
+  (run-as từ chối / DB chưa tồn tại / parse hỏng) -> runner lật FAIL
+  thành UNVERIFIED. Lỗi mạng/embed không khởi động được vẫn là FAIL
+  (probe đọc được DB, không có vị trí tăng) — không PASS giả.
+
+**Mock (`mock_test.py`).** `test_f63_webplayer_real_playback` — 3 case
+theo yêu cầu: (1) clock 00:10->00:40 + cảnh đổi -> PASS; (2) clock đứng
+00:10 + motion cao (logo xoay) -> FAIL; (3) clock tăng tới 00:45 rồi
+chết -> FAIL (cửa sổ cuối đứng yên). Kèm: driver chỉ WAIT/`wp_realplay_hold`
++ retry vẫn ưu tiên; `video_scene_diff` phân biệt cảnh đổi (>5%) vs chỉ
+logo đổi (<1%); probe đọc được DB không mẫu -> FAIL. Và
+`test_f63_webplayer_probe_unavailable_is_unverified` — runner-level:
+kênh probe chết -> UNVERIFIED + driver không gửi phím nào. Số mission
+21 -> 22.
+
+**Chưa chắc chắn, cần trial kiểm:** (1) ngưỡng `% diff >= 1.5` và mask
+vùng (15%/22%/hộp giữa 40%) ước lượng theo layout `WebPlayerActivity`
+(webViewHost full-bleed + webControlBar đáy + top OSD) — nếu embed vẽ
+control riêng trong WebView thì vùng loại trừ có thể cần chỉnh sau khi
+xem frame thật; (2) `run-as` giả định APK debug — nếu workflow cài bản
+release thì probe luôn trả None -> mission UNVERIFIED hàng loạt (cần kiểm
+`assembleDebug` trong pipeline); (3) `position_ms` chỉ được app ghi khi
+`currentPositionMs > 5s` và probe tìm thấy `<video>`/JWPlayer — embed
+dùng player khác (VD iframe custom không expose API) sẽ cho `pos=0` mãi
+-> FAIL trung thực dù video có thể đang phát; (4) 2 mẫu cách >=20s cần
+~30-45s quan sát — `max_steps=10` với WAIT 3s + observe ~2-4s/vòng vừa
+đủ nhưng sát biên nếu observe chậm.

@@ -8,6 +8,18 @@ bằng chứng. Mission không tới đích thì FAIL to và rõ — không tự
 """
 import time
 
+# F63 (§15.27, trial 10 run 43227207645): mission kiểm lại WebPlayer phát
+# thật. Motion 5.25 ở step_062 hoàn toàn có thể là logo "io" xoay — player
+# đóng băng ở 00:10/46:01 suốt w_011–w_017. PASS cần 2 bằng chứng cứng:
+# (a) vị trí phát THẬT (probe JS của app -> watch_history.position_ms,
+#     KHÔNG OCR đồng hồ) tăng >= 15s giữa 2 mẫu cách >= 20s, đo trên cửa
+#     sổ CUỐI quan sát (player lỗi giữa chừng -> FAIL, không được ăn theo
+#     đoạn phát đầu tiên); (b) cảnh video đổi thật giữa 2 frame >= 10s
+#     (logo "io" xoay không tính — vùng so đã loại trừ hộp giữa).
+WEBPLAYER_SAMPLE_MIN_SPAN_S = 20.0
+WEBPLAYER_POSITION_MIN_DELTA_MS = 15000.0
+WEBPLAYER_SCENE_DIFF_MIN_PCT = 1.5
+
 
 class MissionSpec:
     """Spec bằng chứng của một mission (không phải kịch bản bước cứng)."""
@@ -19,7 +31,7 @@ class MissionSpec:
                  tab=None, needs_scroll_top=False, goto_texts=None,
                  needs_long_press=False, needs_playback_progress=False,
                  requires_live_row=False, needs_keyboard=False,
-                 playback_no_clock=False):
+                 playback_no_clock=False, needs_webplayer_real_playback=False):
         self.name = name
         self.title = title
         self.description = description
@@ -79,6 +91,12 @@ class MissionSpec:
         # xanh; đồng hồ NẾU đọc được mà đứng yên / không đơn điệu thì 2
         # nhánh kia vẫn tố như cũ (không đổi).
         self.playback_no_clock = bool(playback_no_clock)
+        # F63 (§15.27): mission kiểm lại WebPlayer phát thật — PASS cần vị
+        # trí phát (probe JS app -> SQLite) tăng >=15s/20s+ ở cửa sổ cuối
+        # + cảnh video đổi thật. Driver của mission này chỉ WAIT trong
+        # WebPlayer (DPAD = tua, OK = pause — đều cấm) nên mẫu không bị
+        # nhiễu bởi hành động driver.
+        self.needs_webplayer_real_playback = bool(needs_webplayer_real_playback)
 
 
 class EvidenceGate:
@@ -110,6 +128,14 @@ class EvidenceGate:
         # (DPAD_LEFT/REWIND trong player) — lần đọc đó được miễn kiểm tra
         # đơn điệu (tua ngược thì đồng hồ lùi là đúng). Tua TỚI (DPAD_RIGHT)
         # KHÔNG miễn: đồng hồ chỉ được tăng, lùi sau tua tới là lỗi thật.
+        # F63 (§15.27): bằng chứng phát thật WebPlayer — số lần đọc được
+        # kênh probe DB (phân biệt 'không đo được' -> UNVERIFIED với 'đo
+        # được mà không tăng' -> FAIL), các mẫu (t_offset, pos_ms), và
+        # % đổi cảnh video của cặp frame gần nhất đủ 10s.
+        self.wp_probe_reads = 0
+        self.wp_position_readings = []   # [(t_offset, pos_ms)]
+        self.wp_scene_pairs = 0
+        self.wp_scene_diff = None        # % diff cặp frame cuối đủ 10s
 
     # -- tích lũy ------------------------------------------------------
     def observe(self, activity, visible_texts, views, has_dialog, motion_playing, t_offset):
@@ -206,6 +232,75 @@ class EvidenceGate:
         vals = [s for _, s in self.playback_readings]
         return "increasing" if max(vals) - min(vals) >= 1.0 else "frozen"
 
+    # -- F63 (§15.27): vị trí phát THẬT + cảnh đổi thật của WebPlayer ------
+    def note_webplayer_probe_read(self):
+        """Runner đọc được kênh probe vị trí (run-as + SQLite
+        watch_history) — kể cả khi chưa có hàng tiến độ nào. Chỉ đếm lần
+        ĐỌC ĐƯỢC; kênh lỗi trả None và không gọi hàm này."""
+        self.wp_probe_reads += 1
+
+    def observe_webplayer_position(self, pos_ms, t_offset):
+        """Ghi 1 mẫu vị trí phát (ms) — giá trị currentPositionMs mà probe
+        JS của WebPlayerActivity ghi vào watch_history.position_ms."""
+        self.wp_position_readings.append((t_offset, float(pos_ms)))
+
+    def observe_webplayer_scene(self, diff_pct, t_offset):
+        """Ghi % đổi cảnh video của cặp frame WebPlayer cách nhau >=10s
+        (đã loại trừ chrome + hộp logo giữa — xem device.video_scene_diff).
+        Chỉ giữ giá trị MỚI NHẤT: cặp cuối là bằng chứng 'đang phát ngay
+        bây giờ', không ăn theo đoạn phát đầu tiên rồi chết giữa chừng."""
+        self.wp_scene_pairs += 1
+        self.wp_scene_diff = float(diff_pct)
+
+    def _webplayer_playback_missing(self):
+        """(missing_list) cho cờ needs_webplayer_real_playback."""
+        missing = []
+        if self.wp_probe_reads == 0:
+            if self.steps >= 2:
+                missing.append("playback_probe: không đọc được vị trí phát "
+                               "từ DB app (run-as/kênh probe lỗi) — chưa đo "
+                               "được phát thật")
+            return missing
+        # Cửa sổ CUỐI: neo = lần đọc mới nhất cách last >= 20s (cặp sát
+        # 20s nhất). Player lỗi/đóng băng giữa chừng thì cả 2 đầu cửa sổ
+        # đều đứng yên -> delta ~0 -> FAIL, không được ăn theo đoạn phát
+        # đầu tiên (trial 10: phát được 10s rồi đóng băng vẫn từng bị
+        # tính là 'phát thật' nhờ motion logo).
+        last = self.wp_position_readings[-1] if self.wp_position_readings else None
+        if len(self.wp_position_readings) < 2 or last is None:
+            missing.append("playback_probe: mới %d mẫu vị trí phát (<2)"
+                           % len(self.wp_position_readings))
+        else:
+            anchor = None
+            for r in reversed(self.wp_position_readings[:-1]):
+                if last[0] - r[0] >= WEBPLAYER_SAMPLE_MIN_SPAN_S:
+                    anchor = r
+                    break
+            if anchor is None:
+                missing.append("playback_probe: 2 mẫu mới nhất cách nhau "
+                               "< %.0fs — chưa đủ cửa sổ quan sát"
+                               % WEBPLAYER_SAMPLE_MIN_SPAN_S)
+            else:
+                span = last[0] - anchor[0]
+                delta_ms = last[1] - anchor[1]
+                if delta_ms < WEBPLAYER_POSITION_MIN_DELTA_MS:
+                    _d_s = delta_ms / 1000.0
+                    _p1_m, _p1_s = divmod(int(anchor[1] // 1000), 60)
+                    _p2_m, _p2_s = divmod(int(last[1] // 1000), 60)
+                    missing.append(
+                        "playback_probe: vị trí phát chỉ tăng %.1fs sau %.0fs "
+                        "(%02d:%02d -> %02d:%02d) — player đóng băng/không "
+                        "phát thật (F63)" % (_d_s, span, _p1_m, _p1_s,
+                                            _p2_m, _p2_s))
+        if self.wp_scene_diff is None:
+            missing.append("scene: chưa có cặp frame WebPlayer cách nhau "
+                           ">=10s để so cảnh video")
+        elif self.wp_scene_diff < WEBPLAYER_SCENE_DIFF_MIN_PCT:
+            missing.append("scene: cảnh video chỉ đổi %.2f%% (< %.1f%%) — "
+                           "logo/OSD chuyển động không tính là phát thật"
+                           % (self.wp_scene_diff, WEBPLAYER_SCENE_DIFF_MIN_PCT))
+        return missing
+
     # -- đánh giá ------------------------------------------------------
     def _missing(self):
         s = self.spec
@@ -261,6 +356,8 @@ class EvidenceGate:
                     missing.append("playback: thời gian phát không tăng đơn điệu "
                                    "(%s) — video có thể đóng băng/khởi động lại, "
                                    "chưa chứng minh phát thật" % _mono_detail)
+        if s.needs_webplayer_real_playback:
+            missing.extend(self._webplayer_playback_missing())
         return missing
 
     def _evidence_bundle(self, last_frame_ref):
@@ -276,6 +373,10 @@ class EvidenceGate:
             "playback_status": self.playback_status(),
             "playback_readings": list(self.playback_readings),
             "playback_monotonic": self.playback_monotonic()[0],
+            "wp_probe_reads": self.wp_probe_reads,
+            "wp_position_readings": list(self.wp_position_readings),
+            "wp_scene_pairs": self.wp_scene_pairs,
+            "wp_scene_diff": self.wp_scene_diff,
             "steps": self.steps,
             "frame": last_frame_ref,
         }

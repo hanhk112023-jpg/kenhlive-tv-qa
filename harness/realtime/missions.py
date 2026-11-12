@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """KenhLive Realtime QA — mission specs (mục tiêu bằng chứng, không kịch bản).
 
-21 mission: 18 mission cũ (17 mission gốc — VOD và WebPlayer tách riêng
+22 mission: 18 mission cũ (17 mission gốc — VOD và WebPlayer tách riêng
 thành 2 mission nhưng tổng vẫn 17 vì Home Hub cũ đã bỏ — + 1 mission
 CI-T8 MISSION_SCHEDULE_LIVE_DIRECTED) + 3 mission tour đủ màn sau trial 9
-(DESIGN §15.23: Cài đặt storage dialog, Cài đặt Telegram QR, MultiView).
+(DESIGN §15.23: Cài đặt storage dialog, Cài đặt Telegram QR, MultiView)
++ 1 mission kiểm lại F63 sau trial 10 (DESIGN §15.27:
+MISSION_VOD_WEBPLAYER_REAL_PLAYBACK — WebPlayer phát thật theo vị trí
+phát, không tính motion logo).
 Mỗi mission khai TÍN HIỆU CẦN CÓ, không khai từng bước bấm — driver tự chọn
 hành động theo trạng thái. required_texts so khớp case-insensitive trên text
 của UI dump (tên hiển thị thật của app).
@@ -222,6 +225,33 @@ ALL_MISSIONS = [
         playback_no_clock=True,
         directed_launch="LAUNCH_WEB_PLAYER",
         target_desc="WebPlayerActivity đang phát phim embed thật, OSD điều khiển hiển thị",
+    ),
+    MissionSpec(
+        "MISSION_VOD_WEBPLAYER_REAL_PLAYBACK",
+        "WebPlayer Phát Thật: Vị Trí Phát Tăng + Cảnh Đổi (Kiểm Lại F63)",
+        "F63 (trial 10 run 43227207645) đang bị đặt dấu hỏi: mission #15 "
+        "PASS dựa trên motion 5.25 ở step_062 nhưng FRAME-AUDIT soi 7 khung "
+        "liên tiếp (w_011–w_017) thấy player ĐÓNG BĂNG ở 00:10/46:01 — màn "
+        "đen + logo 'io' + vòng ▶ (paused), đồng hồ không nhích; motion đó "
+        "rất có thể chỉ là logo 'io' xoay. Mission này chạy NGAY SAU #15 "
+        "(cùng đường mở VOD, ít xâm lấn hơn sửa luật PASS của #15): giữ "
+        "WebPlayer ~1 phút, lấy 2 mẫu vị trí phát THẬT cách nhau >=20s qua "
+        "probe JS của app (WebPlayerActivity.queryPlaybackPosition -> "
+        "currentPositionMs -> watch_history.position_ms, đọc qua run-as — "
+        "KHÔNG OCR đồng hồ) và so cảnh video giữa 2 frame >=10s (loại trừ "
+        "chrome + hộp logo giữa). PASS chỉ khi vị trí phát tăng >=15s ở cửa "
+        "sổ CUỐI + cảnh đổi thật; player lỗi giữa chừng -> FAIL; kênh probe "
+        "không đọc được -> UNVERIFIED. Driver chỉ WAIT trong WebPlayer: "
+        "DPAD_LEFT/RIGHT = webSeekBy(+-10), OK = toggle play/pause — mọi "
+        "phím đều làm nhiễu mẫu. needs_vision=False cố ý: vision không "
+        "phân biệt được logo xoay vs cảnh phim (chính là lỗ hổng F63), "
+        "position+scene là bằng chứng mạnh hơn.",
+        max_steps=10, min_steps=4,
+        required_activity="WebPlayerActivity",
+        needs_motion=True,
+        needs_webplayer_real_playback=True,
+        directed_launch="LAUNCH_WEB_PLAYER",
+        target_desc="WebPlayerActivity đang phát phim embed thật — vị trí phát tăng theo thời gian thực",
     ),
     MissionSpec(
         "MISSION_PLAYER_SETTINGS_DIALOG",

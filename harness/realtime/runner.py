@@ -841,6 +841,10 @@ class RealtimeRunner:
         # hay trên thẻ trận khi check open_dialog -> player ở dưới).
         last_action_focused_sig = None
         last_action_focused_text = None
+        # F63 (§15.27): frame WebPlayer trước đó của mission này — cặp
+        # (prev, cur) cách nhau >=10s được so cảnh video (logo 'io' xoay
+        # không tính, vùng so đã loại trừ hộp giữa).
+        self._wp_scene_prev = None
 
         if spec.directed_launch:
             ok = self._run_directed_launch(spec, gate)
@@ -893,8 +897,44 @@ class RealtimeRunner:
             # driver chỉ ghi sig vào lịch sử, không tăng streak (cùng luật
             # UNKNOWN của CI-T5). motion False vẫn giữ cho gate (không tích
             # lũy motion_seen) — chỉ note_state nhận None.
+            # F63 (§15.27): mission kiểm lại WebPlayer phát thật — trong
+            # WebPlayerActivity lấy mẫu vị trí phát từ probe JS của app
+            # (watch_history.position_ms qua run-as, KHÔNG OCR) + so cảnh
+            # video giữa 2 frame WebPlayer cách nhau >=10s. Driver của
+            # mission này chỉ WAIT nên mẫu không bị nhiễu bởi tua/pause.
+            obs["wp_pos_ms"] = None
+            obs["wp_probe_ok"] = False
+            obs["wp_scene_diff"] = None
+            if getattr(spec, "needs_webplayer_real_playback", False) \
+                    and "WebPlayerActivity" in (obs["activity"] or ""):
+                try:
+                    _wpp = self.device.webplayer_progress_probe()
+                except Exception:
+                    _wpp = None
+                if _wpp is not None:
+                    gate.note_webplayer_probe_read()
+                    obs["wp_probe_ok"] = True
+                    _pos = _wpp.get("pos_ms")
+                    if _pos:
+                        obs["wp_pos_ms"] = _pos
+                        gate.observe_webplayer_position(_pos, obs["t_offset"])
+                _prev = self._wp_scene_prev
+                if _prev is not None and obs.get("png") \
+                        and obs["t_offset"] - _prev["t"] >= 10.0:
+                    _sd = RealtimeDevice.video_scene_diff(_prev["png"], obs["png"])
+                    if _sd >= 0:
+                        gate.observe_webplayer_scene(_sd, obs["t_offset"])
+                        obs["wp_scene_diff"] = round(_sd, 2)
+                self._wp_scene_prev = {"png": obs.get("png"),
+                                       "t": obs["t_offset"]}
+            # Trong mission này, WebPlayer coi motion như UNKNOWN cho
+            # note_state: driver chỉ WAIT nên UI đứng yên là bình thường,
+            # không được để streak kẹt bắn phím local_unstick/vision vào
+            # player (mọi phím đều nhiễu mẫu F63).
+            _wp_hold = getattr(spec, "needs_webplayer_real_playback", False) \
+                and "WebPlayerActivity" in (obs["activity"] or "")
             driver.note_state(ui_state, obs["activity"],
-                              None if obs.get("loading_screen")
+                              None if (obs.get("loading_screen") or _wp_hold)
                               else obs.get("motion_state"))
             self.detector_ctx["last_key"] = self.device.action_history[-1] if self.device.action_history else ""
 
@@ -958,7 +998,13 @@ class RealtimeRunner:
                                    "motion_delta": (round(obs["motion_delta"], 2)
                                                     if obs["motion_delta"] >= 0 else None),
                                    "motion_source": obs.get("motion_source", "watcher"),
-                                   "playback_s": obs.get("playback_s")},
+                                   "playback_s": obs.get("playback_s"),
+                                   # F63 (§15.27): mẫu vị trí phát thật
+                                   # (probe JS -> watch_history) + % đổi
+                                   # cảnh video của cặp frame >=10s.
+                                   "wp_pos_ms": obs.get("wp_pos_ms"),
+                                   "wp_probe_ok": obs.get("wp_probe_ok", False),
+                                   "wp_scene_diff": obs.get("wp_scene_diff")},
                 "screenshot": obs["frame_file"],
                 "duplicate_frame": obs.get("duplicate_frame", False),
                 "observe_s": obs["observe_s"],
@@ -1110,6 +1156,19 @@ class RealtimeRunner:
                                    "chưa kiểm được nhập liệu/tìm kiếm bằng bàn phím thật "
                                    "(UNVERIFIED)")
             print("   ❓ [Mission UNVERIFIED] %s: bàn phím không mở lần nào" % spec.name, flush=True)
+        # F63 (§15.27): mission kiểm phát thật WebPlayer mà kênh probe vị
+        # trí (run-as + SQLite watch_history) không đọc được lần nào ->
+        # UNVERIFIED (chưa đo được), không FAIL oan. Player không phát
+        # được vẫn FAIL: probe đọc được DB nhưng vị trí không tăng, hoặc
+        # đọc được mà không có hàng tiến độ nào — đó là bằng chứng âm,
+        # không phải thiếu dữ liệu đo.
+        if getattr(spec, "needs_webplayer_real_playback", False) \
+                and gate.wp_probe_reads == 0 and gate.outcome == "FAIL":
+            gate.outcome = "UNVERIFIED"
+            gate.outcome_reason = (gate.outcome_reason or "") + \
+                " | probe vị trí phát không đọc được (run-as/DB) — chưa kiểm được (UNVERIFIED)"
+            print("   ❓ [Mission UNVERIFIED] %s: kênh probe vị trí phát "
+                  "không đọc được lần nào" % spec.name, flush=True)
         return self._finish_mission(spec, gate, last_obs and [last_obs] or [],
                                     dialog_obs=dialog_obs)
 
