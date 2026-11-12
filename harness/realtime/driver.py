@@ -292,6 +292,41 @@ class Driver:
                 return True
         return False
 
+    def _webplayer_retry_action(self, ui_state):
+        """Trang embed/player lỗi tải (net::ERR_CONNECTION_RESET …) hiện nút
+        THỬ LẠI (btnWebRetry): phải bấm OK lên nút đó thay vì probe mù —
+        trial 10 (run 43227207645) mission #14 FAIL kẹt cấp 2 vì driver chỉ
+        DPAD_RIGHT probe, không bao giờ bấm OK lên THỬ LẠI (step_051 kẹt
+        ~2 phút QA); cùng URL phát được ở mission #15 nên lỗi nhất thời,
+        retry là đủ. Chỉ khớp id chứa 'retry' hoặc text đúng 'thử lại' —
+        toast 'Mạng chập chờn – tự thử lại lần N…' KHÔNG được nhận nhầm.
+        Trả Action hoặc None khi không thấy nút retry."""
+        def _is_retry(nid, txt):
+            t = re.sub(r"\s+", " ", (txt or "").strip().lower())
+            return "retry" in (nid or "").lower() or t == "thử lại"
+        fid = (ui_state.get("focused_sig") or "")
+        if fid == "NONE":
+            return None  # không có focus nào để OK/goto — để luật khác xử lý
+        if _is_retry(fid.split("#")[0], ui_state.get("focused_text")):
+            return Action("KEY", "OK", rule="webplayer_retry",
+                          thought="Trang player lỗi tải — bấm OK lên THỬ LẠI")
+        for n in (ui_state.get("all_visible_nodes") or []):
+            if not _is_retry(n.get("id"), n.get("text")):
+                continue
+            nb = re.findall(r"-?\d+", n.get("bounds") or "")
+            if len(nb) < 4:
+                continue
+            x1, y1, x2, y2 = map(int, nb[:4])
+            d = self._direction_to(ui_state, (x1 + x2) // 2, (y1 + y2) // 2)
+            if d is None:
+                return Action("KEY", "OK", rule="webplayer_retry",
+                              thought="Trang player lỗi tải — bấm OK lên THỬ LẠI")
+            key, dx, dy = d
+            return Action("KEY", key, rule="goto_retry",
+                          thought="Đi tới nút THỬ LẠI (%s, lệch %d,%d)"
+                                  % (key, dx, dy))
+        return None
+
     def _needs_live_target(self):
         """Mission chỉ được mở trận ĐANG ĐÁ: mission cần player VÀ spec
         đánh dấu requires_live_row (CI-T9 nhóm B mục (3) — hiện chỉ
@@ -737,6 +772,12 @@ class Driver:
 
         # -- 3. Player mission: vào player thì mở OSD / kiểm tra stream.
         if "PlayerActivity" in act or "WebPlayerActivity" in act:
+            # Trang lỗi tải (ERR_CONNECTION_RESET…) có nút THỬ LẠI — bấm
+            # OK lên nó trước mọi luật stream/OSD khác (trial 10 mission
+            # #14: probe mù DPAD_RIGHT rồi kẹt cấp 2 ~2 phút QA).
+            retry = self._webplayer_retry_action(ui_state)
+            if retry is not None:
+                return retry
             if m.needs_motion and not gate.motion_seen:
                 if "WebPlayerActivity" in act:
                     # CI-T5 mục 3: WebPlayer đã mở mà video chưa phát thì

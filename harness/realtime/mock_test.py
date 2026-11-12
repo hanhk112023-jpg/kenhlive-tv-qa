@@ -2550,6 +2550,8 @@ def main():
     test_h5_player_entry_frame_saved()
     # --- Tour đủ màn sau trial 9 (DESIGN §15.23) ---
     test_tour_settings_and_multiview_missions()
+    # --- Trial 10: WebPlayer trang lỗi tải phải bấm THỬ LẠI (run 43227207645) ---
+    test_trial10_webplayer_retry_button()
     # --- Blocker trial-9→10: dọn dialog tàn dư đầu mission (DESIGN §15.24) ---
     test_reset_clears_leftover_dialog_between_missions()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
@@ -4386,6 +4388,72 @@ def test_tour_settings_and_multiview_missions():
     assert _vmv == "VISION_PENDING", \
         "trạng thái trống vẫn đủ tín hiệu rẻ, chỉ chờ vision (được %s)" % _vmv
     print("TOUR_SETTINGS_MULTIVIEW_OK")
+
+
+def test_trial10_webplayer_retry_button():
+    """Trial 10 (run 43227207645) mission #14 FAIL 'Kẹt cấp 2' sau 9 bước:
+    trang embed lỗi tải net::ERR_CONNECTION_RESET, nút THỬ LẠI
+    (btnWebRetry) đã focus (step 49) nhưng driver chỉ bấm DPAD_RIGHT probe,
+    không bao giờ bấm OK -> kẹt ~2 phút QA. Cùng URL phát được ở mission
+    #15 nên lỗi nhất thời — retry là đủ. Driver phải:
+    (a) focus đang ở btnWebRetry -> KEY OK rule webplayer_retry ngay;
+    (b) nút retry hiện trong dump nhưng chưa focus -> đi tới nó
+        (goto_retry), không OK mù;
+    (c) toast 'Mạng chập chờn – tự thử lại lần N…' KHÔNG được nhận là nút
+        retry (đi luồng wait_stream bình thường)."""
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+    _spec = {s.name: s for s in get_missions()}[
+        "MISSION_VOD_PLAYER_SEEK_AND_RESUME"]
+    _act = "com.kenhlive.tv/.phim.WebPlayerActivity"
+    _ui_retry = {
+        "focused_sig": "btnWebRetry#[700,800][1100,900]",
+        "focused_text": "THỬ LẠI", "focused_bounds": "[700,800][1100,900]",
+        "all_visible_texts": [("errTitle", "Không tải được nội dung"),
+                              ("btnWebRetry", "THỬ LẠI")],
+        "all_visible_nodes": [
+            {"id": "btnWebRetry", "text": "THỬ LẠI",
+             "bounds": "[700,800][1100,900]"}],
+        "has_dialog": False, "dialog_ids": [], "selected_ids": []}
+    # (a) btnWebRetry đang focus -> OK lên THỬ LẠI, không probe DPAD_RIGHT.
+    _drv = Driver(FakeDevice(), EvidenceGate(_spec), _spec)
+    _a = _drv.next_action(_ui_retry, _act, None, 0.0)
+    print("webplayer retry: focus btnWebRetry ->", _a.type, _a.param,
+          "| rule:", _a.rule)
+    assert (_a.type, _a.param, _a.rule) == ("KEY", "OK", "webplayer_retry"), \
+        "focus trên THỬ LẠI phải bấm OK (được %s %s [%s])" \
+        % (_a.type, _a.param, _a.rule)
+    # (b) retry hiện trong dump nhưng focus ở view khác -> đi tới nút.
+    _drv2 = Driver(FakeDevice(), EvidenceGate(_spec), _spec)
+    _ui_retry2 = dict(_ui_retry,
+                      focused_sig="view#[0,0][1920,1080]",
+                      focused_text="", focused_bounds="[0,0][1920,1080]")
+    _a2 = _drv2.next_action(_ui_retry2, _act, None, 0.0)
+    print("webplayer retry: nút hiện nhưng chưa focus ->", _a2.type,
+          _a2.param, "| rule:", _a2.rule)
+    assert _a2.type == "KEY" and _a2.rule == "goto_retry", \
+        "nút THỬ LẠI chưa focus thì phải đi tới nó (được %s %s [%s])" \
+        % (_a2.type, _a2.param, _a2.rule)
+    # (c) toast 'tự thử lại' KHÔNG phải nút retry -> luồng thường.
+    _drv3 = Driver(FakeDevice(), EvidenceGate(_spec), _spec)
+    _ui_toast = dict(_ui_retry,
+                     focused_sig="btnPlay#[800,900][1000,1000]",
+                     focused_text="Phát",
+                     focused_bounds="[800,900][1000,1000]",
+                     all_visible_texts=[
+                         ("toast", "Mạng chập chờn – tự thử lại lần 6…")],
+                     all_visible_nodes=[
+                         {"id": "toast",
+                          "text": "Mạng chập chờn – tự thử lại lần 6…",
+                          "bounds": "[400,500][1500,560]"}])
+    _a3 = _drv3.next_action(_ui_toast, _act, None, 0.0)
+    print("webplayer toast 'tự thử lại' ->", _a3.type, _a3.param,
+          "| rule:", _a3.rule)
+    assert _a3.rule not in ("webplayer_retry", "goto_retry"), \
+        "toast 'tự thử lại' không được nhận là nút THỬ LẠI (được [%s])" \
+        % _a3.rule
+    print("WEBPLAYER_RETRY_OK")
 
 
 def test_reset_clears_leftover_dialog_between_missions():

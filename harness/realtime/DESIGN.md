@@ -2182,3 +2182,55 @@ trang lỗi); mission Lịch cuộn tìm trận kết thúc + quay lại Home sa
 kiểm TIẾP TỤC XEM; polish còn sót (tên cắt cụt, pill cắt mép, poster
 đen, meta 27 vs 18 tập). Sau đó trial mới + tour đủ màn rồi mới xét
 switch.
+
+### 15.26. Vòng sửa sau trial 10 — 3 fix harness mission tour (3 commit)
+
+Cả 3 mission FAIL của trial 10 đều là lỗi HARNESS, không phải lỗi app
+(VISUAL-REVIEW §6/§9). Mỗi fix 1 commit, mock tương ứng.
+
+1. **`cbe244e` — Mission #19 storage dialog: `goto_texts` sai nhãn thật.**
+   `goto_texts=["dung lượng bộ nhớ đệm"]` (§15.23 căn cứ code app) không
+   khớp nhãn thật trên màn hình — hàng thật là **"Xóa bộ nhớ đệm ảnh"**
+   (step_079/093, l_006). Không text nào khớp → driver fallback bấm OK lên
+   hàng đang focus (Chất lượng hình) rồi kẹt trong dialog chọn chất lượng
+   (bấm OK 6 lần trên `select_dialog_listview`, chọn nhầm "Cao nhất (nét)").
+   Đổi `goto_texts=["xóa bộ nhớ đệm ảnh"]`. An toàn giữ nguyên: driver
+   không bao giờ bấm OK khi dialog đang mở → nút đỏ "Xóa toàn bộ bộ nhớ
+   đệm" không bị chạm (trial 10 đã chứng minh bộ nhớ không bị xóa:
+   Cài đặt còn nguyên). Mock: fixture hàng storage đổi sang nhãn thật +
+   assert goto_texts mới.
+2. **`4909cd3` — Mission #20 Telegram QR: open_dialog nhận diện hàng
+   đích qua text con.** Driver ĐÃ tới đúng hàng "Liên hệ & Báo lỗi"
+   (step_086 highlight, focus view `[0,810][1920,972]`) nhưng focus view
+   là row container KHÔNG mang text (text nằm ở TextView con) nên driver
+   không bấm OK lần nào — chỉ DPAD_DOWN/LEFT + SWITCH_TAB lạc. Thêm
+   `Driver._focus_on_text`: text con có tâm nằm trong bounds focus mở
+   rộng 40px (cùng cách `_focused_card_texts` gắn badge với thẻ) tính là
+   đang đứng trên hàng đích → luật 1b bỏ qua goto và rơi xuống open_dialog
+   OK. Mock: tái hiện đúng dump trial 10 (focus row không text + TextView
+   con "Liên hệ & Báo lỗi") → `open_dialog` OK; đối chứng focus hàng khác
+   → vẫn `goto_view_text`.
+3. **Commit fix mission #14 (cùng đợt §15.26) — VOD WebPlayer: bấm
+   THỬ LẠI khi trang embed lỗi tải.**
+   Trang embed lỗi `net::ERR_CONNECTION_RESET` (step_051 = tour
+   t_010/t_011, kẹt ~2 phút QA), nút THỬ LẠI (`btnWebRetry`) đã focus
+   (step 49) nhưng driver chỉ bấm DPAD_RIGHT probe → kẹt cấp 2 ở bước 56.
+   Thêm `Driver._webplayer_retry_action` chạy ĐẦU nhánh player: focus
+   trên nút retry (id chứa 'retry' hoặc text đúng 'thử lại') → KEY OK
+   `webplayer_retry`; nút retry hiện trong dump mà chưa focus →
+   `goto_retry` đi tới nút. Chỉ khớp text đúng "thử lại" nên toast
+   "Mạng chập chờn – tự thử lại lần N…" không bị nhận nhầm. Lỗi nhất thời
+   (cùng URL phát được ở mission #15) nên retry là đủ. Mock:
+   `test_trial10_webplayer_retry_button` — (a) focus btnWebRetry →
+   `webplayer_retry` OK; (b) retry chưa focus → `goto_retry`; (c) toast
+   'tự thử lại' → luồng `wait_stream` thường.
+
+**Chưa chắc chắn, cần trial kiểm:** (1) nhãn "Xóa bộ nhớ đệm ảnh" có đúng
+với mọi phiên bản app không (trial 10 chỉ thấy 1 lần); (2) `_focus_on_text`
+giả định text con nằm gọn trong bounds focus — nếu app render row focus
+khác (VD focus là chính TextView) thì `focused_text` đã có sẵn và đường
+cũ vẫn xử lý; (3) `btnWebRetry` là id theo step_049 — nếu dump thật đặt id
+khác (VD nút trong WebView không lộ id), fallback text "thử lại" vẫn bắt
+được miễn nút có text; (4) mission #14 vẫn có thể FAIL nếu lỗi mạng kéo
+dài quá số lần retry — khi đó hành vi đúng là FAIL trung thực, không phải
+PASS giả.
