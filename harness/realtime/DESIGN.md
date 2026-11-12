@@ -979,8 +979,25 @@ cụm fix; reviewer độc lập kiểm lại trước khi dispatch trial.
 - **Mock: XANH, exit 0, 53 marker `_OK`** (43 gốc + 10 mới: N18, N19×2,
   N20, N21, N21b, N22, N23, N24, N25) — chạy lại toàn bộ sau cụm fix cuối
   (2026-11-12, `/tmp/mock_all3.log`).
-- **Replay offline (R9):** (chạy sau mock) — kỳ vọng giữ recall R8 (7/8
-  có vision, 0 false pass).
-- **Reviewer độc lập:** (spawn sau replay) — đọc code + chạy mock từng fix.
+- **Replay offline R9 trên artifact run-42950738729** (code CI-T8 đầy đủ,
+  2026-11-12):
+  - Có vision (`/tmp/qa_replay_R9_final/replay_report.json`, 154,4s):
+    **P0 recall 8/8** (bắt hết P0-1..P0-8, không thiếu cái nào), **0 false
+    pass**, 7 vision calls (provider NVIDIA_NIM qua integrate.api.nvidia.com
+    — surrogate, cùng endpoint/model nemotron với OPENAI ở R8, chỉ khác
+    nhãn), 7 requests, 0×429, mission 2 PASS / 3 FAIL / 11 UNVERIFIED,
+    score 0/100 (điểm THẬT của build cũ — 8 P0 đã xác minh phạt > 100 →
+    clamp 0, không phải lỗi harness, như R8).
+  - Không vision (`/tmp/qa_replay_R9_novision/replay_report.json`, 3,2s):
+    **P0 recall 5/8** (P0-1, P0-2, P0-4, P0-5, P0-6), 0 false pass,
+    mission 1 PASS / 3 FAIL / 13 UNVERIFIED, score 12/100.
+  - **So với R8 (7/8 có vision, 5/8 không vision): VƯỢT — P0-3 (thiếu ở
+    R8 do lỗi transport `Connection reset by peer`) đã bắt được ở R9.**
+    Không có P0 nào bị mất do code CI-T8. Lưu ý: recall replay dao động
+    theo lỗi hạ tầng vision từng thời điểm (R8 chạy 2 lần đã cho 6/8 rồi
+    7/8), 8/8 lần này không có nghĩa P0-3 đã "chắc chắn" — trial trực
+    tiếp mới là thước đo thật.
+- **Reviewer độc lập:** (đang kiểm — đọc code + chạy mock từng fix; kết
+  quả cập nhật tại đây trước khi dispatch trial).
 - **Trial CI-T8:** (dispatch sau reviewer) — run id + trạng thái cập nhật
   tại đây; **không tự kiểm chứng trial, không áp dụng switchover**.
