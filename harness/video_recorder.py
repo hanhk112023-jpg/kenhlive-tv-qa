@@ -362,6 +362,49 @@ class VideoRecorder:
             return out_path, 0.0
         return out_path, dur
 
+    def _build_chunk_map(self, raw_full):
+        """Dựng chunk_map (QA_t -> raw tour_t) từ các norm chunk còn sống,
+        theo đúng thứ tự tour. qa_start/end từ wall-clock lúc quay chunk;
+        raw_start/end tích lũy theo thời lượng thật file norm. Trả None khi
+        không dựng được (judge fallback chia đều)."""
+        if not getattr(self, "_norm_chunks", None) \
+                or not getattr(self, "_norm_valid", None) \
+                or getattr(self, "_start_wall", 0) <= 0:
+            return None
+        _map = []
+        _raw = 0.0
+        for _nf, (_c, _d, _r) in zip(self._norm_chunks, self._norm_valid):
+            _dur_n, _, _ = self._probe_video(_nf)
+            if _dur_n <= 0:
+                _dur_n = _d if _d and _d > 0 else 0.0
+            _te = next((t for t in self._chunk_times if t["index"] == _r), None)
+            if _te is None:
+                continue
+            _qs = max(0.0, _te["wall_start"] - self._start_wall)
+            _qe = _te["wall_end"]
+            _qe = max(_qs, (_qe - self._start_wall) if _qe else (_qs + _dur_n))
+            _map.append({"qa_start_s": round(_qs, 1), "qa_end_s": round(_qe, 1),
+                         "raw_start_s": round(_raw, 1), "raw_end_s": round(_raw + _dur_n, 1),
+                         "dur_s": round(_dur_n, 1)})
+            _raw += _dur_n
+        # Reviewer CI-T8: khi ghép hỏng và chỉ giữ chunk chuẩn hóa DÀI NHẤT
+        # làm tour thì map phải trim về đúng chunk đó — cộng dồn tất cả
+        # chunk sẽ làm raw_end_s vượt độ dài tour thật, reel cắt và verify
+        # lệch âm thầm (không báo lỗi).
+        if getattr(self, "_keep_chunks_on_failure", False) and len(_map) > 1:
+            _kept_name = os.path.basename(raw_full) if raw_full else ""
+            _kept_idx = next((i for i, (_nf, _e) in enumerate(
+                zip(self._norm_chunks, self._norm_valid))
+                if os.path.basename(_nf) == _kept_name), None)
+            if _kept_idx is not None:
+                _kept_entry = dict(_map[_kept_idx])
+                _kept_entry["raw_start_s"] = 0.0
+                _kept_entry["raw_end_s"] = _kept_entry["dur_s"]
+                _map = [_kept_entry]
+                print("⚠️ [VIDEO] Ghép hỏng — chunk_map trim về chunk giữ lại "
+                      "(%s)." % _kept_name, flush=True)
+        return _map or None
+
     def stop_and_save(self):
         if not self.is_recording:
             return None
@@ -598,29 +641,10 @@ class VideoRecorder:
         # norm tạm bên dưới (probe cần file còn tồn tại). qa_start/end từ
         # wall-clock lúc quay chunk; raw_start/end tích lũy theo thời lượng
         # thật file norm.
-        self._chunk_map = None
-        if getattr(self, "_norm_chunks", None) and getattr(self, "_norm_valid", None) \
-                and getattr(self, "_start_wall", 0) > 0:
-            _map = []
-            _raw = 0.0
-            for _nf, (_c, _d, _r) in zip(self._norm_chunks, self._norm_valid):
-                _dur_n, _, _ = self._probe_video(_nf)
-                if _dur_n <= 0:
-                    _dur_n = _d if _d and _d > 0 else 0.0
-                _te = next((t for t in self._chunk_times if t["index"] == _r), None)
-                if _te is None:
-                    continue
-                _qs = max(0.0, _te["wall_start"] - self._start_wall)
-                _qe = _te["wall_end"]
-                _qe = max(_qs, (_qe - self._start_wall) if _qe else (_qs + _dur_n))
-                _map.append({"qa_start_s": round(_qs, 1), "qa_end_s": round(_qe, 1),
-                             "raw_start_s": round(_raw, 1), "raw_end_s": round(_raw + _dur_n, 1),
-                             "dur_s": round(_dur_n, 1)})
-                _raw += _dur_n
-            self._chunk_map = _map or None
-            if self._chunk_map:
-                print(f"🎬 [VIDEO] Chunk map: {len(self._chunk_map)} chunk, "
-                      f"tour thô {self._chunk_map[-1]['raw_end_s']:.1f}s.", flush=True)
+        self._chunk_map = self._build_chunk_map(raw_full)
+        if self._chunk_map:
+            print(f"🎬 [VIDEO] Chunk map: {len(self._chunk_map)} chunk, "
+                  f"tour thô {self._chunk_map[-1]['raw_end_s']:.1f}s.", flush=True)
 
         # Tạo bản tua nhanh 10x Timelapse Preview (chuẩn android-tv-qa)
         if os.path.exists(self.final_mp4) and os.path.getsize(self.final_mp4) > 2000:

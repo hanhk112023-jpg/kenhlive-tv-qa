@@ -2404,6 +2404,37 @@ def main():
         "observe_mean phải khớp tính lại từ timeline"
     print("TIMINGS_DEFINITION_OK")
 
+    # --- Test N26: chunk_map trim khi ghép hỏng (reviewer CI-T8) ---
+    # Khi _concat_norm thất bại và chỉ giữ chunk chuẩn hóa DÀI NHẤT làm
+    # tour, chunk_map cộng dồn tất cả chunk sẽ làm raw_end_s vượt độ dài
+    # tour thật -> reel cắt/verify lệch âm thầm. Phải trim về đúng chunk
+    # được giữ (raw 0..dur, qa theo chunk đó).
+    import video_recorder as _vr26
+    _rec26 = _vr26.VideoRecorder(serial=None, out_dir="/tmp/qa_mock_chunkmap26")
+    _rec26._start_wall = 1000.0
+    _rec26._chunk_times = [
+        {"index": 1, "remote": "x", "wall_start": 1000.0, "wall_end": 1175.0},
+        {"index": 2, "remote": "x", "wall_start": 1180.0, "wall_end": 1355.0}]
+    _rec26._norm_chunks = ["/tmp/qa_mock_chunkmap26/norm_01.mp4",
+                           "/tmp/qa_mock_chunkmap26/norm_02.mp4"]
+    _rec26._norm_valid = [("c1", 170.0, 1), ("c2", 175.0, 2)]
+    # Ghép thành công: map đủ 2 chunk, raw cộng dồn 0-170, 170-345.
+    _rec26._keep_chunks_on_failure = False
+    _cm26 = _rec26._build_chunk_map("/tmp/qa_mock_chunkmap26/final.mp4")
+    print("chunk_map đủ:", _cm26)
+    assert _cm26 and len(_cm26) == 2 and _cm26[-1]["raw_end_s"] == 345.0, \
+        "ghép đủ thì map phải có 2 chunk cộng dồn"
+    # Ghép hỏng, chỉ giữ chunk dài nhất (norm_02): map trim về 1 entry,
+    # raw 0..175, qa theo chunk 2 (180..355).
+    _rec26._keep_chunks_on_failure = True
+    _cm26b = _rec26._build_chunk_map("/tmp/qa_mock_chunkmap26/norm_02.mp4")
+    print("chunk_map trim:", _cm26b)
+    assert _cm26b and len(_cm26b) == 1, "ghép hỏng thì map chỉ còn chunk được giữ"
+    assert _cm26b[0]["raw_start_s"] == 0.0 and _cm26b[0]["raw_end_s"] == 175.0, \
+        "map trim phải bắt đầu từ 0 và kết thúc ở độ dài chunk giữ lại"
+    assert _cm26b[0]["qa_start_s"] == 180.0, "qa_start phải là của chunk được giữ"
+    print("CHUNK_MAP_TRIM_OK")
+
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)

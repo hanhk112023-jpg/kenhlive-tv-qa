@@ -153,8 +153,9 @@ def detect_keyboard_from_image(frame_png):
     <= 1.5) — chính là 4 hàng phím QWERTY. Kiểm trên 29 frame CI-T6:
     bắt 3/3 frame có bàn phím (066/067/071), 0 FP trên 26 frame còn lại.
     Chỉ downscale tối đa về 960 rộng (1920->960 vẫn bắt được; downscale
-    về 480 làm mờ phím, mất tín hiệu — đã kiểm). Quét rẻ (step 2 theo x),
-    nhưng caller chỉ gọi khi nghi kẹt (lazy) nên không tốn mỗi bước."""
+    về 480 làm mờ phím, mất tín hiệu — đã kiểm). Quét rẻ (step 2 theo x,
+    ~50ms) nên _observe gọi mỗi bước từ CI-T8 mục 6 (trước đó chỉ gọi lazy
+    khi nghi kẹt)."""
     if not frame_png:
         return False
     try:
