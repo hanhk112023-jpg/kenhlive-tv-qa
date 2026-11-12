@@ -7,9 +7,20 @@ mới kết luận mission. Ghi lại rule đã chọn cho mỗi quyết định
 """
 import hashlib
 import re
+from datetime import datetime, timedelta, timezone
 
 MAX_STUCK_LEVELS = 2      # kẹt 2 lần -> FAIL mission
 NO_CHANGE_STEPS = 3       # 3 bước không đổi trạng thái = kẹt 1 cấp
+# CI-T9 nhóm B mục (3): mission cần trận đang đá được quét tối đa 6 bước
+# (bỏ qua thẻ SẮP ĐÁ / cuộn xuống tìm thẻ LIVE) mà không thấy thẻ LIVE
+# nào thì kết luận run không có trận đang đá để mở (NO_LIVE_TARGET —
+# runner đổi thành UNVERIFIED vì spec có requires_live_row).
+_LIVE_SCAN_MAX = 6
+# Band nav (y < 140 theo 1080p, CI-T9 mục 3): nhãn nav 'TRỰC TIẾP' không
+# phải badge của thẻ trận — không được tính là thẻ LIVE.
+_NAV_BAND_Y = 140
+# Giờ app hiển thị theo GMT+7 (lịch thi đấu, giờ kickoff).
+_GMT7 = timezone(timedelta(hours=7))
 
 
 def _texts_hash(visible_texts):
@@ -32,11 +43,17 @@ class Action:
 class Driver:
     """Policy: directed launch -> tới đích trực tiếp -> khám phá có hướng -> thoát kẹt."""
 
-    def __init__(self, device, gate, mission, vision=None):
+    def __init__(self, device, gate, mission, vision=None, now_fn=None):
         self.device = device
         self.gate = gate
         self.mission = mission
         self.vision = vision
+        # CI-T9 nhóm B mục (3): đồng hồ chích được cho test (trả datetime
+        # theo GMT+7). Mặc định: giờ thật theo GMT+7.
+        self._now_fn = now_fn
+        # Số bước đã đi qua mà chưa thấy thẻ LIVE nào trong mission cần
+        # trận đang đá (quét xuống + bỏ qua thẻ SẮP ĐÁ đều tính).
+        self._no_live_steps = 0
         self._state_hist = []      # (focused_sig, texts_hash, activity)
         self._stuck_level = 0
         self._vision_assist_used = False
@@ -120,23 +137,15 @@ class Driver:
     def stuck(self):
         return self._no_change_streak >= NO_CHANGE_STEPS or self._revisit_streak >= 2
 
-    def _focused_card_status(self, ui_state):
-        """Trạng thái thẻ trận đang focus: 'live' | 'upcoming' | None.
-        CI-T5 mục 3 (CI-T4 PLAYER_STREAMING FAIL A-B-A-B): driver mở thẻ
-        [SẮP ĐÁ] ĐTQ Việt Nam 19:00 (chưa đá) -> player 'Đang tải luồng...'
-        vô hạn -> tự thoát -> mở lại -> dao động. Chỉ mở thẻ LIVE.
-        CI-T6 mục 5: luật này mở rộng cho MỌI mission mở player/dialog
-        (kể cả ROOM_PICKER — CI-T5 step_013/014 vẫn mở thẻ INTERF [SẮP ĐÁ]
-        vì _focused_card_status trả None: focus là blvCardRoot nhưng badge
-        không gắn được — id node text trong dump khác id view đang focus,
-        hoặc badge nằm ngoài cửa sổ ±6 node). Fallback mới, theo thứ tự:
-        (1) bounds: badge giao nhau / tâm nằm trong bounds focus mở rộng
-        40px; (2) cửa sổ ±10 node quanh node focus, tìm theo id rồi theo
-        focused_text; (3) text của chính view đang focus. 'LIVE' khớp theo
-        từ nguyên (\\blive\\b) để 'socolive' không bị nhận nhầm."""
+    def _focused_card_texts(self, ui_state):
+        """Text ứng viên của thẻ đang focus (dùng cho _focused_card_status
+        và _kickoff_passed_today). Thứ tự: (1) bounds: text của node giao
+        nhau / tâm nằm trong bounds focus mở rộng 40px; (2) cửa sổ ±10 node
+        quanh node focus, tìm theo id rồi theo focused_text; (3) text của
+        chính view đang focus."""
         texts = ui_state.get("all_visible_texts") or []
         if not texts:
-            return None
+            return []
         cands = []
         fb = ui_state.get("focused_bounds")
         nodes = ui_state.get("all_visible_nodes") or []
@@ -170,11 +179,140 @@ class Driver:
         _ft = (ui_state.get("focused_text") or "").lower()
         if _ft:
             cands.append(_ft)
+        return cands
+
+    def _focused_card_status(self, ui_state):
+        """Trạng thái thẻ trận đang focus: 'live' | 'upcoming' | None.
+        CI-T5 mục 3 (CI-T4 PLAYER_STREAMING FAIL A-B-A-B): driver mở thẻ
+        [SẮP ĐÁ] ĐTQ Việt Nam 19:00 (chưa đá) -> player 'Đang tải luồng...'
+        vô hạn -> tự thoát -> mở lại -> dao động. Chỉ mở thẻ LIVE.
+        CI-T6 mục 5: luật này mở rộng cho MỌI mission mở player/dialog
+        (kể cả ROOM_PICKER — CI-T5 step_013/014 vẫn mở thẻ INTERF [SẮP ĐÁ]
+        vì _focused_card_status trả None: focus là blvCardRoot nhưng badge
+        không gắn được — id node text trong dump khác id view đang focus,
+        hoặc badge nằm ngoài cửa sổ ±6 node). Fallback mới, theo thứ tự:
+        (1) bounds: badge giao nhau / tâm nằm trong bounds focus mở rộng
+        40px; (2) cửa sổ ±10 node quanh node focus, tìm theo id rồi theo
+        focused_text; (3) text của chính view đang focus. 'LIVE' khớp theo
+        từ nguyên (\\blive\\b) để 'socolive' không bị nhận nhầm."""
+        cands = self._focused_card_texts(ui_state)
         if any("sắp đá" in t for t in cands):
             return "upcoming"
         if any(re.search(r"\blive\b", t) or "trực tiếp" in t for t in cands):
             return "live"
         return None
+
+    def _now_gmt7(self):
+        """Giờ hiện tại theo GMT+7 (giờ app hiển thị)."""
+        if self._now_fn is not None:
+            return self._now_fn()
+        return datetime.now(_GMT7)
+
+    def _kickoff_passed_today(self, ui_state):
+        """Trận focus đã bắt đầu theo GIỜ KICKOFF (khi không có badge):
+        cửa sổ thẻ có mốc 'Hôm nay' (hoặc ngày DD/MM đúng hôm nay) + một
+        giờ kickoff 'HH:MM' đã qua so với giờ hiện tại (GMT+7). CHỈ dùng
+        hướng khẳng định, và KHÔNG dùng khi cửa sổ có 'SẮP ĐÁ' (tin badge:
+        trận hoãn vẫn chưa đá dù giờ đã qua) hay 'Ngày mai' (giờ ngày mai
+        đã qua không có nghĩa là đã đá). Không có mốc ngày thì không kết
+        luận (giờ '21:00' không rõ hôm nay hay ngày mai)."""
+        cands = self._focused_card_texts(ui_state)
+        if any("sắp đá" in t for t in cands):
+            return False
+        if any("ngày mai" in t for t in cands):
+            return False
+        now = self._now_gmt7()
+        is_today = any("hôm nay" in t for t in cands)
+        if not is_today:
+            for t in cands:
+                dm = re.match(r"^(\d{1,2})/(\d{1,2})$", (t or "").strip())
+                if dm and int(dm.group(1)) == now.day \
+                        and int(dm.group(2)) == now.month:
+                    is_today = True
+                    break
+        if not is_today:
+            return False
+        for t in cands:
+            tm = re.match(r"^(\d{1,2}):(\d{2})$", (t or "").strip())
+            if not tm:
+                continue
+            hh, mm = int(tm.group(1)), int(tm.group(2))
+            if 0 <= hh < 24 and 0 <= mm < 60 \
+                    and (hh, mm) <= (now.hour, now.minute):
+                return True
+        return False
+
+    def _focus_inside_live_card(self, ui_state):
+        """Focus đang nằm trong bounds một thẻ chứa badge LIVE/TRỰC TIẾP
+        (đường bounds — khi badge không gắn được qua _focused_card_status
+        vì id node/khoảng cách). Badge vùng nav (tâm y < 140) không tính:
+        nhãn nav 'TRỰC TIẾP' không phải thẻ trận."""
+        nodes = ui_state.get("all_visible_nodes") or []
+        fb = ui_state.get("focused_bounds")
+        if not nodes or not fb:
+            return False
+        fm = re.findall(r"-?\d+", fb)
+        if len(fm) < 4:
+            return False
+        fcx = (int(fm[0]) + int(fm[2])) // 2
+        fcy = (int(fm[1]) + int(fm[3])) // 2
+        _card_ids = ("cardroot", "schedcard", "blvcardroot", "livecard", "channelcard")
+        for n in nodes:
+            t = (n.get("text") or "").lower()
+            if not (re.search(r"\blive\b", t) or "trực tiếp" in t):
+                continue
+            nb = re.findall(r"-?\d+", n.get("bounds") or "")
+            if len(nb) < 4:
+                continue
+            bx, by = (int(nb[0]) + int(nb[2])) // 2, (int(nb[1]) + int(nb[3])) // 2
+            if by < _NAV_BAND_Y:
+                continue  # badge vùng nav — không phải thẻ trận
+            barea = (int(nb[2]) - int(nb[0])) * (int(nb[3]) - int(nb[1]))
+            cands = []
+            for n2 in nodes:
+                nb2 = re.findall(r"-?\d+", n2.get("bounds") or "")
+                if len(nb2) < 4:
+                    continue
+                x1, y1, x2, y2 = map(int, nb2[:4])
+                if not (x1 <= bx <= x2 and y1 <= by <= y2):
+                    continue
+                area = (x2 - x1) * (y2 - y1)
+                if area <= barea:
+                    continue
+                prio = 0 if (n2.get("id") or "").lower() in _card_ids else 1
+                cands.append((prio, area, (x1, y1, x2, y2)))
+            if not cands:
+                continue
+            cands.sort()
+            card = cands[0][2]
+            if card[0] <= fcx <= card[2] and card[1] <= fcy <= card[3]:
+                return True
+        return False
+
+    def _needs_live_target(self):
+        """Mission chỉ được mở trận ĐANG ĐÁ: mission cần player VÀ spec
+        đánh dấu requires_live_row (CI-T9 nhóm B mục (3) — hiện chỉ
+        MISSION_PLAYER_STREAMING_AND_CONTROLS; SCHEDULE_LIVE_DIRECTED cũng
+        có cờ này nhưng không mở player nên không lọt). IPTV_EPG mở kênh
+        (không phải trận) nên không bị chặn."""
+        m = self.mission
+        return (getattr(m, "requires_live_row", False)
+                and m.required_activity == "PlayerActivity"
+                and not m.directed_launch)
+
+    def _is_confirmed_live_target(self, ui_state):
+        """Focus có chắc chắn là trận ĐANG ĐÁ không (để mở player):
+        (a) badge LIVE/TRỰC TIẾP gắn được với thẻ focus; (b) focus nằm
+        trong bounds thẻ chứa badge LIVE; (c) giờ kickoff hôm nay đã qua.
+        Focus ở nav (nav_*) không bao giờ là thẻ trận — nhãn nav
+        'TRỰC TIẾP' từng làm _focused_card_status trả 'live' oan."""
+        if (ui_state.get("focused_sig") or "").startswith("nav"):
+            return False
+        if self._focused_card_status(ui_state) == "live":
+            return True
+        if self._focus_inside_live_card(ui_state):
+            return True
+        return self._kickoff_passed_today(ui_state)
 
     def _goto_live_card_action(self, ui_state):
         """Đi tới thẻ LIVE gần nhất theo id/bounds (CI-T6 mục 6): mission cần
@@ -201,6 +339,11 @@ class Driver:
             if re.search(r"\blive\b", t) or "trực tiếp" in t:
                 nb = re.findall(r"-?\d+", n.get("bounds") or "")
                 if len(nb) < 4:
+                    continue
+                # CI-T9 nhóm B mục (3): nhãn nav 'TRỰC TIẾP' (tâm y <
+                # 140) không phải badge của thẻ trận — bỏ qua, không đuổi
+                # theo nav thay vì đi xuống thẻ LIVE thật.
+                if (int(nb[1]) + int(nb[3])) // 2 < _NAV_BAND_Y:
                     continue
                 badges.append((n, tuple(map(int, nb[:4]))))
         if not badges:
@@ -408,6 +551,18 @@ class Driver:
         if "PlayerActivity" not in act and "WebPlayerActivity" not in act \
                 and not ui_state.get("has_dialog"):
             if self._focused_card_status(ui_state) == "upcoming":
+                # CI-T9 nhóm B mục (3): mission cần trận đang đá mà bỏ qua
+                # quá nhiều thẻ SẮP ĐÁ liên tiếp không gặp thẻ LIVE nào thì
+                # kết luận run không có trận đang đá để mở (NO_LIVE_TARGET),
+                # thay vì đốt hết 8 bước rồi FAIL oan.
+                if self._needs_live_target():
+                    self._no_live_steps += 1
+                    if self._no_live_steps > _LIVE_SCAN_MAX:
+                        return Action("FAIL", "", rule="no_live_target",
+                                      thought="Bỏ qua %d thẻ [SẮP ĐÁ] liên tiếp mà "
+                                              "không gặp thẻ LIVE nào — run không có "
+                                              "trận đang đá để mở, chưa kiểm được "
+                                              "(UNVERIFIED)" % _LIVE_SCAN_MAX)
                 return Action("KEY", "DPAD_DOWN", rule="skip_upcoming_card",
                               thought="Thẻ đang focus là trận [SẮP ĐÁ] (chưa đá) — "
                                       "bỏ qua, tìm thẻ LIVE để mở")
@@ -428,8 +583,37 @@ class Driver:
             if goto_live is not None:
                 return goto_live
 
+        # -- 0c3. Mission cần trận đang đá mà goto_live không tìm thấy thẻ
+        # LIVE nào trong dump (không có badge LIVE, hoặc focus đã đứng trên
+        # thẻ LIVE — trường hợp sau đã được xác nhận ở dưới): TUYỆT ĐỐI
+        # không bấm OK mù trên focus chưa xác nhận (CI-T9 Thử 3: step_016/
+        # 018 bấm OK trên focus không text '' sau khi player thoát, mở nhầm
+        # KUW–SYR đá ngày mai). Cuộn xuống tìm thẻ LIVE; quét hết lượt mà
+        # không thấy thì FAIL NO_LIVE_TARGET — runner đổi thành UNVERIFIED
+        # khi run không có hàng LIVE nào (spec requires_live_row). Panel đã
+        # mở (has_dialog) thì không áp: trận đã được chọn lúc mở panel, OK
+        # trên phòng đang focus là đường vào player (luật 0c như cũ).
+        if self._needs_live_target() \
+                and "PlayerActivity" not in act \
+                and "WebPlayerActivity" not in act \
+                and not ui_state.get("has_dialog"):
+            if not self._is_confirmed_live_target(ui_state):
+                self._no_live_steps += 1
+                if self._no_live_steps > _LIVE_SCAN_MAX:
+                    return Action("FAIL", "", rule="no_live_target",
+                                  thought="Không thấy thẻ trận LIVE/TRỰC TIẾP nào "
+                                          "sau %d bước quét — run không có trận "
+                                          "đang đá để mở, chưa kiểm được "
+                                          "(UNVERIFIED)" % _LIVE_SCAN_MAX)
+                return Action("KEY", "DPAD_DOWN", rule="scan_live_card",
+                              thought="Chưa thấy thẻ LIVE — cuộn xuống tìm trận "
+                                      "đang đá, không mở trận chưa xác nhận")
+
         # -- 0c. Mission cần player mà đang ở màn chính -> bấm OK mở player.
         # (Không áp dụng mission directed_launch — launch đã mở sẵn player.)
+        # CI-T9 nhóm B mục (3): mission cần trận đang đá chỉ tới đây khi
+        # focus ĐÃ xác nhận là trận đang đá (luật 0c3 chặn mọi trường hợp
+        # khác) — OK mù trên focus '' / thẻ chưa xác nhận đã bị loại.
         if m.required_activity in ("PlayerActivity", "WebPlayerActivity") \
                 and not m.directed_launch \
                 and "PlayerActivity" not in act and "WebPlayerActivity" not in act:

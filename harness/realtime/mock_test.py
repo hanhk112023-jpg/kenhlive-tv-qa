@@ -341,8 +341,10 @@ def main():
                            {"id": "cardRoot", "text": "Trận A", "bounds": "[100,400][500,700]"},
                            {"id": "cardBadge", "text": "SẮP ĐÁ", "bounds": "[120,410][200,440]"}])
     a_6c = drv10.next_action(_ui_no_live, "com.kenhlive.tv/.MainActivity", None, 0.0)
-    assert a_6c.rule == "open_player", \
-        "không có thẻ LIVE thì hành vi cũ (OK) — không được chặn mission"
+    assert a_6c.rule == "scan_live_card", \
+        ("CI-T9 nhóm B mục (3) — Thử 3: không có thẻ LIVE thì hành vi cũ "
+         "(OK mù) mở nhầm KUW–SYR đá ngày mai vì focus không text; giờ "
+         "phải quét xuống tìm thẻ LIVE, không được bấm OK mù")
     print("GOTO_LIVE_CARD_OK")
 
     # --- Test N5: focus-trap chỉ tính quan sát khác nhau + bỏ shot trùng (CI-T6 mục 7) ---
@@ -2444,6 +2446,9 @@ def main():
     # --- CI-T9 mục 5 ---
     test_ci_t9_video_coverage_action_time()
 
+    # --- CI-T9 nhóm B mục (3): ExoPlayer chỉ mở trận đang đá ---
+    test_ci_t9_exoplayer_live_only()
+    test_ci_t9_exoplayer_no_live_unverified()
     # --- CI-T9 mục 1: focus-ring nhận vòng tròn/ellipse ---
     test_ci_t9_focus_ring_circle()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
@@ -2693,6 +2698,211 @@ def test_ci_t9_nav_excluded_from_live_rows():
     assert _ctx2.get("schedule_live_rows", 0) == 1, \
         "chỉ đếm 1 hàng trận thật, nav không được đếm thêm"
     print("CI_T9_NAV_EXCLUDED_OK")
+
+
+def test_ci_t9_exoplayer_live_only():
+    """CI-T9 nhóm B mục (3): ExoPlayer chỉ mở trận ĐANG ĐÁ.
+    Thử 3 (run 43164647966): driver bấm OK mù trên focus không text ''
+    (step_016/018, sau khi player thoát) rồi mở PlayerActivity cho KUW–SYR
+    đá NGÀY MAI 21:00 ('SẮP ĐÁ') — trận chưa đá thì không có luồng, mission
+    FAIL oan. Giờ: (a) dump có cả trận tương lai + trận LIVE -> đi tới thẻ
+    LIVE (không mở trận tương lai); (b) focus đã đứng trên thẻ LIVE -> mở
+    bằng OK; (c) hồi quy Thử 3 — focus '' + badge SẮP ĐÁ không gắn được
+    + không có thẻ LIVE -> KHÔNG bấm OK mù, quét xuống tìm LIVE, quét hết
+    6 lượt -> FAIL no_live_target; (d) không có badge nhưng giờ kickoff
+    hôm nay đã qua -> coi là đang đá (mở OK); trận ngày mai / trận hôm nay
+    chưa tới giờ -> không mở; (e) nav 'TRỰC TIẾP' không được tính là thẻ
+    LIVE; (f) mission mở player khác (IPTV_EPG, mở kênh) không bị chặn."""
+    from datetime import datetime, timezone, timedelta
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+    _specs = {s.name: s for s in get_missions()}
+    _exo = _specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]
+    assert _exo.requires_live_row is True, \
+        "spec ExoPlayer phải có requires_live_row để runner đổi FAIL thành UNVERIFIED khi run không có trận đang đá"
+
+    def _drv(spec=None, **kw):
+        _dev = FakeDevice()
+        _sp = spec or _exo
+        _dev._tab = _sp.tab if _sp.tab is not None else 0
+        return Driver(_dev, EvidenceGate(_sp), _sp, **kw)
+
+    def _act(drv, ui):
+        return drv.next_action(ui, "com.kenhlive.tv/.MainActivity", None, 0.0)
+
+    # (a) focus ở nav, dưới có cả thẻ SẮP ĐÁ và thẻ LIVE -> đi tới thẻ LIVE
+    # (không mở trận tương lai); nhãn nav 'TRỰC TIẾP' không được đuổi theo.
+    _ui_mix = {
+        "focused_sig": "nav_home#[362,0][563,112]", "focused_text": "Trang chủ",
+        "focused_bounds": "[362,0][563,112]",
+        "all_visible_texts": [("nav_home", "Trang chủ"), ("nav_live", "TRỰC TIẾP"),
+                              ("cardRoot", "Kuwait vs Syria"), ("cardBadge", "SẮP ĐÁ"),
+                              ("cardRoot2", "South East Melbourne"), ("cardBadge2", "LIVE")],
+        "all_visible_nodes": [
+            {"id": "nav_home", "text": "Trang chủ", "bounds": "[362,0][563,112]"},
+            {"id": "nav_live", "text": "TRỰC TIẾP", "bounds": "[700,0][900,112]"},
+            {"id": "cardRoot", "text": "Kuwait vs Syria", "bounds": "[100,200][500,400]"},
+            {"id": "cardBadge", "text": "SẮP ĐÁ", "bounds": "[120,210][200,240]"},
+            {"id": "cardRoot2", "text": "South East Melbourne", "bounds": "[100,500][500,800]"},
+            {"id": "cardBadge2", "text": "LIVE", "bounds": "[120,510][200,540]"}],
+        "has_dialog": False, "dialog_ids": []}
+    _a = _act(_drv(), _ui_mix)
+    print("dump có SẮP ĐÁ + LIVE, focus nav ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.rule == "goto_live_card" and _a.param == "DPAD_DOWN", \
+        "dump có cả trận tương lai và trận LIVE thì phải đi tới thẻ LIVE, không mở trận tương lai"
+    # (b) đã đứng trên thẻ LIVE -> mở bằng OK.
+    _ui_on_live = dict(_ui_mix,
+                       focused_sig="cardRoot2#[100,500][500,800]",
+                       focused_text="South East Melbourne",
+                       focused_bounds="[100,500][500,800]")
+    _a = _act(_drv(), _ui_on_live)
+    print("đã đứng trên thẻ LIVE ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.type == "KEY" and _a.param == "OK" and _a.rule == "open_player", \
+        "đã đứng trên thẻ LIVE thì bấm OK mở player"
+    # (c) hồi quy Thử 3: focus không text, badge SẮP ĐÁ có trong dump nhưng
+    # không gắn được với focus (bounds xa), không có thẻ LIVE nào.
+    _ui_t3 = {
+        "focused_sig": "cardRoot#[180,408][666,664]", "focused_text": "",
+        "focused_bounds": "[180,408][666,664]",
+        "all_visible_texts": [("nav_home", "Trang chủ"), ("cardRoot", "Kuwait vs Syria"),
+                              ("cardBadge", "SẮP ĐÁ"), ("cardTime", "21:00")],
+        "all_visible_nodes": [
+            {"id": "nav_home", "text": "Trang chủ", "bounds": "[362,0][563,112]"},
+            {"id": "cardRoot", "text": "Kuwait vs Syria", "bounds": "[180,408][666,664]"},
+            {"id": "cardBadge", "text": "SẮP ĐÁ", "bounds": "[200,900][300,930]"},
+            {"id": "cardTime", "text": "21:00", "bounds": "[200,940][300,970]"}],
+        "has_dialog": False, "dialog_ids": []}
+    _drv_t3 = _drv()
+    assert _drv_t3._focused_card_status(_ui_t3) is None, \
+        "badge SẮP ĐÁ không gắn được với focus thì trạng thái là None như Thử 3"
+    assert _drv_t3._is_confirmed_live_target(_ui_t3) is False
+    for _i in range(6):
+        _a = _act(_drv_t3, _ui_t3)
+        assert _a.rule == "scan_live_card", \
+            "focus chưa xác nhận + không có thẻ LIVE thì phải quét tìm LIVE, không được bấm OK mù (lần %d: %s)" % (_i + 1, _a.rule)
+    _a = _act(_drv_t3, _ui_t3)
+    print("quét hết 6 lượt không thấy LIVE ->", _a.type, "| rule:", _a.rule)
+    assert _a.type == "FAIL" and _a.rule == "no_live_target", \
+        "quét hết lượt mà không thấy thẻ LIVE thì FAIL no_live_target (runner đổi thành UNVERIFIED)"
+    # (d) giờ kickoff: 'Hôm nay 13:00' lúc 14:00 (GMT+7), không badge -> mở;
+    # 'Ngày mai 10:00' lúc 14:00 -> không mở; 'Hôm nay 21:00' lúc 14:00 -> không mở.
+    _gmt7 = timezone(timedelta(hours=7))
+    _now14 = datetime(2026, 11, 12, 14, 0, tzinfo=_gmt7)
+
+    def _ui_kickoff(date_txt, time_txt):
+        return {
+            "focused_sig": "cardRoot#[100,400][500,700]", "focused_text": "Đội A vs Đội B",
+            "focused_bounds": "[100,400][500,700]",
+            "all_visible_texts": [("nav_home", "Trang chủ"), ("cardRoot", "Đội A vs Đội B"),
+                                  ("cardDate", date_txt), ("cardTime", time_txt)],
+            "all_visible_nodes": [
+                {"id": "nav_home", "text": "Trang chủ", "bounds": "[362,0][563,112]"},
+                {"id": "cardRoot", "text": "Đội A vs Đội B", "bounds": "[100,400][500,700]"},
+                {"id": "cardDate", "text": date_txt, "bounds": "[120,410][220,440]"},
+                {"id": "cardTime", "text": time_txt, "bounds": "[120,450][220,480]"}],
+            "has_dialog": False, "dialog_ids": []}
+    _a = _act(_drv(now_fn=lambda: _now14), _ui_kickoff("Hôm nay", "13:00"))
+    print("'Hôm nay 13:00' lúc 14:00 ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.rule == "open_player", "giờ kickoff hôm nay đã qua thì trận đã bắt đầu, được mở"
+    _a = _act(_drv(now_fn=lambda: _now14), _ui_kickoff("Ngày mai", "10:00"))
+    print("'Ngày mai 10:00' lúc 14:00 ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.rule == "scan_live_card", "trận ngày mai thì giờ đã qua cũng chưa đá, không được mở"
+    _a = _act(_drv(now_fn=lambda: _now14), _ui_kickoff("Hôm nay", "21:00"))
+    assert _a.rule == "scan_live_card", "trận hôm nay chưa tới giờ đá thì không được mở"
+    # (e) chỉ có nav 'TRỰC TIẾP' + thẻ SẮP ĐÁ (không có thẻ LIVE thật) ->
+    # nav không được tính là thẻ LIVE: không mở, quét xuống.
+    _ui_nav_only = {
+        "focused_sig": "nav_home#[362,0][563,112]", "focused_text": "Trang chủ",
+        "focused_bounds": "[362,0][563,112]",
+        "all_visible_texts": [("nav_home", "Trang chủ"), ("nav_live", "TRỰC TIẾP"),
+                              ("cardRoot", "Trận A"), ("cardBadge", "SẮP ĐÁ")],
+        "all_visible_nodes": [
+            {"id": "nav_home", "text": "Trang chủ", "bounds": "[362,0][563,112]"},
+            {"id": "nav_live", "text": "TRỰC TIẾP", "bounds": "[700,0][900,112]"},
+            {"id": "cardRoot", "text": "Trận A", "bounds": "[100,400][500,700]"},
+            {"id": "cardBadge", "text": "SẮP ĐÁ", "bounds": "[120,410][200,440]"}],
+        "has_dialog": False, "dialog_ids": []}
+    _a = _act(_drv(), _ui_nav_only)
+    print("chỉ nav TRỰC TIẾP + thẻ SẮP ĐÁ ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.rule == "scan_live_card", \
+        "nhãn nav 'TRỰC TIẾP' không phải thẻ trận LIVE — không được mở"
+    # (f) mission mở player KHÁC (IPTV_EPG: mở kênh, không phải trận) không
+    # bị chặn bởi luật trận đang đá: không có thẻ LIVE vẫn OK như cũ.
+    _iptv = _specs["MISSION_IPTV_EPG_AND_ZAPPING_PLAYER"]
+    _ui_chan = {
+        "focused_sig": "channelCard#[100,400][500,700]", "focused_text": "VTV1 HD",
+        "focused_bounds": "[100,400][500,700]",
+        "all_visible_texts": [("nav_home", "Trang chủ"), ("nav_live", "TRỰC TIẾP"),
+                              ("channelCard", "VTV1 HD"), ("channelCard2", "VTV3 HD")],
+        "all_visible_nodes": [
+            {"id": "nav_home", "text": "Trang chủ", "bounds": "[362,0][563,112]"},
+            {"id": "nav_live", "text": "TRỰC TIẾP", "bounds": "[700,0][900,112]"},
+            {"id": "channelCard", "text": "VTV1 HD", "bounds": "[100,400][500,700]"},
+            {"id": "channelCard2", "text": "VTV3 HD", "bounds": "[100,750][500,1050]"}],
+        "has_dialog": False, "dialog_ids": []}
+    _a = _act(_drv(spec=_iptv), _ui_chan)
+    print("IPTV_EPG không có thẻ LIVE ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.rule == "open_player", \
+        "luật chỉ-chọn-trận-đang-đá chỉ áp mission ExoPlayer, mission IPTV mở kênh không bị chặn"
+    print("CI_T9_EXOPLAYER_LIVE_ONLY_OK")
+
+
+def test_ci_t9_exoplayer_no_live_unverified():
+    """CI-T9 nhóm B mục (3): dump chỉ có trận tương lai (SẮP ĐÁ) -> mission
+    ExoPlayer phải UNVERIFIED (chưa kiểm được), KHÔNG mở player (không bấm
+    OK lần nào), KHÔNG FAIL oan. Chạy mission thật bằng runner trên
+    FakeDevice chỉ có trận tương lai; cờ schedule_live_seen False nên
+    runner đổi outcome thành UNVERIFIED (cơ chế CI-T8 mục 7)."""
+    import shutil as _sh
+    _sh.rmtree("/tmp/qa_mock_exo_nolive", ignore_errors=True)
+    _no_live_dump = {
+        "focused_sig": "nav_home#[362,0][563,112]",
+        "focused_text": "Trang chủ",
+        "focused_bounds": "[362,0][563,112]",
+        "focusable_count": 8,
+        "all_visible_texts": [("nav_home", "Trang chủ"), ("nav_live", "TRỰC TIẾP"),
+                              ("cardRoot", "Kuwait vs Syria"), ("cardBadge", "SẮP ĐÁ"),
+                              ("cardTime", "21:00")],
+        "all_visible_nodes": [
+            {"id": "nav_home", "text": "Trang chủ", "bounds": "[362,0][563,112]"},
+            {"id": "nav_live", "text": "TRỰC TIẾP", "bounds": "[700,0][900,112]"},
+            {"id": "cardRoot", "text": "Kuwait vs Syria", "bounds": "[100,400][500,700]"},
+            {"id": "cardBadge", "text": "SẮP ĐÁ", "bounds": "[120,410][200,440]"},
+            {"id": "cardTime", "text": "21:00", "bounds": "[120,450][220,480]"}],
+        "has_dialog": False,
+        "dialog_ids": [],
+        "selected_ids": ["nav_home"],
+        "ui_summary": "[FOCUSED] nav_home ('Trang chủ') [362,0][563,112]",
+        "osd_visible": False,
+    }
+
+    class _NoLiveDevice(FakeDevice):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            self._dump = dict(_no_live_dump)
+            self._tab = 0
+
+    from missions import get_missions
+    _specs = {s.name: s for s in get_missions()}
+    _orig_dev = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = _NoLiveDevice
+    try:
+        _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_exo_nolive", serial=None,
+                                       vision_budget=0, no_vision=True)
+        _rep = _r.run([_specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]])
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev
+    _res = _r.mission_results[0]
+    print("ExoPlayer chỉ có trận tương lai -> outcome:", _res["outcome"],
+          "| reason:", _res["reason"][:160],
+          "| keys:", _r.device.keys)
+    assert _res["outcome"] == "UNVERIFIED", \
+        "chỉ có trận tương lai thì mission ExoPlayer phải UNVERIFIED, không FAIL (được %s)" % _res["outcome"]
+    assert "OK" not in _r.device.keys, \
+        "không có trận đang đá thì driver không được bấm OK mở player lần nào (keys: %s)" % _r.device.keys
+    assert _rep.get("schedule_live_seen") is False
+    print("CI_T9_EXOPLAYER_NO_LIVE_UNVERIFIED_OK")
 
 
 def test_ci_t9_focus_ring_circle():
