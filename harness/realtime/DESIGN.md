@@ -1769,3 +1769,57 @@ từ app head mới; khi đó mới kiểm bằng mắt toàn bộ polish (63 co
 H1/H4/H6–H10 giữ nguyên trạng thái từ trial 6 — không có bằng chứng
 mới nào đợt này. Biên bản đầy đủ:
 `~/workspace/kenhlive-plan/qa-run-43211741875/VISUAL-REVIEW.md`.
+
+### 15.20. KL8 Polish Phase 2 — LIVE TRIAL thử 8 (run 43215084288, 2026-11-12)
+
+Trial kiểm chứng fix A16 (`9380667`) + toàn bộ đợt polish Phase 2
+(app `9380667` = trial-6 head `6880652` + 65 commit polish
+`6880652..a61bb65` + fix T2 `44d6323` + fix D6 `a61bb65` + fix A16
+`9380667`; QA head `fc7a321`, không đổi harness). Dispatch 19:07:39 VN,
+full (quick=false), theo đúng hướng §15.19 đã ghi.
+
+**Workflow FAILURE sau 5m56s — chết ở bước Build debug APK, QA = 0.**
+Không phải lỗi A16 cũ: **`processDebugResources` ĐÃ QUA** (lần thử 1
+chạy qua ở 12:09:28, lần 2–3 UP-TO-DATE) — **fix `9380667`
+(`windowAnimations` → `windowAnimationStyle`) được kiểm chứng bằng
+build thật trên CI, A16 KHỎI.** Build chết ở task kế tiếp, cùng 1 lỗi
+duy nhất cả 3 lần retry (2m11s / 39s / 39s):
+
+```
+e: app/src/main/java/com/kenhlive/tv/SportAdapter.kt:317:59
+   Unresolved reference: anchorRow
+> Task :app:compileDebugKotlin FAILED
+```
+
+Mọi bước sau build đều skipped (proxy, KVM, preflight, QA); không có
+artifact `qa_out/`, không report/ảnh/tour/reel — **mắt kiểm 0/0, video
+tour không có**. Không có số liệu QA nào (verdict/điểm/PASS/vision/
+429/exit IP đều là "không chạy tới").
+
+**A17 (MỚI, HIGH — build-breaking): `R.id.anchorRow` không còn tồn
+tại.** `SportAdapter.MatchVH:317` (`inflate
+R.layout.item_schedule_match`) vẫn `findViewById(R.id.anchorRow)`,
+và RV-2 `cf26b3f` vừa thêm code dùng nó (pool avatar: inflate với
+parent `anchorRow` ở dòng 321, `addView` ở dòng 565). Nhưng Polish S11
+`9d00bd2` (11:18:47) đã xóa `android:id="@+id/anchorRow"` khỏi
+`item_schedule_match.xml` khi bỏ hàng avatar BLV khỏi hàng Lịch — chỉ
+sửa layout + `ScheduleAdapter.kt`, không sửa `SportAdapter` (cùng
+inflate layout đó). Hai commit polish chạm cùng chỗ theo 2 hướng ngược
+nhau cách nhau 6 phút: RV-2 (11:12:18) khóa thêm phụ thuộc vào
+`anchorRow`, S11 xóa nó. Lỗi xác định, lặp lại 3/3 lần, không phải
+flaky CI. Hướng sửa (ghi cho vòng sau, không sửa ở đợt này): khôi phục
+`anchorRow` (GONE) trong layout, hoặc bỏ `anchorRow`/`avatarPool` khỏi
+`SportAdapter.MatchVH` — cần re-review vì chạm đúng mục S11 vừa khóa
+(cột phải Lịch phải giữ thẳng hàng).
+
+**0 mục polish xác minh được bằng mắt; 0 số F mới** (nhiệm vụ chỉ ghi
+F cho mục đã xác minh khỏi — đợt này không có mục nào, nên F69+ vẫn
+trống, chờ trial build được rồi mới ghi). A6/A11/A14/A15/A10/A12/A13,
+H1/H4/H6–H10 giữ nguyên trạng thái từ trial 6. Biên bản đầy đủ:
+`~/workspace/kenhlive-plan/qa-run-43215084288/VISUAL-REVIEW.md`
+(cùng `run.log`, `run-failed.log`).
+
+**KHÔNG switch** — trial chưa từng chạy tới QA; cũng chưa có video tour
+nào để giao Evelyn. Việc tiếp theo (chưa duyệt, chỉ ghi): fix A17 trên
+app + re-review độc lập + dispatch **trial 9 full** từ app head mới.
+
