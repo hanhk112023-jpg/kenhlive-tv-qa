@@ -66,9 +66,14 @@ jobs:
           nohup "$SB" run -c /tmp/singbox_ci.json > /tmp/singbox.log 2>&1 &
           for i in $(seq 1 30); do (echo > /dev/tcp/127.0.0.1/7891) 2>/dev/null && break; sleep 2; done
           (echo > /dev/tcp/127.0.0.1/7891) 2>/dev/null || { echo "::error::sing-box khong mo port 7891"; tail -30 /tmp/singbox.log; exit 1; }
-          VN_CC=$(curl -sS -m 30 -x http://127.0.0.1:7891 https://ipwho.is/ 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('country_code','?'))" 2>/dev/null || echo "?")
-          echo "exit IP country: $VN_CC"
-          [ "$VN_CC" = "VN" ] || { echo "::error::Proxy VN khong cho exit IP Viet Nam (country=$VN_CC) — DUNG TRIAL, khong chay khong proxy"; tail -30 /tmp/singbox.log; exit 1; }
+          VN_CC="?"
+          for i in 1 2 3; do
+            VN_CC=$(curl -sS -m 30 -x http://127.0.0.1:7891 https://ipwho.is/ 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('country_code','?'))" 2>/dev/null || echo "?")
+            echo "exit IP country (lan $i): $VN_CC"
+            [ "$VN_CC" = "VN" ] && break
+            sleep 15
+          done
+          [ "$VN_CC" = "VN" ] || { echo "::error::Proxy VN khong cho exit IP Viet Nam sau 3 lan (country=$VN_CC) — DUNG TRIAL, khong chay khong proxy"; tail -30 /tmp/singbox.log; exit 1; }
           echo "exit IP: $(curl -sS -m 15 -x http://127.0.0.1:7891 https://api.ipify.org || echo '?')"
           echo "HAS_PROXY=1" >> "$GITHUB_ENV"
 

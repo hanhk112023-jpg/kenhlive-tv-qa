@@ -1164,7 +1164,9 @@ Evelyn quyết (2026-11-12 12:20): bỏ proxy YUNA, lấy dữ liệu proxy từ
 GitHub công khai. Chỉ làm mục 8 của danh sách sửa CI-T9 (§15.15); 8 mục
 còn lại chưa được duyệt, không làm.
 
-**Thay đổi (1 commit trên main):**
+**Thay đổi (2 commit trên main: 3834b7f + e8d8349 — commit đầu chỉ gồm
+file xóa do lỗi `git add` của implementer, phần chính ở commit sau;
+bổ sung retry cổng kiểm IP ở commit sau review):**
 - MỚI `harness/gh_vn_to_singbox.py` (chỉ dùng stdlib): tải
   `Au1rxx/free-vpn-subscriptions/output/country/VN/singbox-0001.json` mới
   nhất (retry 4 lần), giữ 17 node VLESS + nhóm urltest `auto`, bỏ endpoint
@@ -1176,8 +1178,10 @@ còn lại chưa được duyệt, không làm.
   `sing-box check`, chạy nền, chờ port 7891, **kiểm tra thật exit IP qua
   ipwho.is phải là VN (country_code == "VN") mới đặt HAS_PROXY=1**.
   Fetch lỗi / sing-box không mở port / exit IP không phải VN → `::error::`
-  + exit 1 (FAIL ỒN ÀO, tuyệt đối không chạy lặng lẽ không proxy — đó chính
-  là lỗi cũ: các trial trước chỉ `::warning::` rồi chạy tiếp).
+  + exit 1; tải tarball / `tar` / `sing-box check` lỗi → exit 1 qua
+  `set -e` (step đỏ, cũng fail ồn ào). Cổng kiểm exit IP retry tối đa 3
+  lần, cách nhau 15s (tránh fail oan khi urltest chưa kịp chọn node sống
+  hoặc ipwho.is lỗi thoáng qua).
   Port 7891 giữ nguyên như mihomo cũ nên bước emulator
   (`adb shell settings put global http_proxy 10.0.2.2:7891`) không đổi.
 - XÓA `harness/ci_sub_to_yaml.py` (chỉ phục vụ sub YUNA, nay chết).
