@@ -71,6 +71,19 @@ class Driver:
         sử); ngoài player None xử như False (hành vi cũ)."""
         act = activity or ""
         is_player = "PlayerActivity" in act or "WebPlayerActivity" in act
+        # CI-T8 mục 6: đang gõ bàn phím = trạng thái ĐANG ĐỔI (phím nhấn,
+        # highlight di chuyển) — dump có thể không đổi vì bàn phím in-app
+        # mù với uiautomator, nhưng màn hình vẫn đang tương tác. Reset
+        # streak kẹt (như video đang phát trong player), nếu không STRESS
+        # gõ phím FAIL oan vì "kẹt" (CI-T7). Check cả dump lẫn ảnh.
+        if ui_state.get("keyboard_open") or ui_state.get("keyboard_open_image"):
+            self._no_change_streak = 0
+            self._revisit_streak = 0
+            sig = self._state_sig(ui_state, activity)
+            self._state_hist.append(sig)
+            if len(self._state_hist) > 12:
+                self._state_hist.pop(0)
+            return
         if motion_playing is None and is_player:
             sig = self._state_sig(ui_state, activity)
             self._state_hist.append(sig)

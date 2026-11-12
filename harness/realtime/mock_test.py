@@ -2271,6 +2271,44 @@ def main():
             setattr(_vis22, _k22, _v22)
     print("VISION_FALLBACK_OK")
 
+    # --- Test N23: bàn phím mở = trạng thái đổi, không tính kẹt (CI-T8 mục 6) ---
+    # CI-T7 STRESS FAIL oan: gõ phím mà dump không đổi (bàn phím in-app mù
+    # với uiautomator) nên detector "kẹt" nổ dù highlight di chuyển a->z->▶.
+    _spec23 = specs["MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY"]
+    _drv23 = Driver(FakeDevice(), EvidenceGate(_spec23), _spec23, vision=None)
+    _kb23 = dict(FakeDevice.HOME_DUMP)
+    _kb23["keyboard_open"] = True
+    for _i in range(4):
+        _drv23.note_state(_kb23, "com.kenhlive.tv/.MainActivity", motion_playing=False)
+    print("bàn phím mở (dump) x4 -> stuck:", _drv23.stuck(),
+          "| streak:", _drv23._no_change_streak)
+    assert not _drv23.stuck(), "đang gõ bàn phím thì dump không đổi cũng không được tính kẹt"
+    # Cùng dump nhưng bàn phím đóng -> kẹt sau 3 bước không đổi.
+    _drv23b = Driver(FakeDevice(), EvidenceGate(_spec23), _spec23, vision=None)
+    for _i in range(4):
+        _drv23b.note_state(dict(FakeDevice.HOME_DUMP), "com.kenhlive.tv/.MainActivity",
+                           motion_playing=False)
+    assert _drv23b.stuck(), "bàn phím đóng + dump không đổi 3 bước thì phải kẹt"
+    # Bàn phím chỉ thấy trên ẢNH (dump mù, như bàn phím in-app KenhLive).
+    _drv23c = Driver(FakeDevice(), EvidenceGate(_spec23), _spec23, vision=None)
+    _kb23c = dict(FakeDevice.HOME_DUMP)
+    _kb23c["keyboard_open_image"] = True
+    for _i in range(4):
+        _drv23c.note_state(_kb23c, "com.kenhlive.tv/.MainActivity", motion_playing=False)
+    assert not _drv23c.stuck(), "bàn phím thấy trên ảnh cũng phải reset streak kẹt"
+    # detect_focus_trap: ctx đã có keyboard_open_image=True thì không tố.
+    import detectors as _det23
+    _ctx23 = {"reported": set(), "frame_hash": "h1", "frame_hash_prev": "h0",
+              "keyboard_open_image": True, "last_key": "DPAD_DOWN",
+              "focus_hist": [("com.kenhlive.tv/.MainActivity", "nav_home", "DPAD_DOWN")] * 3}
+    _ui23 = {"focused_sig": "nav_home", "focused_bounds": "[500,500][700,600]",
+             "has_dialog": False, "focusable_count": 10, "keyboard_open": False}
+    _f23 = _det23.detect_focus_trap(_ui23, "com.kenhlive.tv/.MainActivity",
+                                    _ctx23, "step_001.jpg", 0.0)
+    print("focus_trap với bàn phím trên ảnh -> findings:", len(_f23))
+    assert _f23 == [], "bàn phím mở (ảnh) thì focus đứng yên là đúng, không tố trap"
+    print("KEYBOARD_STUCK_OK")
+
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)

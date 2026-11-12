@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from device import RealtimeDevice
 from perception import ScreenWatcher, MOTION_PLAYING_PCT
-from detectors import run_all_detectors
+from detectors import run_all_detectors, detect_keyboard_from_image
 from vision import VisionClient
 from gate import EvidenceGate
 from driver import Driver
@@ -246,6 +246,14 @@ class RealtimeRunner:
         _singles = [t for _, t in ui_state.get("all_visible_texts", [])
                     if len((t or "").strip()) == 1 and (t or "").strip().isalpha()]
         ui_state["keyboard_open"] = len(_singles) >= 8
+        # CI-T8 mục 6: bàn phím ảo kiểm bằng ẢNH mỗi bước (dump mù với bàn
+        # phím in-app KenhLive — STRESS CI-T7 gõ phím mà dump không đổi nên
+        # detector "kẹt" nổ oan). ~50ms/bước; kết quả vào ui_state để
+        # Driver.note_state reset streak + vào ctx để detect_focus_trap
+        # dùng lại (không tính lại ở điểm sắp tố).
+        kb_img = detect_keyboard_from_image(png) if png else False
+        ui_state["keyboard_open_image"] = bool(kb_img)
+        self.detector_ctx["keyboard_open_image"] = bool(kb_img)
         t_offset = round(time.time() - self.start_time, 1)
         # Tên frame phân biệt được mission (CI-T4, reviewer): cũ
         # mission_name.lower()[:8] == 'mission_' với MỌI mission (tên đều bắt

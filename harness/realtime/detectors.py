@@ -221,6 +221,10 @@ def detect_focus_trap(ui_state, activity, ctx, frame_ref, t_offset, frame_png=No
         return []  # frame trùng — không append hist, không tính quan sát mới
     if ui_state.get("keyboard_open"):
         return []  # đang gõ bàn phím: focus đứng yên là đúng
+    # CI-T8 mục 6: runner đã tính keyboard_open_image mỗi bước trong
+    # _observe — dùng luôn (rẻ), không chờ tới điểm sắp tố mới tính lazy.
+    if ctx.get("keyboard_open_image"):
+        return []  # bàn phím thấy trên ảnh: focus đứng yên là đúng
     hist = ctx.setdefault("focus_hist", [])
     focused_sig = ui_state.get("focused_sig", "NONE")
     focused_bounds = ui_state.get("focused_bounds")
