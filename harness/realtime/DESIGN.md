@@ -997,7 +997,16 @@ cụm fix; reviewer độc lập kiểm lại trước khi dispatch trial.
     theo lỗi hạ tầng vision từng thời điểm (R8 chạy 2 lần đã cho 6/8 rồi
     7/8), 8/8 lần này không có nghĩa P0-3 đã "chắc chắn" — trial trực
     tiếp mới là thước đo thật.
-- **Reviewer độc lập:** (đang kiểm — đọc code + chạy mock từng fix; kết
-  quả cập nhật tại đây trước khi dispatch trial).
+- **Reviewer độc lập:** ĐÃ KIỂM (2026-11-12) — đọc code từng commit +
+  chạy mock: **9/9 mục OK, không có lỗi chặn**. Mock của reviewer: exit 0,
+  53 marker `_OK` (chạy 157s). Reviewer tìm 2 lỗi nhỏ, đã sửa trước trial:
+  (1) chunk_map sai khi `_concat_norm` hỏng và chỉ giữ chunk dài nhất —
+  đã sửa ở commit `f9cbfdf` (trim map về chunk được giữ, tách thành method
+  `_build_chunk_map` để test được; mock N26 `CHUNK_MAP_TRIM_OK`); (2)
+  docstring `detect_keyboard_from_image` còn ghi "chỉ gọi lazy" — đã sửa
+  (gọi mỗi bước từ CI-T8 mục 6). Mock sau fix: **exit 0, 54 marker `_OK`**
+  (53 + N26), `/tmp/mock_final.log`. Lưu ý của reviewer: tiết kiệm ~250s
+  của mục 4 là ước tính — trial phải đo lại; recall replay dao động theo
+  lỗi hạ tầng vision (8/8 lần này không có nghĩa P0-3 đã "chắc chắn").
 - **Trial CI-T8:** (dispatch sau reviewer) — run id + trạng thái cập nhật
   tại đây; **không tự kiểm chứng trial, không áp dụng switchover**.
