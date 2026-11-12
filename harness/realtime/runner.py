@@ -787,6 +787,17 @@ class RealtimeRunner:
         pss = self.device.get_pss_memory_mb()
         if pss > 0:
             print("   📊 [Telemetry] RAM PSS: %.1f MB" % pss, flush=True)
+        # CI-T8 mục 7: mission cần hàng LIVE thật mà run không có hàng LIVE
+        # nào -> UNVERIFIED (chưa kiểm được detector (e)), không FAIL oan,
+        # không tính vào tỉ lệ pass (judge coi outcome ngoài PASS/FAIL là
+        # undecided). Điều kiện chạy sau khi gate đã kết luận xong.
+        if getattr(spec, "requires_live_row", False) \
+                and gate.outcome != "PASS" \
+                and not self.detector_ctx.get("schedule_live_seen"):
+            gate.outcome = "UNVERIFIED"
+            gate.outcome_reason = ("Không có hàng LIVE nào ở tab Lịch trong run này — "
+                                   "chưa kiểm được tỉ số trận đang đá (UNVERIFIED)")
+            print("   ❓ [Mission UNVERIFIED] %s: run không có hàng LIVE" % spec.name, flush=True)
         return self._finish_mission(spec, gate, last_obs and [last_obs] or [],
                                     dialog_obs=dialog_obs)
 
@@ -854,7 +865,10 @@ class RealtimeRunner:
                 res["evidence_frame_missing"] = True
                 res["reason"] = (res.get("reason") or "") + \
                     " | BẰNG CHỨNG THIẾU: frame %s không có trên đĩa" % _ev_frame
-                if res["outcome"] != "FAIL":
+                # Chỉ PASS mới bị lật thành FAIL; UNVERIFIED (CI-T8 mục 7:
+                # chưa kiểm được) giữ nguyên — thiếu frame không biến một
+                # mission chưa kiểm được thành lỗi app.
+                if res["outcome"] == "PASS":
                     res["outcome"] = "FAIL"
                     gate.outcome = "FAIL"
                     gate.outcome_reason = res["reason"]
@@ -1004,6 +1018,20 @@ class RealtimeRunner:
         # NIM — xem DESIGN §8.1).
         report["vision_provider"] = self.vision.provider
         report["vision_endpoint_host"] = self.vision.endpoint_host
+        # CI-T8 mục 7: run có thấy hàng LIVE nào ở tab Lịch không — nếu
+        # không thì detector (e) chưa được kiểm: ghi UNTESTED vào unverified,
+        # không im lặng như CI-T7.
+        _live_seen = bool(self.detector_ctx.get("schedule_live_seen"))
+        report["schedule_live_seen"] = _live_seen
+        if not _live_seen:
+            # judge giữ reference list unverified nên append vào
+            # self.unverified là đủ — không append thêm vào report.
+            self.unverified.append({
+                "reason": "schedule_live_no_score",
+                "detail": "Run không có hàng LIVE nào ở tab Lịch — detector (e) "
+                          "'hàng LIVE chỉ hiện giờ kickoff thay vì tỉ số' chưa được "
+                          "kiểm (UNTESTED, không phải PASS)",
+                "severity": "UNTESTED"})
         # CI-T8 mục 5: fallback provider đã dùng (nếu có) — ghi rõ để biết
         # bao nhiêu vision call chạy qua provider dự phòng (nim_usage cũng
         # có fallback_provider/fallback_used).

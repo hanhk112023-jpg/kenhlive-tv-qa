@@ -3,6 +3,8 @@
 
 17 mission, cùng độ phủ với harness cũ (17 mission — VOD và WebPlayer tách
 riêng thành 2 mission nhưng tổng vẫn 17 vì Home Hub cũ đã bỏ).
+CI-T8: thêm mission thứ 18 MISSION_SCHEDULE_LIVE_DIRECTED (chờ hàng LIVE
+thật ở tab Lịch để kiểm detector (e)).
 Mỗi mission khai TÍN HIỆU CẦN CÓ, không khai từng bước bấm — driver tự chọn
 hành động theo trạng thái. required_texts so khớp case-insensitive trên text
 của UI dump (tên hiển thị thật của app).
@@ -94,6 +96,19 @@ ALL_MISSIONS = [
         required_texts=["hôm nay"],
         target_desc="tab Lịch đấu, bấm vào một trận đấu mở được popup/phòng",
         tab=1, needs_scroll_top=True,
+    ),
+    MissionSpec(
+        "MISSION_SCHEDULE_LIVE_DIRECTED",
+        "Lịch Trực Tiếp & Tỉ Số Trận Đang Đá",
+        "CI-T8 mục 7: chờ hàng LIVE thật ở tab Lịch đấu rồi kiểm tỉ số "
+        "đang diễn ra (detector (e) 'hàng LIVE chỉ hiện giờ kickoff thay "
+        "vì tỉ số'). Run không có trận nào đang đá -> UNVERIFIED (chưa "
+        "kiểm được), không FAIL, không im lặng.",
+        max_steps=8, min_steps=3,
+        required_activity="MainActivity",
+        required_texts=["trực tiếp"],
+        target_desc="hàng trận đấu đang đá (badge TRỰC TIẾP/LIVE) hiển thị tỉ số",
+        tab=1, needs_scroll_top=True, requires_live_row=True,
     ),
     MissionSpec(
         "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",

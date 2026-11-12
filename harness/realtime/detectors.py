@@ -460,6 +460,17 @@ def detect_schedule_live_no_score(ui_state, activity, ctx, frame_ref, t_offset):
             rows.append({"cy": cy, "nodes": [(n, txt)]})
     out = []
     seen = ctx.setdefault("_sched_live_noscore_seen", {})
+    # CI-T8 mục 7: ghi nhận run CÓ thấy hàng LIVE nào không — dù hàng đó
+    # có tỉ số hay không. Run không có hàng LIVE thì detector (e) chưa được
+    # kiểm (UNTESTED), không được im lặng như CI-T7.
+    _live_rows = 0
+    for r in rows:
+        low = [t.lower() for _, t in r["nodes"]]
+        if any(_live_re.search(t) or "trực tiếp" in t for t in low):
+            _live_rows += 1
+    if _live_rows:
+        ctx["schedule_live_seen"] = True
+        ctx["schedule_live_rows"] = ctx.get("schedule_live_rows", 0) + _live_rows
     for r in rows:
         texts = [t for _, t in r["nodes"]]
         low = [t.lower() for t in texts]

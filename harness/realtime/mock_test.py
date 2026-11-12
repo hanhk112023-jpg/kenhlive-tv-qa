@@ -2309,6 +2309,65 @@ def main():
     assert _f23 == [], "bàn phím mở (ảnh) thì focus đứng yên là đúng, không tố trap"
     print("KEYBOARD_STUCK_OK")
 
+    # --- Test N24: Schedule LIVE — detector ghi nhận + mission UNVERIFIED (CI-T8 mục 7) ---
+    # CI-T7: run không có hàng LIVE nào mà detector (e) im lặng — không biết
+    # là đã kiểm hay chưa kiểm. Giờ: (a) detector thấy hàng LIVE thì ghi
+    # ctx['schedule_live_seen']; (b) mission directed không thấy hàng LIVE
+    # thì UNVERIFIED (không FAIL, không tính pass rate); (c) finish() ghi
+    # UNTESTED vào unverified khi cả run không có hàng LIVE.
+    import detectors as _det24
+    _nodes24 = [
+        {"id": "schedHeader", "text": "Hôm nay", "bounds": "[0,100][1920,200]"},
+        {"id": "schedMatch", "text": "LIVE", "bounds": "[100,300][300,400]"},
+        {"id": "schedMatch", "text": "18:30", "bounds": "[400,300][600,400]"},
+        {"id": "schedMatch", "text": "Đội A", "bounds": "[700,300][900,400]"},
+    ]
+    _ui24 = {"all_visible_nodes": _nodes24}
+    _ctx24 = {"reported": set()}
+    _f24 = _det24.detect_schedule_live_no_score(
+        _ui24, "com.kenhlive.tv/.MainActivity", _ctx24, "step_001.jpg", 0.0)
+    print("hàng LIVE có giờ kickoff, không tỉ số -> findings:", len(_f24),
+          "| schedule_live_seen:", _ctx24.get("schedule_live_seen"),
+          "| rows:", _ctx24.get("schedule_live_rows"))
+    assert _ctx24.get("schedule_live_seen") is True, \
+        "detector phải ghi nhận đã thấy hàng LIVE"
+    assert _ctx24.get("schedule_live_rows", 0) >= 1
+    # Hàng LIVE đã có tỉ số '2 : 1' -> không tố, nhưng vẫn ghi nhận đã thấy.
+    _nodes24b = [
+        {"id": "schedHeader", "text": "Hôm nay", "bounds": "[0,100][1920,200]"},
+        {"id": "schedMatch", "text": "LIVE", "bounds": "[100,300][300,400]"},
+        {"id": "schedMatch", "text": "2 : 1", "bounds": "[400,300][600,400]"},
+    ]
+    _ctx24b = {"reported": set()}
+    _f24b = _det24.detect_schedule_live_no_score(
+        {"all_visible_nodes": _nodes24b}, "com.kenhlive.tv/.MainActivity",
+        _ctx24b, "step_002.jpg", 0.0)
+    assert _f24b == [], "hàng LIVE đã có tỉ số thì không tố"
+    assert _ctx24b.get("schedule_live_seen") is True, \
+        "hàng LIVE có tỉ số cũng phải ghi nhận đã thấy"
+    # (b)+(c): chạy mission directed trên FakeDevice (không có hàng LIVE) ->
+    # UNVERIFIED + finish ghi UNTESTED.
+    import shutil as _sh24
+    _sh24.rmtree("/tmp/qa_mock_live24", ignore_errors=True)
+    _orig_dev24 = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = FakeDevice
+    try:
+        _r24 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_live24", serial=None,
+                                         vision_budget=0, no_vision=True)
+        _rep24 = _r24.run([specs["MISSION_SCHEDULE_LIVE_DIRECTED"]])
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev24
+    print("directed live mission -> outcome:", _r24.mission_results[0]["outcome"],
+          "| schedule_live_seen:", _rep24.get("schedule_live_seen"),
+          "| unverified:", [u.get("reason") for u in _rep24.get("unverified", [])])
+    assert _r24.mission_results[0]["outcome"] == "UNVERIFIED", \
+        "không có hàng LIVE thì mission directed phải UNVERIFIED, không FAIL"
+    assert _rep24.get("schedule_live_seen") is False
+    assert any(u.get("reason") == "schedule_live_no_score"
+               for u in _rep24.get("unverified", [])), \
+        "finish() phải ghi UNTESTED schedule_live_no_score khi run không có hàng LIVE"
+    print("SCHEDULE_LIVE_OK")
+
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)

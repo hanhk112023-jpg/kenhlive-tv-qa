@@ -17,7 +17,8 @@ class MissionSpec:
                  needs_dialog=False, needs_motion=False, needs_vision=False,
                  target_desc="", directed_launch=None, min_steps=4, kind="target",
                  tab=None, needs_scroll_top=False, goto_texts=None,
-                 needs_long_press=False, needs_playback_progress=False):
+                 needs_long_press=False, needs_playback_progress=False,
+                 requires_live_row=False):
         self.name = name
         self.title = title
         self.description = description
@@ -49,7 +50,10 @@ class MissionSpec:
         # vì bấm OK mù trên focus đang đứng (CI-T4: focus lạc về Home trong
         # khi nút CHỌN TẬP hiện ngay trên màn hình).
         self.goto_texts = [t.lower() for t in (goto_texts or [])]
-        # CI-T5 mục 10 (nợ cũ): mission cần long-press OK để lưu yêu thích
+        # CI-T8 mục 7: mission chỉ có ý nghĩa khi run có hàng LIVE thật
+        # (detector (e) 'hàng LIVE chỉ hiện giờ kickoff' chỉ kiểm được khi
+        # thấy hàng LIVE). Không thấy hàng LIVE -> UNVERIFIED, không FAIL.
+        self.requires_live_row = bool(requires_live_row)
         # (IPTV favorites) — driver trước giờ không bao giờ phát LONG_PRESS
         # nên favorites chưa từng được kiểm tra thật.
         self.needs_long_press = bool(needs_long_press)
