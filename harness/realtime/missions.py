@@ -211,12 +211,15 @@ ALL_MISSIONS = [
     MissionSpec(
         "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
         "Tìm Kiếm & Cài Đặt (Báo Lỗi Telegram QR)",
-        "Tab Tìm kiếm: nhập từ khóa; Tab Cài đặt: mở 'Liên hệ & Báo lỗi', QR Telegram.",
+        "Tab Tìm kiếm: nhập từ khóa; Tab Cài đặt: mở 'Liên hệ & Báo lỗi', QR Telegram. "
+        "CI-T9 mục 7: bắt buộc mở bàn phím ảo thật (OK trên ô tìm kiếm rồi gõ "
+        "từ khóa qua adb input) — CI-T8 bàn phím không mở lần nào ở cả 95 bước "
+        "nên mục 6 cũ chưa từng được kiểm.",
         max_steps=10, min_steps=4,
         required_activity="MainActivity",
         required_texts=["tìm kiếm"],
         target_desc="tab Tìm kiếm với ô nhập từ khóa đang hiển thị",
-        tab=3,
+        tab=3, needs_keyboard=True,
     ),
     MissionSpec(
         "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
