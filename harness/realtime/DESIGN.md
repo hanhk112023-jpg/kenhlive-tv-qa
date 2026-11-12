@@ -2319,3 +2319,76 @@ dùng player khác (VD iframe custom không expose API) sẽ cho `pos=0` mãi
 -> FAIL trung thực dù video có thể đang phát; (4) 2 mẫu cách >=20s cần
 ~30-45s quan sát — `max_steps=10` với WAIT 3s + observe ~2-4s/vòng vừa
 đủ nhưng sát biên nếu observe chậm.
+
+### 15.28. Trial 11 (run 43287392690) — F63 KHỎI + A21 KHỎI, 2 FAIL harness (H11+H12 sửa wave này)
+
+**Kết quả run.** `hanhk112023-jpg/kenhlive-tv-qa` QA-Realtime-Trial
+43287392690, dispatch 2026-11-13 02:10 VN (`quick=false`, full 22
+mission): **SUCCESS 27m45s, QA 22m29s (1349s), 18/20 PASS, 2
+UNVERIFIED (#5/#8 — cùng gốc lỗi app A22: hàng LIVE ở tab Lịch thiếu
+tỉ số, không phải harness), NEEDS_FIX 62/100**; vision 7 calls OPENAI
+(`integrate.api.nvidia.com`, nemotron-3.5-super-vl), **0×429**. Eye-review
+đầy đủ: `~/workspace/kenhlive-plan/qa-run-43287392690/VISUAL-REVIEW.md`.
+
+**Điểm sáng đã kiểm lại bằng mắt + số liệu.**
+- Mission #16 `MISSION_VOD_WEBPLAYER_REAL_PLAYBACK` (F63, §15.27)
+  **PASS**: probe vị trí phát 224558 → 225883 → 232117 → 261175 ms
+  (+36.6s / 78s tường, tăng 47% tốc độ tường), scene diff **21.37%**;
+  mắt thấy 4 cảnh phim thật khác nhau (host mặt nạ, xe máy đêm + phụ
+  đề, sảnh game 2 bàn, cận mặt) — hết cảnh đen + logo "io" đứng yên
+  00:10 của trial 10. **F63 khỏi thật.**
+- Mission #18 `MISSION_MULTIVIEW_DIRECTED` **PASS**: MultiViewActivity
+  mở, 2 ô phát thật (Italy vs France · BLV MESSI / England vs Croatia ·
+  BLV HEHE) — **A21 khỏi**.
+- Mission #19 search + settings feedback PASS; #22 stress PASS.
+
+**2 FAIL đều là lỗi harness (app không lỗi ở đó), sửa wave này:**
+- **H11 — mission #20 `MISSION_SETTINGS_STORAGE_DIALOG` đi sai hàng.**
+  Driver bấm OK lên hàng "Xóa bộ nhớ đệm ảnh" — hàng này là
+  `clearCache()` (xóa cache ảnh/HTTP dưới nền + toast + `rebuild()`,
+  không dialog; vì vậy focus nhảy về đầu danh sách sau OK) chứ không
+  phải hàng mở `showStorageDialog()`. Docstring wave 1 sai vì căn cứ
+  comment code. Sửa: `goto_texts` → `"dung lượng bộ nhớ đệm"`
+  (`settings_storage_usage`, mục "Dung lượng & nguồn dữ liệu"),
+  `required_texts` giữ `["xóa toàn bộ bộ nhớ đệm"]`, `max_steps` 8→14
+  (hàng đích sâu ~9 hàng) + `needs_scroll_top=True` (explore chỉ
+  DOWN/RIGHT, không bao giờ UP — danh sách còn cuộn từ mission trước
+  thì không với tới hàng phía trên). Mock thêm regression: focus trên
+  hàng xóa-cache KHÔNG được bấm OK.
+- **H12 — mission #21 `MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR` gate
+  text khuất.** Dialog Telegram MỞ ĐƯỢC thật (step_097/098) nhưng
+  `required_texts=["quét mã qr"]` không bao giờ thấy: "Quét mã QR để
+  vào nhóm" là `KL3.Text.Micro` cuối QR card trong ScrollView
+  (`dialog_feedback.xml:173`), bị khuất dưới fold khi dialog mở (lỗi
+  app **A27**, wave app riêng sửa hiển thị). Gate → **`["nhóm
+  telegram"]`** (nhìn thấy được trong dialog + value hàng list); lưu
+  ý text này có cả trong danh sách Cài đặt nên `needs_dialog`/
+  `dialog_seen` vẫn là chốt bắt buộc — list đơn độc không PASS.
+  `needs_scroll_top=True` cho chắc (mission #20 để lại list cuộn sâu).
+
+**Judge HIGH — phán quyết bằng mắt (VISUAL-REVIEW §3).**
+- HIGH #1 "hàng LIVE chỉ hiện giờ kickoff": ĐÚNG HỌ LỖI (A22) nhưng SAI
+  FRAME — frame bằng chứng step_037 là card Italy 0:0 France CÓ tỉ số;
+  lỗi thật ở tab Lịch (step_015/031).
+- HIGH #2 "phụ đề đè seekbar" (step_019): **GIẢ, lần 3 liên tiếp** —
+  step_019 không có phụ đề; judge đọc nút "Về trực tiếp" đè nhãn
+  "TRỰC TIẾP" (lỗi chồng khác — A24).
+- HIGH #3 "focus lọt xuống nền khi dialog mở" (step_012): **GIẢ** —
+  `cardRoot#[180,808]` là card "Czechia vs Spain" thuộc mục "Trận cùng
+  giờ" NẰM TRONG dialog (nền sáng, cùng mặt panel), judge nhầm vì
+  dialog tái dùng layout `cardRoot` của màn hình nền.
+
+**Lỗi app mới wave 5 (chi tiết VISUAL-REVIEW §4):** A22 HIGH (hàng LIVE
+tab Lịch thiếu tỉ số — gốc #5/#8 UNVERIFIED), A23 MEDIUM (tên đội gãy
+giữa từ), A24 MEDIUM (chồng lấn player native + short-name "NỮ"),
+A25 LOW (toast "Tua tới 10s" đè phụ đề), A26 LOW (spinner "Đang tải
+luồng…" đè video đang phát), A27 LOW (caption QR khuất — gốc H12).
+
+**Chưa chắc, chờ trial 12:** (1) `max_steps=14` cho #20 ước tính theo
+~9 hàng đích + explore DOWN/RIGHT xen kẽ — nếu trial vẫn chật thì nới
+thêm hoặc cải thiện goto; (2) `needs_scroll_top` giả định UP ở mép
+danh sách vô hại (đã là luật CI-T5 §4); (3) gate #21 "nhóm telegram"
+đã thấy từ list nên PASS phụ thuộc hoàn toàn `dialog_seen` — đúng
+thiết kế needs_dialog nhưng nếu detector dialog hỏng thì FAIL trung
+thực; (4) tour video trial 11 thiếu màn storage dialog — trial 12 PASS
+#20 thì tour mới đủ màn để giao Evelyn.
