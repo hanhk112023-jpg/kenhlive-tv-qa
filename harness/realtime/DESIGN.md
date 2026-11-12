@@ -1526,9 +1526,13 @@ lỡ). **KHÔNG switch** — còn 4/18 FAIL và lỗi app thật A6/A10/A11/A13.
 
 ### 15.18. CI-T9 vòng sửa sau trial 5 — LIVE TRIAL thử 6 (run 43201685772, 2026-11-12)
 
-Trial trực tiếp của code vòng sửa sau trial 5 (QA head `4c0cf00`, 7 commit
-H1–H5 + 3 commit fix sau review; app `6880652`, 8 commit A6/A10/A11/A12/A13
-+ fix sau review). Workflow SUCCESS, job `qa` 21m54s. Artifact
+Trial trực tiếp của code vòng sửa sau trial 5 (QA head `4c0cf00`, 8 commit
+H1–H5 — 7 fix gốc + 1 H4-runner-3 sau review; app `6880652`, 8 commit —
+5 fix gốc A6/A10/A11/A12/A13 + 3 fix sau review). [REVIEWER 2026-11-12:
+bản cũ ghi nhầm QA "7 commit + 3 commit fix sau review"; `git log
+e484b39..4c0cf00` = 8 commit tổng (H3 79eca42, H4 9f1f932, H1 63263f6,
+H4-runner e16cfe8, H4-runner 1bf3b4e, H2 4e5888b, H5 42c43dd, H4-runner-3
+4c0cf00); app `git log 2258203..6880652` = 8 commit tổng.] Workflow SUCCESS, job `qa` 21m54s. Artifact
 `qa-report-realtime` đã tải về
 `~/workspace/kenhlive-plan/qa-run-43201685772/` (27 ảnh, tour 214,8s @ 4,0×,
 reel 42,9s, timelapse 21,5s, `qa_report.json`, `qa_session.json`, `run.log`).
@@ -1551,8 +1555,14 @@ Kiểm bằng mắt toàn bộ 27 ảnh + 19 khung mẫu tour + 7/7 segment reel
 round(FAIL/tổng×20)) cộng MEDIUM: 100 − 72 − 5 − 5 = 18. 6 HIGH (2 A6 +
 1 A11 + 3 directed) + 1 MEDIUM. Mẫu số 16 = 18 check − 2 UNVERIFIED (bị
 loại khỏi cả tử lẫn mẫu) — điểm 18 không "phạt" 2 mission chưa kiểm được,
-chỉ phạt 4 FAIL + 6 HIGH + 1 MEDIUM. Lưu ý: số trừ MEDIUM −5 là tái tạo từ
-số học (`judge.py` không có trong artifact); log "0 unverified" là độ dài
+chỉ phạt 4 FAIL + 6 HIGH + 1 MEDIUM. [REVIEWER 2026-11-12 — đính chính:
+`judge.py` CÓ trong repo QA (`harness/realtime/judge.py`); đã đối chiếu
+source: `PENALTY = {..., "HIGH": 12, "MEDIUM": 5, ...}`, `score_from` =
+100 − Σpenalty − round((total−passed)/total×20) với total = số mission đã
+quyết (16) — công thức trên khớp code thật, không còn là "tái tạo từ số
+học". Bản cũ ghi "judge.py không có trong artifact" là đúng theo nghĩa hẹp
+(file không nằm trong artifact tải về) nhưng hàm ý "chưa đối chiếu được
+source" là sai: source có sẵn trong repo.] Log "0 unverified" là độ dài
 list finding chưa xác minh, không phải số mission UNVERIFIED (H10).
 
 **Proxy VN (mục 8): vẫn ổn định, có vết nứt đầu tiên.** APT cài sing-box
@@ -1585,21 +1595,29 @@ lần này (không mission nào tới bước cần proxy).
   thẻ nền `cardRoot#[180,808][839,1044]`, y hệt thử 4/5).
 - #4/#5/#6 directed launch không mở được player trong 30s (2 WebPlayer +
   1 VOD) — **THẬT (sự kiện)**, cùng 1 lỗi gốc: 1 lỗi gốc = 3 HIGH + 3 FAIL.
-- MEDIUM duy nhất — nửa đúng: viền trắng thừa trên mục TRANG CHỦ nav
-  (step_049/050/051) nhưng focus vẫn di chuyển được — "kẹt focus" nói quá;
-  cùng họ A11.
+- MEDIUM duy nhất — nửa đúng (REVIEWER đính chính khung): viền trắng thừa
+  trên mục TRANG CHỦ nav ở **file step_049/050** (tour t=150 cũng thấy)
+  nhưng focus vẫn di chuyển được — "kẹt focus" nói quá; file step_051 viền
+  đã chuyển sang nút PHÁT, không còn viền nav. Cùng họ A11.
 
 **Mission FAIL / UNVERIFIED — đối chiếu bằng mắt:**
 - IPTV_EPG FAIL — kênh **ĐÃ PHÁT THẬT** (step_046 VTV Cần Thơ) nhưng
-  vision **0 lần gọi** cho mission này (2 confirm_target duy nhất đều
-  thuộc ExoPlayer, bị từ chối đúng); 6/7 bước WAIT "hold_playing_channel";
-  OSD player không có EPG — lỗi harness (H4).
+  **confirm_target 0 lần** cho mission này (2 confirm_target duy nhất của
+  run đều thuộc ExoPlayer, bị từ chối đúng); 6/7 bước WAIT
+  "hold_playing_channel"; OSD player không có EPG — lỗi harness (H4).
+  [REVIEWER: bản cũ ghi "vision 0 lần gọi" là sai — mission này vẫn có 1
+  vision call `check_visual` (player_title, khung step_041, t=529.0,
+  `not_found`); 4 call của run = 2 confirm_target (ExoPlayer) + 2
+  check_visual (hero step_026 + player_title step_041). H4 vẫn còn vì
+  confirm_target — thứ mission cần — không chạy khi kênh đang phát.]
 - VOD WebPlayer / WebPlayer Directed / VOD Native FAIL — directed launch
   0 bước (§F63).
 - ExoPlayer + Schedule Live UNVERIFIED — "không hàng LIVE nào có tỉ số"
   (trung thực); nhưng ExoPlayer còn mở nhầm trận tương lai (A14/H6).
-  Mâu thuẫn cờ tổng: `schedule_live_with_score: true` trong khi 2 mission
-  UNVERIFIED + toàn bộ khung Lịch đều không tỉ số ở hàng LIVE (H8).
+  Cờ tổng `schedule_live_with_score: true` (run-wide theo thiết kế — tỉ số
+  thấy ở tab TRỰC TIẾP) trong khi 2 mission UNVERIFIED + toàn bộ khung Lịch
+  đều không tỉ số ở hàng LIVE — tên/phạm vi cờ gây nhầm, xem H8 (REVIEWER
+  đính chính: không phải mâu thuẫn).
 
 **Từng fix vòng này (mắt kiểm):**
 - **H1 — KHÔNG KIỂM ĐƯỢC.** 0 lần đọc `playback_s`, 0 khung WebPlayer.
@@ -1607,7 +1625,9 @@ lần này (không mission nào tới bước cần proxy).
   FAIL oan mẫu thể thao. Caveat: dialog ghi "Chưa có tập phim khả dụng"
   — PASS đúng gate nhưng che mất tín hiệu dữ liệu mà vòng sau cần.
 - **H3 — KHỎI.** `texts_seen: ['cola']`, badge COLA rõ ở mọi khung.
-- **H4 — CÒN (nặng hơn trial 5).** Vision 0 lần gọi; không còn SWITCH_TAB
+- **H4 — CÒN (nặng hơn trial 5).** confirm_target 0 lần gọi (REVIEWER:
+  có 1 check_visual player_title trên khung step_041 — không phải xác nhận
+  mục tiêu); không còn SWITCH_TAB
   giết player (phần này khỏi); OSD vẫn không có EPG.
 - **H5 — KHỎI.** 3 khung PlayerActivity lưu cho mission ExoPlayer
   (step_018/020/021).
@@ -1643,9 +1663,11 @@ mission ExoPlayer tốn ~190s cho 6 bước.
 - **H1 (giữ nguyên) — OCR đồng hồ WebPlayer:** chưa kiểm được lần này
   (0 lần đọc). Giữ fix và retest sau khi launch được sửa; không được coi
   là xong.
-- **H4 (còn) — Mission IPTV hero: vision không được gọi lần nào.** 7 bước
-  gồm 1 OK + 6 WAIT "hold_playing_channel"; khung phát thật chỉ có ở bước
-  cuối mà mission kết thúc ngay không gọi vision. Sửa: gọi confirm_target
+- **H4 (còn) — Mission IPTV hero: confirm_target không được gọi lần nào.**
+  7 bước gồm 1 OK + 6 WAIT "hold_playing_channel"; khung phát thật chỉ có ở bước
+  cuối mà mission kết thúc ngay không gọi confirm_target. [REVIEWER: bản cũ ghi
+  "vision không được gọi lần nào" là sai — có 1 check_visual player_title
+  trên khung step_041 của mission; xem §Mission FAIL.] Sửa: gọi confirm_target
   ngay khi `is_playing` + motion cao **và** khung không còn "Đang tải
   luồng…", hoặc thêm 1–2 bước WAIT sau khi video đã lên hình. Target vẫn
   đòi EPG trong player trong khi OSD không có EPG — đổi target hoặc bỏ EPG
@@ -1663,9 +1685,15 @@ mission ExoPlayer tốn ~190s cho 6 bước.
   gốc = 3 HIGH + 3 FAIL = −41 điểm). Cần phim fallback có tập chắc chắn
   (như "Tuyệt Thế Chiến Hồn" trial 3–5) hoặc skip-with-reason thay vì
   FAIL khi dữ liệu mục tiêu rỗng.
-- **H8 (mới) — Cờ tổng `schedule_live_with_score: true` mâu thuẫn
-  mission.** Nếu cờ tính trên toàn run (tỉ số ở tab TRỰC TIẾP) thì phải
-  đổi tên/phạm vi cho rõ, hoặc chỉ tính trên tab Lịch như mission kiểm.
+- **H8 (mới, đính chính REVIEWER) — Cờ tổng `schedule_live_with_score: true`
+  KHÔNG mâu thuẫn mission, chỉ đặt tên/phạm vi gây nhầm.** Theo code
+  (`detectors.py`, CI-T9 mục 4 + `runner.py`), cờ này là **run-wide theo
+  thiết kế**: đặt khi bất kỳ lần observe nào trong run thấy hàng LIVE có
+  token tỉ số — tỉ số có ở tab TRỰC TIẾP (Incheon 41:38 → 45:41) nên cờ
+  `true` là đúng với định nghĩa của nó, trong khi 2 mission UNVERIFIED kiểm
+  riêng tab Lịch. Cần: đổi tên/phạm vi cờ cho rõ (hoặc chỉ tính trên tab
+  Lịch như mission kiểm), không phải sửa giá trị cờ. Bản cũ ghi "mâu thuẫn"
+  là quá lời.
 - **H9 (mới, nhỏ) — `defect_reel_entries.seg_start` không phải thời gian
   trong file reel.** Reel dài 42,9s nhưng `seg_start` ghi tới 172,8
   (khớp timebase tour, không phải vị trí segment trong reel ~24/30/36s).
@@ -1687,6 +1715,7 @@ có, nhưng 3 FAIL directed **không có frame nào** — bằng chứng duy nh�
 tour/reel); reel khớp ✅ (7/7); 0 HIGH giả ✅ (6/6 thật); 0 false pass ✅;
 WebPlayer tới đích + OSD thấy bằng mắt ✗ (**chưa từng mở**); mắt kiểm khớp
 báo cáo ~ (khớp phần lớn, nhưng 3 FAIL directed chung 1 gốc chưa xác định,
-cờ `schedule_live_with_score` mâu thuẫn, harness bỏ lỡ A14/A15).
+tên cờ `schedule_live_with_score` gây nhầm (run-wide, xem H8), harness bỏ
+lỡ A14/A15).
 **KHÔNG switch** — còn 4 FAIL + 2 UNVERIFIED và lỗi app thật
 A6/A11/A14/A15.
