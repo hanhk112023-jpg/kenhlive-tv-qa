@@ -1977,3 +1977,67 @@ sau không (cần cả motion lẫn vision-confirm trên khung đang phát);
 (2) mission #15 có còn PASS như cũ không (đồng hồ đọc được thì luật
 frozen/monotonic vẫn áp); (3) không có mission nào khác bị ảnh hưởng —
 chỉ 2 mission WebPlayer mang cờ này, mọi mission khác giữ nguyên.
+
+### 15.23. Vòng sửa sau trial 9 — mission tour đủ màn (Evelyn duyệt 2026-11-12)
+
+**Gốc rễ (VISUAL-REVIEW trial 9 §8):** tour trial 9 thiếu 4 màn — tab/màn
+hình Cài đặt, dialog "Xóa bộ nhớ đệm" (destructive đỏ, D6), màn phản hồi
+Telegram QR, MultiView. Mission 17 chỉ làm tìm kiếm + bàn phím, không mở
+các màn này; không mission nào trong harness mở được chúng.
+
+**Vì sao KHÔNG gộp Cài đặt thành 1 mission chuỗi như đề xuất ban đầu:**
+driver không có luật "đóng dialog rồi đi tới mục tiếp theo" — sau khi mở
+dialog "Xóa bộ nhớ đệm", `goto_texts` không nhớ mục nào đã xong nên sẽ
+quay lại đúng hàng đó và mở lại dialog, không bao giờ tới Telegram QR;
+kẹt lâu còn có thể kích vision-assist gợi ý OK trong dialog destructive.
+Chia thành 2 mission đơn-mục-tiêu (mỗi mission theo đúng pattern
+dialog-mission hiện có) + 1 mission MultiView riêng — tổng 3 mission mới,
+18 → 21 mission. Tour vẫn đủ 4 màn.
+
+**3 mission mới (1 commit, harness-only):**
+- `MISSION_SETTINGS_STORAGE_DIALOG` — tab 4 Cài đặt: hàng 'Dung lượng bộ
+  nhớ đệm' (`SettingsFragment`, row mở `showStorageDialog()`) mở dialog
+  tiêu đề 'Dung lượng & nguồn dữ liệu', nút Positive 'Xóa toàn bộ bộ nhớ
+  đệm' (đỏ, D6) + nút 'Đóng'. Gate: `required_texts=["xóa toàn bộ bộ nhớ
+  đệm"]` (CHỈ có trên nút của dialog — danh sách Cài đặt chỉ có hàng
+  'Dung lượng bộ nhớ đệm') + `needs_dialog=True`, `goto_texts=["dung lượng
+  bộ nhớ đệm"]`. AN TOÀN: driver không bao giờ bấm OK khi dialog đang mở
+  (luật open_dialog chỉ bấm khi chưa có dialog; luật dismiss để nguyên
+  dialog đích của mission cần dialog) — nút đỏ không bao giờ bị bấm, kể cả
+  khi focus đang đứng trên nó (mock kiểm cả 2 vị trí focus). Mission PASS
+  ngay khi đủ bằng chứng (tối đa 1–2 bước explore trong dialog, chưa đủ
+  3 bước không đổi để kích kẹt/vision-assist); runner BACK về ở mission sau.
+- `MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR` — tab 4 Cài đặt: hàng 'Liên hệ
+  & Báo lỗi' (value 'Nhóm Telegram: @kenhlivetv') mở `FeedbackDialog`
+  với mã QR (`dialog_feedback.xml`). Gate: `required_texts=["quét mã qr"]`
+  ('Quét mã QR để vào nhóm' — CHỈ có trong dialog; danh sách Cài đặt không
+  có nên không PASS được khi chưa mở dialog) + `needs_dialog=True`,
+  `goto_texts=["liên hệ"]`. AN TOÀN: dialog mang `btnCloseFeedback` nên
+  luật dismiss có thể đóng bằng OK trên 'ĐÃ HIỂU / ĐÓNG' (nút đóng an
+  toàn, focus mặc định) SAU khi bằng chứng đã ghi vào gate (gate tích lũy,
+  đóng dialog không mất bằng chứng); nút 'VÀO NHÓM TELEGRAM' không bao giờ
+  bị bấm — focus ở đó thì driver BACK — nên không mở intent trình duyệt
+  ngoài app (mock kiểm cả 2 vị trí focus).
+- `MISSION_MULTIVIEW_DIRECTED` — `directed_launch="LAUNCH_MULTIVIEW"`
+  (mở thẳng `.MultiViewActivity` bằng explicit intent, không intent-filter;
+  plumbing mới: `device.launch_multiview()` + nhánh runner + nhánh
+  `driver.execute`, đúng pattern `LAUNCH_WEB_PLAYER`/`LAUNCH_VOD_PLAYER`).
+  Không có đường D-pad: chuỗi nav 'Đa màn hình' chỉ tồn tại dạng string
+  chết (không dùng ở MainActivity/layout), `LiveFragment.openMultiView`
+  không có caller nào, đường vào duy nhất còn lại là panel TÙY CHỌN trong
+  PlayerActivity (`sportOptMulti`) mà driver không mở được. MultiView tự
+  nạp trận live thật; run không có trận live thì hiện trạng thái trống
+  trung thực ('Hiện chưa có trận đấu nào đang trực tiếp' + 'Thử lại') —
+  mission vẫn PASS vì mục tiêu là màn hình MultiView: KHÔNG ép motion.
+  Gate: activity + `required_texts=["đa màn hình"]` (tiêu đề `mv_title`) +
+  `needs_vision=True`.
+
+**Chưa chắc chắn, cần trial kiểm:** (1) dump thật của Cài đặt có chứa
+đúng các text đã căn cứ từ code app không (đặc biệt text nút dialog
+'Xóa toàn bộ bộ nhớ đệm' và 'Quét mã QR để vào nhóm' có trong dump
+uiautomator không); (2) driver có tới được hàng đích tab 4 trong
+max_steps=8 không (danh sách Cài đặt dài, focus xuất phát ở đâu);
+(3) MultiView có nạp được trận live ở giờ trial không, và vision có
+xác nhận cả 2 trạng thái (ô đang phát / trống trung thực) không;
+(4) full run dài thêm ~3–4 phút (trial 9: 25m32s; mục tiêu <30 phút) —
+nếu vượt, cân nhắc đưa 1 mission tour vào quick hoặc tăng vision budget.

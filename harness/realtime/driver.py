@@ -816,6 +816,11 @@ class Driver:
             import time as _t
             _t.sleep(6.0)
             return True, 6.0
+        if t == "LAUNCH_MULTIVIEW":
+            d.launch_multiview()
+            import time as _t
+            _t.sleep(2.5)
+            return True, 2.5
         if t == "TEXT":
             d.input_text(p or "uefa")
             import time as _t

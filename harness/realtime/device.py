@@ -190,6 +190,14 @@ class RealtimeDevice:
         sh("%s shell am start -n %s/.MainActivity --es open vodplayer" % (self.adb, self.pkg))
         self._note("LAUNCH_VOD_PLAYER")
 
+    def launch_multiview(self):
+        """Mở thẳng MultiViewActivity (explicit intent; activity không có
+        intent-filter nên không đi qua deep-link MainActivity). Mission
+        MISSION_MULTIVIEW_DIRECTED: MultiView tự nạp trận live thật, không
+        cần extra (không trận live -> trạng thái trống trung thực)."""
+        sh("%s shell am start -n %s/.MultiViewActivity" % (self.adb, self.pkg))
+        self._note("LAUNCH_MULTIVIEW")
+
     # -- perception inputs ---------------------------------------------
     def screencap_bytes(self):
         try:

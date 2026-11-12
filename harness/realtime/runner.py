@@ -518,6 +518,9 @@ class RealtimeRunner:
         elif spec.directed_launch == "LAUNCH_VOD_PLAYER":
             self.device.launch_vod_player()
             time.sleep(6.0)
+        elif spec.directed_launch == "LAUNCH_MULTIVIEW":
+            self.device.launch_multiview()
+            time.sleep(2.5)
         else:
             return True
         req = spec.required_activity

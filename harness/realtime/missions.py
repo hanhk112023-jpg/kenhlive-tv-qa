@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """KenhLive Realtime QA — mission specs (mục tiêu bằng chứng, không kịch bản).
 
-18 mission: 17 mission gốc (cùng độ phủ với harness cũ — VOD và WebPlayer
-tách riêng thành 2 mission nhưng tổng vẫn 17 vì Home Hub cũ đã bỏ) +
-1 mission CI-T8 MISSION_SCHEDULE_LIVE_DIRECTED.
+21 mission: 18 mission cũ (17 mission gốc — VOD và WebPlayer tách riêng
+thành 2 mission nhưng tổng vẫn 17 vì Home Hub cũ đã bỏ — + 1 mission
+CI-T8 MISSION_SCHEDULE_LIVE_DIRECTED) + 3 mission tour đủ màn sau trial 9
+(DESIGN §15.23: Cài đặt storage dialog, Cài đặt Telegram QR, MultiView).
 Mỗi mission khai TÍN HIỆU CẦN CÓ, không khai từng bước bấm — driver tự chọn
 hành động theo trạng thái. required_texts so khớp case-insensitive trên text
 của UI dump (tên hiển thị thật của app).
@@ -234,6 +235,27 @@ ALL_MISSIONS = [
         target_desc="dialog Cài đặt trình phát đang mở trên PlayerActivity mặt VOD",
     ),
     MissionSpec(
+        "MISSION_MULTIVIEW_DIRECTED",
+        "MultiView Có Định Hướng: 2/4 Ô Trận Cùng Lúc",
+        "Deep-link explicit mở thẳng MultiViewActivity (tour trial 9 thiếu màn "
+        "này). KHÔNG có đường D-pad: chuỗi nav 'Đa màn hình' chỉ tồn tại dạng "
+        "string chết (không dùng ở MainActivity/layout), LiveFragment.openMultiView "
+        "không có caller nào, đường vào duy nhất còn lại là panel TÙY CHỌN trong "
+        "PlayerActivity (sportOptMulti) mà driver không mở được — nên dùng "
+        "directed launch như 2 mission WebPlayer/VOD. MultiView tự nạp trận live "
+        "thật (SocoliveRepository.fetchLiveRooms); run không có trận live nào thì "
+        "màn hình hiện trạng thái trống trung thực ('Hiện chưa có trận đấu nào đang "
+        "trực tiếp' + nút Thử lại) — mission vẫn PASS vì mục tiêu là màn hình "
+        "MultiView, không phải trận live: KHÔNG ép motion để không FAIL oan trạng "
+        "thái trống đúng. Bằng chứng: activity + tiêu đề 'Đa màn hình' + vision.",
+        max_steps=8, min_steps=4,
+        required_activity="MultiViewActivity",
+        required_texts=["đa màn hình"],
+        needs_vision=True,
+        directed_launch="LAUNCH_MULTIVIEW",
+        target_desc="màn hình Đa màn hình với 2 hoặc 4 ô trận đấu đang phát, hoặc trạng thái trống trung thực khi không có trận trực tiếp",
+    ),
+    MissionSpec(
         "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
         "Tìm Kiếm & Cài Đặt (Báo Lỗi Telegram QR)",
         "Tab Tìm kiếm: nhập từ khóa; Tab Cài đặt: mở 'Liên hệ & Báo lỗi', QR Telegram. "
@@ -245,6 +267,45 @@ ALL_MISSIONS = [
         required_texts=["tìm kiếm"],
         target_desc="tab Tìm kiếm với ô nhập từ khóa đang hiển thị",
         tab=3, needs_keyboard=True,
+    ),
+    MissionSpec(
+        "MISSION_SETTINGS_STORAGE_DIALOG",
+        "Cài Đặt: Dialog Xóa Bộ Nhớ Đệm (Destructive Đỏ, D6)",
+        "Tab Cài đặt (tab 4, tour trial 9 thiếu màn này): hàng 'Dung lượng bộ "
+        "nhớ đệm' (SettingsFragment, row mở showStorageDialog) mở dialog tiêu đề "
+        "'Dung lượng & nguồn dữ liệu', nút Positive 'Xóa toàn bộ bộ nhớ đệm' "
+        "(đỏ, destructive — D6) + nút 'Đóng'. Text đích 'xóa toàn bộ bộ nhớ "
+        "đệm' CHỈ có trên nút của dialog (danh sách Cài đặt chỉ có hàng 'Dung "
+        "lượng bộ nhớ đệm') nên mission không PASS được khi chưa mở dialog. "
+        "AN TOÀN — KHÔNG xóa thật: driver không bao giờ bấm OK khi dialog đang "
+        "mở (luật open_dialog chỉ bấm khi chưa có dialog; luật dismiss để nguyên "
+        "dialog đích của mission cần dialog); mission PASS ngay khi đủ bằng chứng "
+        "rồi runner BACK về ở mission sau. Nút đỏ không bao giờ bị bấm.",
+        max_steps=8, min_steps=4,
+        required_activity="MainActivity",
+        required_texts=["xóa toàn bộ bộ nhớ đệm"],
+        needs_dialog=True,
+        target_desc="hộp thoại dung lượng bộ nhớ đệm đang mở với nút xóa toàn bộ màu đỏ và nút Đóng",
+        tab=4, goto_texts=["dung lượng bộ nhớ đệm"],
+    ),
+    MissionSpec(
+        "MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR",
+        "Cài Đặt: Phản Hồi Telegram QR",
+        "Tab Cài đặt (tab 4, tour trial 9 thiếu màn này): hàng 'Liên hệ & Báo "
+        "lỗi' (value 'Nhóm Telegram: @kenhlivetv') mở FeedbackDialog với mã QR "
+        "Telegram (dialog_feedback.xml). Text đích 'quét mã qr' ('Quét mã QR để "
+        "vào nhóm') CHỈ có trong dialog — danh sách Cài đặt không có — nên "
+        "mission không PASS được khi chưa mở dialog. AN TOÀN: dialog này mang "
+        "btnCloseFeedback nên luật dismiss có thể đóng nó bằng OK trên 'ĐÃ HIỂU "
+        "/ ĐÓNG' (nút đóng an toàn, focus mặc định) SAU khi bằng chứng đã ghi "
+        "vào gate; nút 'VÀO NHÓM TELEGRAM' không bao giờ bị bấm nên không mở "
+        "intent trình duyệt ngoài app.",
+        max_steps=8, min_steps=4,
+        required_activity="MainActivity",
+        required_texts=["quét mã qr"],
+        needs_dialog=True,
+        target_desc="hộp thoại phản hồi Telegram đang mở với mã QR và nút Vào Nhóm Telegram",
+        tab=4, goto_texts=["liên hệ"],
     ),
     MissionSpec(
         "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",

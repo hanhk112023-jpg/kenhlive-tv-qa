@@ -2548,6 +2548,8 @@ def main():
     test_h2_episode_picker_player_is_not_fail()
     # --- H5 (vòng sửa sau trial 5, run 43183031119) ---
     test_h5_player_entry_frame_saved()
+    # --- Tour đủ màn sau trial 9 (DESIGN §15.23) ---
+    test_tour_settings_and_multiview_missions()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -4130,6 +4132,211 @@ def test_h5_player_entry_frame_saved():
     finally:
         runner_mod.RealtimeDevice = _orig_dev
     print("H5_PLAYER_ENTRY_FRAME_SAVED_OK")
+
+
+def test_tour_settings_and_multiview_missions():
+    """Tour đủ màn sau trial 9 (DESIGN §15.23, VISUAL-REVIEW trial 9 §8):
+    3 mission mới lấp 4 màn thiếu (Cài đặt, dialog 'Xóa bộ nhớ đệm',
+    màn phản hồi Telegram QR, MultiView).
+    - SETTINGS_STORAGE_DIALOG: hàng 'Dung lượng bộ nhớ đệm' mở dialog
+      'Xóa toàn bộ bộ nhớ đệm' (đỏ, D6) — driver KHÔNG BAO GIỜ bấm OK khi
+      dialog đang mở nên nút xóa thật không bị bấm (kể cả khi focus đang
+      đứng trên chính nút đỏ).
+    - SETTINGS_FEEDBACK_TELEGRAM_QR: hàng 'Liên hệ & Báo lỗi' mở
+      FeedbackDialog với mã QR — text đích 'quét mã qr' chỉ có trong
+      dialog nên danh sách Cài đặt đơn độc không PASS được; nút 'VÀO NHÓM
+      TELEGRAM' không bao giờ bị bấm (focus ở đó thì driver BACK, focus ở
+      'ĐÃ HIỂU / ĐÓNG' thì OK đóng an toàn sau khi bằng chứng đã ghi).
+    - MULTIVIEW_DIRECTED: launch thẳng MultiViewActivity (không có đường
+      D-pad: nav 'Đa màn hình' là string chết, LiveFragment.openMultiView
+      không có caller); trạng thái trống trung thực vẫn đủ tín hiệu rẻ
+      (không ép motion) — chỉ còn chờ vision-confirm."""
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+    _specs = {s.name: s for s in get_missions()}
+    assert len(_specs) == 21, \
+        "18 mission cũ + 3 mission tour mới = 21 (được %d)" % len(_specs)
+    _quick = {s.name for s in get_missions(quick=True)}
+    assert len(_quick) == 5 and not (
+        {"MISSION_SETTINGS_STORAGE_DIALOG",
+         "MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR",
+         "MISSION_MULTIVIEW_DIRECTED"} & _quick), \
+        "mission tour mới chỉ chạy full-run, không lọt vào quick (5 mission)"
+
+    def _ui_settings(focus_text, focus_sig, focus_bounds):
+        # Danh sách Cài đặt thật (SettingsFragment): hàng phản hồi +
+        # hàng dung lượng, focus đang ở 1 trong 2 hàng.
+        return {
+            "focused_sig": focus_sig, "focused_text": focus_text,
+            "focused_bounds": focus_bounds,
+            "all_visible_texts": [("nav_settings", "Cài đặt"),
+                                  ("rowFeedback", "Liên hệ & Báo lỗi"),
+                                  ("rowFeedbackSub", "Nhóm Telegram: @kenhlivetv"),
+                                  ("rowStorage", "Dung lượng bộ nhớ đệm"),
+                                  ("rowStorageVal", "Đệm 120 MB · APK 45 MB")],
+            "all_visible_nodes": [
+                {"id": "rowFeedback", "text": "Liên hệ & Báo lỗi",
+                 "bounds": "[100,300][900,420]"},
+                {"id": "rowStorage", "text": "Dung lượng bộ nhớ đệm",
+                 "bounds": "[100,450][900,570]"}],
+            "has_dialog": False, "dialog_ids": [],
+            "selected_ids": ["nav_settings"]}
+
+    _ui_list_fb = _ui_settings("Liên hệ & Báo lỗi",
+                               "rowFeedback#[100,300][900,420]", "[100,300][900,420]")
+    _ui_list_st = _ui_settings("Dung lượng bộ nhớ đệm",
+                               "rowStorage#[100,450][900,570]", "[100,450][900,570]")
+
+    # --- (1) Storage dialog: spec + driver đi tới hàng đích rồi OK mở dialog.
+    _st = _specs["MISSION_SETTINGS_STORAGE_DIALOG"]
+    assert _st.tab == 4 and _st.required_activity == "MainActivity"
+    assert _st.required_texts == ["xóa toàn bộ bộ nhớ đệm"]
+    assert _st.needs_dialog is True and _st.goto_texts == ["dung lượng bộ nhớ đệm"]
+    _dev = FakeDevice()
+    _dev._tab = 4
+    _drv = Driver(_dev, EvidenceGate(_st), _st)
+    _a1 = _drv.next_action(_ui_list_fb, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("storage: focus ở hàng phản hồi ->", _a1.type, _a1.param, "| rule:", _a1.rule)
+    assert _a1.rule == "goto_view_text" and _a1.type == "KEY", \
+        "chưa đứng trên hàng đích thì phải đi tới nó, không bấm OK lung tung"
+    _a2 = _drv.next_action(_ui_list_st, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("storage: focus trên hàng dung lượng ->", _a2.type, _a2.param, "| rule:", _a2.rule)
+    assert _a2.type == "KEY" and _a2.param == "OK" and _a2.rule == "open_dialog", \
+        "đã đứng trên hàng đích thì OK mở dialog (được %s %s [%s])" % (_a2.type, _a2.param, _a2.rule)
+    # Dialog mở (showStorageDialog): nút đỏ + nút Đóng. Focus ở 'Đóng'.
+    _ui_dlg = {
+        "focused_sig": "btnNegative#[100,900][400,1000]", "focused_text": "Đóng",
+        "focused_bounds": "[100,900][400,1000]",
+        "all_visible_texts": [("dlgTitle", "Dung lượng & nguồn dữ liệu"),
+                              ("dlgMsg", "Xóa bộ nhớ đệm không làm mất lịch sử xem và cài đặt."),
+                              ("btnPositive", "Xóa toàn bộ bộ nhớ đệm"),
+                              ("btnNegative", "Đóng")],
+        "all_visible_nodes": [
+            {"id": "btnPositive", "text": "Xóa toàn bộ bộ nhớ đệm",
+             "bounds": "[500,900][1100,1000]"},
+            {"id": "btnNegative", "text": "Đóng", "bounds": "[100,900][400,1000]"}],
+        "has_dialog": True, "dialog_ids": ["btnPositive", "btnNegative"],
+        "selected_ids": ["nav_settings"]}
+    _a3 = _drv.next_action(_ui_dlg, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("storage: dialog mở, focus 'Đóng' ->", _a3.type, _a3.param, "| rule:", _a3.rule)
+    assert not (_a3.type == "KEY" and _a3.param == "OK"), \
+        "dialog đang mở thì driver KHÔNG được bấm OK (được %s %s [%s])" % (_a3.type, _a3.param, _a3.rule)
+    # Trường hợp xấu nhất: focus đang đứng TRÊN NÚT ĐỎ — vẫn không được OK.
+    _ui_dlg_red = dict(_ui_dlg,
+                       focused_sig="btnPositive#[500,900][1100,1000]",
+                       focused_text="Xóa toàn bộ bộ nhớ đệm",
+                       focused_bounds="[500,900][1100,1000]")
+    _a3b = _drv.next_action(_ui_dlg_red, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("storage: dialog mở, focus TRÊN NÚT ĐỎ ->", _a3b.type, _a3b.param, "| rule:", _a3b.rule)
+    assert not (_a3b.type == "KEY" and _a3b.param == "OK"), \
+        "focus trên nút đỏ cũng KHÔNG được bấm OK — xóa thật là cấm tuyệt đối"
+    # Gate: danh sách đơn độc không đủ text đích; 2 quan sát list + 2 dialog -> PASS.
+    _g0 = EvidenceGate(_st)
+    for _t in (10.0, 20.0):
+        _g0.observe("com.kenhlive.tv/.MainActivity",
+                    [t for _, t in _ui_list_st["all_visible_texts"]], [], False, False, _t)
+    assert "xóa toàn bộ bộ nhớ đệm" not in _g0.texts_seen \
+        and _g0.dialog_seen is False, \
+        "hàng 'Dung lượng bộ nhớ đệm' trong danh sách không được tính là dialog đã mở"
+    _g = EvidenceGate(_st)
+    for _t in (10.0, 20.0):
+        _g.observe("com.kenhlive.tv/.MainActivity",
+                   [t for _, t in _ui_list_st["all_visible_texts"]], [], False, False, _t)
+    for _t in (30.0, 40.0):
+        _g.observe("com.kenhlive.tv/.MainActivity",
+                   [t for _, t in _ui_dlg["all_visible_texts"]], [], True, False, _t)
+    _v, _r, _ = _g.evaluate("step_004.jpg")
+    print("storage: list x2 + dialog x2 ->", _v, "|", _r)
+    assert _v == "PASS"
+
+    # --- (2) Telegram QR: text đích chỉ có trong dialog; nút mở nhóm không bị bấm.
+    _fb = _specs["MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR"]
+    assert _fb.tab == 4 and _fb.required_texts == ["quét mã qr"]
+    assert _fb.needs_dialog is True and _fb.goto_texts == ["liên hệ"]
+    _gf = EvidenceGate(_fb)
+    _gf.observe("com.kenhlive.tv/.MainActivity",
+                [t for _, t in _ui_list_fb["all_visible_texts"]], [], False, False, 10.0)
+    assert "quét mã qr" not in _gf.texts_seen, \
+        "danh sách Cài đặt có 'Nhóm Telegram' nhưng không có 'quét mã qr' — không được PASS khi chưa mở dialog"
+    # FeedbackDialog mở (dialog_feedback.xml): QR + 2 nút, focus mặc định 'ĐÃ HIỂU / ĐÓNG'.
+    _ui_fb = {
+        "focused_sig": "btnCloseFeedback#[100,900][500,1000]",
+        "focused_text": "ĐÃ HIỂU / ĐÓNG", "focused_bounds": "[100,900][500,1000]",
+        "all_visible_texts": [("dlgTitle", "THÔNG BÁO"),
+                              ("dlgSub", "NHÓM THẢO LUẬN & HỖ TRỢ TRỰC TUYẾN"),
+                              ("qrGuide", "Quét mã QR để vào nhóm"),
+                              ("tgHandle", "Nhóm Telegram: @kenhlivetv"),
+                              ("btnOpenTelegram", "VÀO NHÓM TELEGRAM"),
+                              ("btnCloseFeedback", "ĐÃ HIỂU / ĐÓNG")],
+        "all_visible_nodes": [
+            {"id": "btnOpenTelegram", "text": "VÀO NHÓM TELEGRAM",
+             "bounds": "[600,900][1100,1000]"},
+            {"id": "btnCloseFeedback", "text": "ĐÃ HIỂU / ĐÓNG",
+             "bounds": "[100,900][500,1000]"}],
+        "has_dialog": True, "dialog_ids": ["btnOpenTelegram", "btnCloseFeedback"],
+        "selected_ids": ["nav_settings"]}
+    _devfb = FakeDevice()
+    _devfb._tab = 4
+    _drvfb = Driver(_devfb, EvidenceGate(_fb), _fb)
+    _afb = _drvfb.next_action(_ui_fb, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("feedback: dialog mở, focus 'ĐÃ HIỂU / ĐÓNG' ->", _afb.type, _afb.param, "| rule:", _afb.rule)
+    assert _afb.type == "KEY" and _afb.param == "OK" and _afb.rule == "dismiss_dialog_ok", \
+        "dialog phản hồi được đóng bằng OK trên nút đóng an toàn (được %s %s [%s])" % (_afb.type, _afb.param, _afb.rule)
+    # Focus đang ở 'VÀO NHÓM TELEGRAM' thì driver phải BACK, không OK (OK sẽ
+    # mở intent trình duyệt ra ngoài app).
+    _ui_fb_open = dict(_ui_fb,
+                       focused_sig="btnOpenTelegram#[600,900][1100,1000]",
+                       focused_text="VÀO NHÓM TELEGRAM",
+                       focused_bounds="[600,900][1100,1000]")
+    _afb2 = _drvfb.next_action(_ui_fb_open, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("feedback: dialog mở, focus 'VÀO NHÓM TELEGRAM' ->", _afb2.type, _afb2.param, "| rule:", _afb2.rule)
+    assert not (_afb2.type == "KEY" and _afb2.param == "OK"), \
+        "focus trên nút mở nhóm thì KHÔNG được OK (mở intent trình duyệt)"
+    _gfb = EvidenceGate(_fb)
+    for _t in (10.0, 20.0):
+        _gfb.observe("com.kenhlive.tv/.MainActivity",
+                     [t for _, t in _ui_list_fb["all_visible_texts"]], [], False, False, _t)
+    for _t in (30.0, 40.0):
+        _gfb.observe("com.kenhlive.tv/.MainActivity",
+                     [t for _, t in _ui_fb["all_visible_texts"]], [], True, False, _t)
+    _vfb, _rfb, _ = _gfb.evaluate("step_004.jpg")
+    print("feedback: list x2 + dialog x2 ->", _vfb, "|", _rfb)
+    assert _vfb == "PASS"
+
+    # --- (3) MultiView: directed launch thẳng activity, trạng thái trống vẫn đủ tín hiệu rẻ.
+    _mv = _specs["MISSION_MULTIVIEW_DIRECTED"]
+    assert _mv.directed_launch == "LAUNCH_MULTIVIEW"
+    assert _mv.required_activity == "MultiViewActivity"
+    assert _mv.required_texts == ["đa màn hình"]
+    assert _mv.needs_vision is True and _mv.needs_motion is False
+    assert _mv.tab is None, "mission directed không reset tab"
+
+    class _MvDevice(FakeDevice):
+        def launch_multiview(self):
+            self._activity = "com.kenhlive.tv/.MultiViewActivity"
+            self._note("LAUNCH_MULTIVIEW")
+
+    _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_mv", serial=None,
+                                   vision_budget=0, no_vision=True)
+    _r.device = _MvDevice()
+    _gmv2 = EvidenceGate(_mv)
+    assert _r._run_directed_launch(_mv, _gmv2) is True, \
+        "directed launch phải tới được MultiViewActivity"
+    assert "com.kenhlive.tv/.MultiViewActivity" in _gmv2.activities_seen
+    assert "LAUNCH_MULTIVIEW" in _r.device.action_history
+    # Trạng thái trống trung thực (không trận live): activity + tiêu đề đủ,
+    # chỉ còn chờ vision-confirm — không FAIL oan vì thiếu motion.
+    _gmv = EvidenceGate(_mv)
+    for _t in (10.0, 20.0, 30.0, 40.0):
+        _gmv.observe("com.kenhlive.tv/.MultiViewActivity",
+                     ["Đa màn hình", "Hiện chưa có trận đấu nào đang trực tiếp",
+                      "Thử lại", "Quay lại"], [], False, False, _t)
+    _vmv, _rmv, _ = _gmv.evaluate("step_004.jpg")
+    print("multiview: trạng thái trống x4 ->", _vmv, "|", _rmv)
+    assert _vmv == "VISION_PENDING", \
+        "trạng thái trống vẫn đủ tín hiệu rẻ, chỉ chờ vision (được %s)" % _vmv
+    print("TOUR_SETTINGS_MULTIVIEW_OK")
 
 
 if __name__ == "__main__":
