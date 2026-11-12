@@ -69,6 +69,7 @@ class Driver:
         self._long_press_tried = False  # đã long-press yêu thích 1 lần chưa (CI-T5 mục 10)
         self._keyboard_open_tries = 0  # CI-T9 mục 7: số lần OK mở bàn phím (tối đa 2)
         self._keyboard_typed = False  # CI-T9 mục 7: đã gõ từ khóa khi bàn phím mở chưa
+        self._seek_idx = 0  # H3: đếm bước quét tìm text mục tiêu (goto_texts)
 
     def _state_sig(self, ui_state, activity):
         return (ui_state.get("focused_sig", "NONE"),
@@ -710,6 +711,28 @@ class Driver:
                               thought="OSD ẩn (focus NONE) — bấm OK gọi OSD lên")
             return Action("KEY", "DPAD_RIGHT", rule="probe_player",
                           thought="Thử điều khiển player (tua/phải)")
+
+        # -- 3b. H3: mission tìm text mục tiêu (goto_texts, không cần dialog)
+        # mà gate chưa thấy trong dump thì QUÉT CHÉO DOWN/RIGHT xen kẽ thay
+        # vì explore DOWN,DOWN,RIGHT. Trial 5 (run 43183031119): explore cũ
+        # dao động A-B-A-B giữa 2 thẻ NBL/JLC (badge 'SOCO') — DPAD_DOWN từ
+        # thẻ này lại rơi về thẻ kia nên không bao giờ xuống tới hàng có
+        # 'COLA'. Đi chéo (DOWN đổi hàng, RIGHT đổi cột rồi mới DOWN tiếp)
+        # thoát được vòng lặp focus hình học đó. Text đã thấy thì không quét
+        # nữa (gate sẽ PASS ở observation sau).
+        if m.goto_texts and not m.needs_dialog \
+                and "PlayerActivity" not in act \
+                and "WebPlayerActivity" not in act:
+            _want = [t for t in m.goto_texts if t not in gate.texts_seen]
+            if _want:
+                self._seek_idx += 1
+                if self._seek_idx % 2 == 1:
+                    return Action("KEY", "DPAD_DOWN", rule="seek_target_text",
+                                  thought="Chưa thấy text '%s' trong dump — "
+                                          "quét xuống hàng tiếp theo tìm" % _want[0])
+                return Action("KEY", "DPAD_RIGHT", rule="seek_target_text",
+                              thought="Chưa thấy text '%s' trong dump — "
+                                      "đổi cột trong hàng rồi quét xuống tiếp" % _want[0])
 
         # -- 4. Khám phá có hướng: xen kẽ DOWN / RIGHT, ưu tiên DOWN qua các hàng.
         self._explore_idx += 1

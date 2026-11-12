@@ -2457,6 +2457,8 @@ def main():
     test_ci_t9_player_title_frame_skips_error_dialog()
     test_ci_t9_player_title_question_asks_duplicate()
     test_ci_t9_keyboard_open_type_unverified()
+    # --- H3 (vòng sửa sau trial 5, run 43183031119) ---
+    test_h3_sports_multi_source_seek_cola()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -3313,6 +3315,70 @@ def test_ci_t9_focus_ring_circle():
         open(os.path.join(_shots, "step_081_webplaye.jpg"), "rb").read())
     assert _r81[0] is True, "step_081 có nút list focus thì phải nhận"
     print("CI_T9_FOCUS_RING_CIRCLE_OK")
+
+
+def test_h3_sports_multi_source_seek_cola():
+    """H3 (trial 5 run 43183031119): mission SPORTS_MULTI_SOURCE tìm 'cola'
+    sai chỗ — driver explore DOWN/RIGHT dao động A-B-A-B giữa 2 thẻ NBL/JLC
+    (chỉ có badge 'SOCO') suốt 8 bước, trong khi app CÓ hiện 'COLA' ở thẻ
+    khác cùng tab (step_036 'Aus Champ COLA'). Giờ spec khai goto_texts
+    ['cola'] + max_steps 10, driver quét chéo DOWN/RIGHT xen kẽ cho tới khi
+    text xuất hiện trong dump; đã thấy text thì dừng quét (explore thường).
+    Hồi quy: dump chỉ toàn SOCO, focus dao động 2 thẻ -> các action phải
+    xen kẽ DOWN, RIGHT, DOWN, RIGHT (không được DOWN, DOWN, RIGHT như
+    explore cũ, và không được kẹt ở 1 hướng)."""
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+    _specs = {s.name: s for s in get_missions()}
+    _sp = _specs["MISSION_SPORTS_MULTI_SOURCE"]
+    assert _sp.goto_texts == ["cola"], \
+        "spec SPORTS_MULTI phải khai goto_texts ['cola'] để driver quét tìm"
+    assert _sp.max_steps == 10, \
+        "quét chéo cần chỗ: max_steps 8 -> 10 (thử 5 hết 8 bước vẫn chưa tới hàng COLA)"
+
+    def _ui_soco(focus_text, focus_sig):
+        return {
+            "focused_sig": focus_sig, "focused_text": focus_text,
+            "focused_bounds": "[100,400][500,700]",
+            "all_visible_texts": [("nav_live", "TRỰC TIẾP"),
+                                  ("cardRoot", "Adelaide vs Melbourne United"),
+                                  ("cardBadge", "SOCO"),
+                                  ("cardRoot2", "Kawasaki Frontale vs Kashiwa Reysol"),
+                                  ("cardBadge2", "SOCO")],
+            "all_visible_nodes": [
+                {"id": "cardRoot", "text": "Adelaide vs Melbourne United",
+                 "bounds": "[100,400][500,700]"},
+                {"id": "cardRoot2", "text": "Kawasaki Frontale vs Kashiwa Reysol",
+                 "bounds": "[100,750][500,1050]"}],
+            "has_dialog": False, "dialog_ids": []}
+    _dev = FakeDevice()
+    _dev._tab = 0
+    _gate = EvidenceGate(_sp)
+    _drv = Driver(_dev, _gate, _sp)
+    # Mô phỏng bẫy A-B-A-B thử 5: DOWN từ thẻ A rơi về thẻ B và ngược lại.
+    _seq = []
+    _focus = [("Adelaide vs Melbourne United", "cardRoot#[100,400][500,700]"),
+              ("Kawasaki Frontale vs Kashiwa Reysol", "cardRoot2#[100,750][500,1050]")]
+    for _i in range(4):
+        _ft, _fs = _focus[_i % 2]
+        _a = _drv.next_action(_ui_soco(_ft, _fs),
+                              "com.kenhlive.tv/.MainActivity", None, 0.0)
+        _seq.append((_a.param, _a.rule))
+    print("quét tìm 'cola' giữa 2 thẻ SOCO ->", _seq)
+    assert [p for p, _ in _seq] == ["DPAD_DOWN", "DPAD_RIGHT",
+                                    "DPAD_DOWN", "DPAD_RIGHT"], \
+        "chưa thấy 'cola' thì phải quét chéo DOWN/RIGHT xen kẽ, được %s" % (_seq,)
+    assert all(r == "seek_target_text" for _, r in _seq), \
+        "các bước quét phải mang rule seek_target_text, không phải explore"
+    # Đã thấy 'cola' trong dump (gate bank) thì dừng quét, về explore thường.
+    _gate.texts_seen.add("cola")
+    _a = _drv.next_action(_ui_soco(*_focus[0]),
+                          "com.kenhlive.tv/.MainActivity", None, 0.0)
+    print("đã thấy 'cola' ->", _a.type, _a.param, "| rule:", _a.rule)
+    assert _a.rule != "seek_target_text", \
+        "đã thấy text mục tiêu thì không được quét nữa (rule: %s)" % _a.rule
+    print("H3_SPORTS_MULTI_SEEK_COLA_OK")
 
 
 if __name__ == "__main__":

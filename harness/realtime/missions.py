@@ -37,12 +37,18 @@ ALL_MISSIONS = [
         "hình (chỉ có nhãn 'COLA'/'SOCO' trên card + 'BLV [ColaTV]' trong "
         "phụ đề hero, VISUAL-REVIEW CI-T5 §4) nên mission không bao giờ PASS "
         "được bằng text đó — đổi sang tín hiệu kiểm chứng được 'cola' "
-        "(khớp cả 'COLA' lẫn 'ColaTV').",
-        max_steps=8, min_steps=4,
+        "(khớp cả 'COLA' lẫn 'ColaTV'). "
+        "H3 (trial 5 run 43183031119): driver explore DOWN/RIGHT dao động "
+        "A-B-A-B giữa 2 thẻ NBL/JLC (chỉ có badge 'SOCO') suốt 8 bước, không "
+        "bao giờ tới hàng có 'COLA' — app CÓ hiện 'COLA' ở thẻ khác cùng "
+        "tab (step_036 'Aus Champ COLA'). Giờ driver quét chéo DOWN/RIGHT "
+        "theo goto_texts cho tới khi text xuất hiện trong dump (max_steps "
+        "8 -> 10 để đủ chỗ quét).",
+        max_steps=10, min_steps=4,
         required_activity="MainActivity",
         required_texts=["cola"],
         target_desc="hàng trận đấu của đài ColaTV hiển thị trên tab Trực tiếp",
-        tab=0,
+        tab=0, goto_texts=["cola"],
     ),
     MissionSpec(
         "MISSION_SPORTS_ROOM_PICKER",
