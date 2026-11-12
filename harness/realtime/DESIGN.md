@@ -1231,3 +1231,55 @@ runner, F63 kiểm được hay chưa).
   download`, install script `sing-box.app`, hoặc APT
   `deb.sagernet.org` — giữ lại retry + `gzip -t` + fail-ồn-ào):
   `~/workspace/kenhlive-plan/qa-run-43161910696/VISUAL-REVIEW.md`.
+- Evelyn quyết (2026-11-12 12:43): **đổi nguồn tải sing-box** thay vì chạy lại
+  trial với nguồn cũ. Thay đổi (commit `64c7595`, 2 workflow): nguồn chính =
+  `gh release download v1.14.4 --repo SagerNet/sing-box` (đi qua
+  api.github.com, bỏ qua lớp redirect `github.com/releases/download` đang
+  404); fallback = APT `deb.sagernet.org` (key `sing-box.app/gpg.key` +
+  deb822 source, `apt-get install -y sing-box`, đúng bản 1.14.4). Giữ nguyên
+  retry 3 lần (cách 15s), kiểm `gzip -t` trước khi giải nén, FAIL ỒN ÀO
+  (cả 2 nguồn lỗi → `::error::` + exit 1). Kiểm chứng local trước commit:
+  `gh release download` trên máy ảo OK (32.527.188 byte, `gzip -t` OK, có
+  và không có token); APT trên máy ảo: candidate 1.14.4 từ
+  `deb.sagernet.org` (chỉ kiểm `apt-cache policy`, không cài local để khỏi
+  động vào tunnel VN đang chạy).
+- Thử 3 — run 43164647966 (2026-11-12 12:56 +07, head `64c7595`, full,
+  quick=false, job SUCCESS 32m01s): **bước Set up proxy VN QUA — lần đầu
+  proxy chạy được trên CI.** Nhưng nguồn chính lại thất bại theo kiểu mới:
+  `gh release download` lỗi **3/3 lần, "no assets match the file pattern"**
+  (05:59:18 / 05:59:33 / 05:59:49 UTC) — release tìm thấy nhưng pattern
+  không khớp asset nào; **fallback APT cứu: cài thành công ngay lần 1**
+  (`sing-box 1.14.4`, 06:00:11–18 UTC). **Exit IP trên runner: VN, lần
+  kiểm 1** (06:00:21 UTC): `150.95.109.109`, `HAS_PROXY=1` — lần đầu exit
+  IP VN được kiểm chứng trên runner. Đã đối chiếu sau run: asset đúng tên
+  trên API GitHub (`sing-box-1.14.4-linux-amd64-glibc.tar.gz`, 32.527.188
+  byte); cùng lệnh chạy được trên máy ảo cả có và không có token — không
+  phải sai tên asset, không phải thiếu auth; nguyên nhân trên runner chưa
+  rõ (khác phiên bản `gh` hoặc API trả khác). QA: verdict NEEDS_FIX,
+  điểm 69, QA 1551s (25m51s, <30 phút), 89 bước, 12/18 PASS, 6 vision
+  calls (provider OPENAI), 0×HTTP 429. **F63 ĐÃ KIỂM THẬT: WebPlayer PHÁT
+  ĐƯỢC qua proxy VN** — step_066/067/071 là 3 cảnh phim khác nhau của
+  "Tuyệt Thế Chiến Hồn" Tập 01, motion 6–21 ở bước 64–71, đồng hồ đọc
+  được bằng mắt 01:19/13:53 và 01:59/13:53 — playlist đã tải và phát, khác
+  hẳn đóng băng 00:00/00:00 ngoài VN. Nhưng mission directed vẫn FAIL
+  (harness không đọc được đồng hồ phát + không xác nhận vision), và phiên
+  kết bằng dialog `video_error` (step_076) sau spinner buffering — phát
+  không ổn định, nghi node miễn phí chậm (~354 KB/s). **F63 = phát được,
+  chưa pass sạch.** Eye-review đầy đủ (31/31 ảnh + tour + reel):
+  `~/workspace/kenhlive-plan/qa-run-43164647966/VISUAL-REVIEW.md` —
+  HIGH #1 GIẢ (OCR đọc nhiễu từ video đang chạy, step_067 không có chữ
+  cắt); HIGH #2 THẬT (hàng LIVE 13:00 WNZT hiện giờ kickoff không tỉ số,
+  họ A6); A1 còn (vision check `player_title` nhìn nhầm khung step_076 là
+  dialog lỗi, trong khi step_061/064 thấy rõ tiêu đề kép); IPTV VTV Cần
+  Thơ phát rõ nhưng vision không xác nhận (false-negative); ExoPlayer
+  FAIL do chọn trận KUW–SYR đá ngày mai; rail không mở (A5 còn); **A10
+  mới: hàng nút dưới player native tràn mép phải** ("ÂM THANH & PHỤ ĐỀ"
+  bị cắt, step_054/078). Video phủ ~100% cửa sổ hành động (1291.4s ghi /
+  20.3–1296.6s), 8 chunk đủ, reel đúng cảnh. **KHÔNG switch.**
+- Sửa sau Thử 3 (commit `649c251`, 2 workflow): **APT lên nguồn chính, `gh`
+  xuống fallback** — vì APT đã chứng minh chạy ngay lần 1 trên runner còn
+  `gh` thất bại 2 kiểu khác nhau trên runner (404 rồi "no assets match")
+  dù chạy tốt trên máy ảo. Guards giữ nguyên. Thử 4 — run 43168594823
+  (dispatch 2026-11-12 13:30 +07, head `649c251`, full): đang chạy, kiểm
+  chứng APT làm nguồn chính ngay lần 1 + exit IP VN + F63 (ghi kết quả sau
+  khi xong).
