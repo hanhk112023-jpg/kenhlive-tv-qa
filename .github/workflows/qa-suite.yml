@@ -51,7 +51,9 @@ jobs:
       # proxy VN — lay node VLESS VN moi nhat tu file GitHub cong khai Au1rxx
       # (free-vpn-subscriptions/output/country/VN/singbox-0001.json), chay bang
       # sing-box v1.14.4 (ban da kiem tren may ao Astra 2026-11-12).
-      # BO YUNA (Evelyn 2026-11-12): khong can secret nao nua.
+      # Tai sing-box: chinh = gh release download (qua api.github.com, tranh
+      # lop github.com/releases/download da 404 x3 tren runner, run 43161910696);
+      # fallback = APT deb.sagernet.org. BO YUNA (Evelyn 2026-11-12): khong can secret nao nua.
       # FAIL ON AO neu khong lay duoc file / khong co node song / exit IP
       # khong phai VN — tuyet doi khong chay lang le khong proxy (loi cu).
       - name: Set up proxy VN (file GitHub Au1rxx)
@@ -59,14 +61,31 @@ jobs:
           set -euo pipefail
           python3 harness/gh_vn_to_singbox.py /tmp/singbox_ci.json || { echo "::error::Khong lay duoc file proxy VN tu GitHub"; exit 1; }
           SB_VER=v1.14.4
+          SB_TGZ="sing-box-${SB_VER}-linux-amd64-glibc.tar.gz"
           OK_DL=0
+          # Nguon chinh: gh release download — di qua api.github.com, bo qua
+          # lop redirect github.com/releases/download (tra 404 x3 tren runner,
+          # run 43161910696). Runner da cai san gh + GITHUB_TOKEN.
           for try in 1 2 3; do
-            if curl -fsSL -o /tmp/sing-box.tar.gz "https://github.com/SagerNet/sing-box/releases/download/${SB_VER}/sing-box-${SB_VER}-linux-amd64-glibc.tar.gz" && gzip -t /tmp/sing-box.tar.gz 2>/dev/null; then OK_DL=1; break; fi
-            echo "tai sing-box lan $try loi (file khong phai gzip hop le), thu lai sau 15s"; sleep 15
+            rm -f "/tmp/${SB_TGZ}"
+            if gh release download "${SB_VER}" --repo SagerNet/sing-box --pattern "${SB_TGZ}" --dir /tmp --clobber && gzip -t "/tmp/${SB_TGZ}" 2>/dev/null; then OK_DL=1; break; fi
+            echo "gh release download lan $try loi, thu lai sau 15s"; sleep 15
           done
-          [ "$OK_DL" = "1" ] || { echo "::error::Khong tai duoc sing-box ${SB_VER} sau 3 lan"; exit 1; }
-          tar xzf /tmp/sing-box.tar.gz -C /tmp
-          SB="/tmp/sing-box-${SB_VER}-linux-amd64-glibc/sing-box"
+          SB=""
+          if [ "$OK_DL" = "1" ]; then
+            tar xzf "/tmp/${SB_TGZ}" -C /tmp
+            SB="/tmp/sing-box-${SB_VER}-linux-amd64-glibc/sing-box"
+          else
+            # Fallback: APT deb.sagernet.org (host khac han, khong phu thuoc GitHub).
+            echo "gh release download that bai sau 3 lan — thu fallback APT deb.sagernet.org"
+            sudo install -d -m 0755 /etc/apt/keyrings
+            if sudo curl -fsSL https://sing-box.app/gpg.key -o /etc/apt/keyrings/sagernet.asc && sudo chmod a+r /etc/apt/keyrings/sagernet.asc && printf 'Types: deb\nURIs: https://deb.sagernet.org/\nSuites: *\nComponents: *\nEnabled: yes\nSigned-By: /etc/apt/keyrings/sagernet.asc\n' | sudo tee /etc/apt/sources.list.d/sagernet.sources >/dev/null && (sudo apt-get update -qq -o Acquire::http::Timeout=30 -o Acquire::Retries=3 || true) && sudo apt-get install -y -qq sing-box; then
+              SB="$(command -v sing-box || true)"
+            fi
+            [ -n "$SB" ] && [ -x "$SB" ] || { echo "::error::Khong tai/cai duoc sing-box (gh x3 + APT that bai)"; exit 1; }
+            echo "dung sing-box tu APT: $SB"
+          fi
+          "$SB" version | head -1
           "$SB" check -c /tmp/singbox_ci.json
           nohup "$SB" run -c /tmp/singbox_ci.json > /tmp/singbox.log 2>&1 &
           for i in $(seq 1 30); do (echo > /dev/tcp/127.0.0.1/7891) 2>/dev/null && break; sleep 2; done
