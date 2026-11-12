@@ -2455,6 +2455,7 @@ def main():
     test_ci_t9_playback_merged_clock_token()
     test_ci_t9_playback_trial_frames()
     test_ci_t9_player_title_frame_skips_error_dialog()
+    test_ci_t9_player_title_question_asks_duplicate()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -2688,6 +2689,45 @@ def test_ci_t9_player_title_frame_skips_error_dialog():
     assert _r2._player_title_frame["frame"] == "step_076_webplaye.jpg", \
         "không có khung phát nào thì fallback khung lỗi cuối"
     print("CI_T9_TITLE_FRAME_SKIPS_ERROR_OK")
+
+
+def test_ci_t9_player_title_question_asks_duplicate():
+    """CI-T9 mục 6: câu hỏi player_title phải hỏi TRÙNG tiêu đề (2 dòng khác
+    nhau cùng tên phim/tập, kể cả khi nằm riêng không đè nhau), không chỉ
+    hỏi chồng chữ. Giữ 2 cụm '2 DÒNG TIÊU ĐỀ' + 'CHỒNG LÊN NHAU' để test
+    N2 vẫn đúng (câu hỏi bao cả 2 dạng)."""
+    import runner as _rm
+
+    class _FV:
+        def __init__(self):
+            self.calls = []
+        def available(self):
+            return True
+        def remaining(self):
+            return 10
+        def check_visual(self, image_bytes, question, timeout=30, crop=None, max_side=None):
+            self.calls.append((crop, question))
+            return {"found": True, "severity": "HIGH",
+                    "detail": "2 dòng tiêu đề trùng nhau", "quote": "Dòng 1 | Dòng 2"}, None
+
+    _r = _rm.RealtimeRunner(out_dir="/tmp/qa_mock_title_q_t9", serial=None,
+                            vision_budget=40, no_vision=False)
+    _r._player_title_frame = {"png": _fake_png(1), "frame": "step_061_vod_play.jpg",
+                              "t": 300.0, "activity": "com.kenhlive.tv/.phim.WebPlayerActivity"}
+    _fv = _FV()
+    _r.vision = _fv
+    _r._vision_overlap_checks()
+    _q = [q for c, q in _fv.calls if c == (0, 0, 1920, 280)][0]
+    print("title question (T9):", _q[:160])
+    assert "2 DÒNG TIÊU ĐỀ" in _q and "CHỒNG LÊN NHAU" in _q, \
+        "câu hỏi vẫn phải nhắc 2 dòng tiêu đề chồng nhau (test N2)"
+    assert "TRÙNG" in _q, "câu hỏi phải hỏi trùng lặp tiêu đề, không chỉ chồng chữ"
+    assert "nằm riêng" in _q or "riêng" in _q, \
+        "câu hỏi phải bao cả dạng 2 dòng nằm riêng không đè nhau"
+    assert "vị trí" in _q, "câu hỏi phải ép đọc vị trí từng dòng"
+    _find = [f for f in _r.findings if f["issue"] == "Tiêu đề player đè đôi"]
+    assert len(_find) == 1 and _find[0]["evidence"]["frame"] == "step_061_vod_play.jpg"
+    print("CI_T9_TITLE_QUESTION_DUPLICATE_OK")
 
 
 def test_ci_t9_video_coverage_action_time():

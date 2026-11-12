@@ -521,12 +521,22 @@ class RealtimeRunner:
                            "CHỒNG LÊN dòng phụ đề/tiêu đề bên dưới không? Đọc nguyên văn "
                            "2 dòng chữ bị chồng nếu có."))
         if self._player_title_frame:
+            # CI-T9 mục 6: hỏi TRÙNG TIÊU ĐỀ, không chỉ chồng chữ. Bằng chứng
+            # T3 step_061/064 + T4 step_056/061/063: tiêu đề kép thấy rõ bằng
+            # mắt ('Tuyệt Thế Chiến Hồn' + 'Tuyệt Thế Chiến Hồn (2024) ·
+            # Tập 01') nhưng vision trả not_found với câu hỏi cũ — vì 2 dòng
+            # nằm RIÊNG (không đè nhau), câu hỏi 'chồng lên nhau' sai trọng
+            # tâm. Hỏi cả 2 dạng: (a) đè nhau (CHỒNG LÊN NHAU), (b) 2 dòng
+            # riêng vẫn tính là trùng lặp; ép đọc nguyên văn cả 2 dòng + vị
+            # trí để khỏi trả not_found mù.
             checks.append(("player_title", self._player_title_frame, (0, 0, 1920, 280),
-                           "Trong vùng tiêu đề player này, có đúng 2 DÒNG TIÊU ĐỀ "
-                           "CHỒNG LÊN NHAU không — dòng tiêu đề trên đè lên dòng tiêu đề "
-                           "dưới (VD 'Tình Yêu Trong Vỏ Bọc / Tình Yêu Ngụy Trang' đè lên "
-                           "'Tình Yêu Ngụy Trang (2026) · Tập 01'), chữ chen nhau không "
-                           "đọc được? Đọc nguyên văn cả 2 dòng bị chồng nếu có."))
+                           "Trong vùng tiêu đề player này, có đúng 2 DÒNG TIÊU ĐỀ khác nhau "
+                           "cùng hiển thị tên phim/tập không (TRÙNG LẶP — VD dòng trên chỉ "
+                           "'Tuyệt Thế Chiến Hồn' còn dòng dưới 'Tuyệt Thế Chiến Hồn (2024) · "
+                           "Tập 01', cùng 1 tên phim/tập)? Kiểm cả 2 dạng: (a) 2 dòng ĐÈ LÊN "
+                           "NHAU (CHỒNG LÊN NHAU, chữ chen nhau không đọc được), (b) 2 dòng "
+                           "nằm riêng trên 2 hàng vẫn tính là trùng lặp. Đọc nguyên văn cả 2 "
+                           "dòng + vị trí (dòng trên/dưới, trái/phải) nếu có."))
         for kind, fr, crop, question in checks:
             if self.vision.remaining() <= 0:
                 break
