@@ -4309,6 +4309,50 @@ def test_tour_settings_and_multiview_missions():
     print("feedback: list x2 + dialog x2 ->", _vfb, "|", _rfb)
     assert _vfb == "PASS"
 
+    # Trial 10 (run 43227207645) mission #20 FAIL 8 bước: driver ĐÃ tới đúng
+    # hàng 'Liên hệ & Báo lỗi' (step_086 highlight, focus view
+    # [0,810][1920,972]) nhưng focus view KHÔNG mang text (text nằm ở
+    # TextView con) nên không bấm OK lần nào — chỉ DPAD + SWITCH_TAB lạc.
+    # Luật open_dialog phải nhận diện hàng đích qua text con trong bounds
+    # focus (_focus_on_text), không chỉ focused_view.text.
+    _ui_fb_row = {
+        "focused_sig": "settingsRow#[0,810][1920,972]",
+        "focused_text": "", "focused_bounds": "[0,810][1920,972]",
+        "all_visible_texts": [("nav_settings", "Cài đặt"),
+                              ("tvRowTitle", "Liên hệ & Báo lỗi"),
+                              ("tvRowSub", "Nhóm Telegram: @kenhlivetv")],
+        "all_visible_nodes": [
+            {"id": "tvRowTitle", "text": "Liên hệ & Báo lỗi",
+             "bounds": "[60,850][700,930]"},
+            {"id": "tvRowSub", "text": "Nhóm Telegram: @kenhlivetv",
+             "bounds": "[60,930][700,965]"}],
+        "has_dialog": False, "dialog_ids": [],
+        "selected_ids": ["nav_settings"]}
+    _devfb2 = FakeDevice()
+    _devfb2._tab = 4
+    _drvfb2 = Driver(_devfb2, EvidenceGate(_fb), _fb)
+    _afb3 = _drvfb2.next_action(_ui_fb_row, "com.kenhlive.tv/.MainActivity",
+                                None, 0.0)
+    print("feedback trial10: focus row không text, đúng hàng đích ->",
+          _afb3.type, _afb3.param, "| rule:", _afb3.rule)
+    assert _afb3.type == "KEY" and _afb3.param == "OK" \
+        and _afb3.rule == "open_dialog", \
+        "đã đứng trên hàng đích (text con trong bounds focus) thì phải OK " \
+        "mở dialog, không DPAD lòng vòng (được %s %s [%s])" \
+        % (_afb3.type, _afb3.param, _afb3.rule)
+    # Đối chứng: focus ở hàng KHÁC (bounds không chứa text đích) thì vẫn
+    # phải đi tới hàng đích, không bấm OK mù.
+    _ui_fb_other = dict(_ui_fb_row,
+                        focused_sig="settingsRow#[0,300][1920,462]",
+                        focused_bounds="[0,300][1920,462]")
+    _afb4 = _drvfb2.next_action(_ui_fb_other, "com.kenhlive.tv/.MainActivity",
+                                None, 0.0)
+    print("feedback trial10: focus hàng khác ->", _afb4.type, _afb4.param,
+          "| rule:", _afb4.rule)
+    assert _afb4.rule == "goto_view_text" and _afb4.type == "KEY", \
+        "chưa đứng trên hàng đích thì phải đi tới nó (được %s %s [%s])" \
+        % (_afb4.type, _afb4.param, _afb4.rule)
+
     # --- (3) MultiView: directed launch thẳng activity, trạng thái trống vẫn đủ tín hiệu rẻ.
     _mv = _specs["MISSION_MULTIVIEW_DIRECTED"]
     assert _mv.directed_launch == "LAUNCH_MULTIVIEW"

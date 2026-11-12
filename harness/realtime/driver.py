@@ -458,6 +458,37 @@ class Driver:
                                   % (n.get("text", "")[:20], key, dx, dy))
         return None
 
+    def _focus_on_text(self, ui_state, texts):
+        """Focus đang đứng TRÊN hàng/nút mang text đích chưa — nhận diện qua
+        text của node CON nằm trong bounds focus (hàng settings là view
+        focusable không mang text; text nằm ở TextView con — trial 10
+        mission #20: driver đã tới đúng hàng 'Liên hệ & Báo lỗi' — focus
+        view [0,810][1920,972] — nhưng luật open_dialog chỉ nhìn
+        focused_view.text nên không nhận ra và không bấm OK lần nào, mission
+        FAIL 8 bước). Tâm node text phải nằm trong bounds focus mở rộng
+        40px (cùng cách _focused_card_texts gắn badge với thẻ)."""
+        wants = [t.lower() for t in (texts or [])]
+        fb = ui_state.get("focused_bounds")
+        if not wants or not fb:
+            return False
+        m = re.findall(r"-?\d+", fb)
+        if len(m) < 4:
+            return False
+        fx1, fy1, fx2, fy2 = map(int, m[:4])
+        ex1, ey1, ex2, ey2 = fx1 - 40, fy1 - 40, fx2 + 40, fy2 + 40
+        for n in (ui_state.get("all_visible_nodes") or []):
+            txt = (n.get("text") or "").lower()
+            if not any(w in txt for w in wants):
+                continue
+            nm = re.findall(r"-?\d+", n.get("bounds") or "")
+            if len(nm) < 4:
+                continue
+            x1, y1, x2, y2 = map(int, nm[:4])
+            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+            if ex1 <= cx <= ex2 and ey1 <= cy <= ey2:
+                return True
+        return False
+
     def _dismiss_dialog_action(self, ui_state):
         """Trả Action đóng dialog chặn, hoặc None nếu không phải dialog chặn.
         Dialog chào mừng 'THÔNG BÁO' lần đầu (btnCloseFeedback) chặn MỌI
@@ -666,9 +697,14 @@ class Driver:
         # đi theo hướng bounds; đã đứng trên nút (goto trả None) thì rơi
         # xuống luật 1 bấm OK như thường.
         if m.needs_dialog and not ui_state.get("has_dialog") and m.goto_texts:
-            goto = self._goto_text_action(ui_state, m.goto_texts)
-            if goto is not None:
-                return goto
+            # Focus đã đứng trên hàng đích (text con trong bounds focus —
+            # row settings là view không mang text) thì rơi xuống luật 1
+            # bấm OK mở dialog, không đi lòng vòng theo tâm text con lệch
+            # khỏi tâm hàng (trial 10 mission #20: DPAD_LEFT mãi không OK).
+            if not self._focus_on_text(ui_state, m.goto_texts):
+                goto = self._goto_text_action(ui_state, m.goto_texts)
+                if goto is not None:
+                    return goto
 
         # -- 1c. Mission cần long-press yêu thích (CI-T5 mục 10, nợ cũ):
         # IPTV favorites chưa từng kiểm tra thật vì driver không bao giờ phát
