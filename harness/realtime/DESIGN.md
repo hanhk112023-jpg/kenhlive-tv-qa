@@ -1008,5 +1008,9 @@ cụm fix; reviewer độc lập kiểm lại trước khi dispatch trial.
   (53 + N26), `/tmp/mock_final.log`. Lưu ý của reviewer: tiết kiệm ~250s
   của mục 4 là ước tính — trial phải đo lại; recall replay dao động theo
   lỗi hạ tầng vision (8/8 lần này không có nghĩa P0-3 đã "chắc chắn").
-- **Trial CI-T8:** (dispatch sau reviewer) — run id + trạng thái cập nhật
-  tại đây; **không tự kiểm chứng trial, không áp dụng switchover**.
+- **Trial CI-T8:** ĐÃ DISPATCH + CHẠY XONG — run **43127423731**
+  (workflow QA-Realtime-Trial, main@923a9ed, dispatch 2026-11-12 00:27:33Z,
+  job `qa` 32m36s, **workflow SUCCESS**). Chưa kiểm chứng nội dung
+  (verdict/điểm/số PASS/tốc độ QA) — cần coordinator riêng kiểm chứng
+  (video + từng ảnh + report) trước khi kết luận; **không áp dụng
+  switchover** trong vòng này.
