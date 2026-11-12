@@ -1719,3 +1719,53 @@ tên cờ `schedule_live_with_score` gây nhầm (run-wide, xem H8), harness b�
 lỡ A14/A15).
 **KHÔNG switch** — còn 4 FAIL + 2 UNVERIFIED và lỗi app thật
 A6/A11/A14/A15.
+
+### 15.19. KL8 Polish Phase 2 — LIVE TRIAL thử 7 (run 43211741875, 2026-11-12)
+
+Trial kiểm chứng đợt polish Phase 2 (app `a61bb65`: 63 commit polish +
+2 fix blocker 44d6323/a61bb65; QA head `a1c7e4e`, không đổi so với trial
+6). Re-review độc lập trước dispatch: **GO** — expat tự quét 317 file
+`res/**/*.xml` 0 fail, 3 file Blocker 1 đúng là comment đã ra ngoài thẻ
+và `textAllCaps="true"` còn nguyên; Blocker 2 đúng là
+`showStorageDialog()` set `kl3_accent` (#E50914, tồn tại thật) cho
+`BUTTON_POSITIVE` sau `dlg.show()`, nút "Đóng" vẫn trắng, không đụng
+dialog/nút khác.
+
+**Workflow FAILURE sau 4m04s — chết ở bước Build debug APK, QA = 0.**
+`processDebugResources` fail giống hệt cả 3 lần retry của workflow:
+
+```
+com.kenhlive.tv.app-mergeDebugResources-40:/values/values.xml:7629:
+error: style attribute 'android:attr/windowAnimations' not found.
+```
+
+Không phải Blocker 1 (comment XML). `windowAnimations` chỉ xuất hiện 1
+lần trong toàn bộ `res/`: `themes.xml:24` trong `Theme.KenhLive.Dialog`,
+thêm bởi commit polish **M7 `77c6f55`** (dialog vào 220ms / thoát
+150ms). Trial 5/6 build được vì app head lúc đó (`6880652`) chưa có M7
+— **hồi quy build do đợt polish**, không phải lỗi harness hay CI. Mọi
+bước sau build đều skipped (proxy, KVM, preflight, QA); không có
+artifact nào để tải, không report/ảnh/tour/reel — **mắt kiểm 0/0, video
+tour không có**. Toàn bộ tiêu chí switchover chưa đo được.
+
+**A16 (MỚI, HIGH — build-breaking):** `android:windowAnimations`
+không phải theme attribute hợp lệ trong `<style>` (thuộc tính
+Window/LayoutParams, đặt bằng code `Window.setWindowAnimations()`);
+cơ chế đúng cho dialog theme là `android:windowAnimationStyle` — đúng
+pattern app đã dùng ở `Theme.KenhLive` (`KL.WindowAnim`, M3).
+
+**Fix đã có — không phải do worker trial này làm** (nhiệm vụ cấm sửa
+code trong giai đoạn này). Commit `9380667` ("Fix build:
+android:windowAnimations → android:windowAnimationStyle", 18:50:11
+VN, ~2 phút sau trial fail) đổi đúng 1 dòng đó và đã push lên remote
+main. Fix này **chưa re-review độc lập, chưa kiểm chứng bằng build**:
+đổi tên attr là đúng hướng platform, nhưng phải có 1 trial build lại
+mới biết chắc APK ra được và animation M7 còn hoạt động.
+
+**KHÔNG switch** — trial chưa từng chạy tới QA. Việc tiếp theo (chưa
+duyệt, chỉ ghi): re-review nhanh `9380667` + dispatch **trial 8 full**
+từ app head mới; khi đó mới kiểm bằng mắt toàn bộ polish (63 commit +
+3 fix) và làm video tour giao Evelyn. A6/A11/A14/A15/A10/A12/A13,
+H1/H4/H6–H10 giữ nguyên trạng thái từ trial 6 — không có bằng chứng
+mới nào đợt này. Biên bản đầy đủ:
+`~/workspace/kenhlive-plan/qa-run-43211741875/VISUAL-REVIEW.md`.
