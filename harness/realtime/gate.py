@@ -79,6 +79,11 @@ class EvidenceGate:
         self.texts_seen = set()       # required texts đã thấy (lowercase)
         self.views_seen = set()
         self.dialog_seen = False
+        # H2: dialog chọn tập được suy luận từ hành vi (OK trên chip 'Tập N'
+        # mở đúng player) khi detector không nhận ra dialog — xem
+        # note_dialog_implied(). Cờ này ghi vào evidence để báo cáo trung
+        # thực (dialog_seen=True nhờ suy luận, không phải dump trực tiếp).
+        self.dialog_implied = False
         self.motion_seen = False
         self.vision_confirmations = []  # [{frame, t, quote}]
         self.vision_denials = 0
@@ -132,6 +137,15 @@ class EvidenceGate:
             self.vision_confirmations.append({"frame": frame_ref, "t": t_offset, "quote": quote})
         else:
             self.vision_denials += 1
+
+    def note_dialog_implied(self):
+        """H2 (trial 5): dialog chọn tập không được detector nhận ra nhưng
+        hành vi chứng minh nó đã mở — OK trên chip 'Tập N' (chỉ có trong
+        dialog) mở đúng player tập đó. Chỉ runner gọi, chỉ cho mission
+        chọn tập, chỉ khi phím OK vừa rồi bấm trên chip tập. Ghi cờ
+        dialog_implied vào evidence để không bịa tín hiệu lặng lẽ."""
+        self.dialog_seen = True
+        self.dialog_implied = True
 
     # -- CI-T6 mục 8: thời gian phát phải TĂNG --------------------------------
     def note_seek(self):
@@ -232,6 +246,7 @@ class EvidenceGate:
             "texts_seen": sorted(self.texts_seen),
             "views_seen": sorted(self.views_seen),
             "dialog_seen": self.dialog_seen,
+            "dialog_implied": self.dialog_implied,
             "motion_seen": self.motion_seen,
             "vision_confirmations": list(self.vision_confirmations),
             "vision_denials": self.vision_denials,

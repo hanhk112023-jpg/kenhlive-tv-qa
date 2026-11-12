@@ -121,6 +121,17 @@ def _is_loading_screen(ui_state):
     return any(k in blob for k in _LOADING_TEXTS)
 
 
+def _is_episode_chip_focus(focused_sig, focused_text):
+    """H2(a): phím OK vừa rồi có bấm trên chip tập của dialog chọn tập
+    không — chip có id tvEpisodeName (item_episode_chip.xml, chỉ dùng
+    trong lưới tập của dialog chọn tập) và text 'Tập N'. Dùng để phân
+    biệt 'OK trên Tập 1 mở player đúng tập' (hành vi đúng) với 'OK trên
+    thẻ trận mở player thay vì dialog' (lỗi thật, ROOM_PICKER)."""
+    if (focused_sig or "").startswith("tvEpisodeName"):
+        return True
+    return re.match(r"(?i)^tập\s*\d+", (focused_text or "").strip()) is not None
+
+
 class RealtimeRunner:
     def __init__(self, out_dir="/tmp/qa_report_realtime", serial=None, vision_budget=40,
                  no_vision=False):
@@ -780,6 +791,10 @@ class RealtimeRunner:
         kb_seen = False  # CI-T9 mục 7: bàn phím ảo đã mở thật lần nào trong mission chưa
         pending_vision_confirm = False
         last_action_rule = None  # rule của action vừa thực thi (CI-T5 mục 9)
+        # H2(a): focus lúc bấm action vừa rồi (để biết OK bấm trên chip tập
+        # hay trên thẻ trận khi check open_dialog -> player ở dưới).
+        last_action_focused_sig = None
+        last_action_focused_text = None
 
         if spec.directed_launch:
             ok = self._run_directed_launch(spec, gate)
@@ -904,16 +919,33 @@ class RealtimeRunner:
             # tải luồng...' chứ không mở dialog chọn phòng) — ghi nhận đúng
             # là 'mở player thay vì dialog' và FAIL ngay (dialog không thể
             # mở từ trong player), không PASS oan, không FAIL mù ở max_steps.
+            # H2(a) (trial 5): NGOẠI LỆ cho mission chọn tập — OK trên chip
+            # 'Tập N' trong dialog chọn tập mở player đúng tập là hành vi
+            # ĐÚNG (chip tập chỉ có trong dialog nên dialog phải đã mở, dù
+            # detector chưa nhận ra). Không FAIL bằng mẫu mission thể thao;
+            # ghi nhận dialog theo suy luận rồi để gate đánh giá bình
+            # thường. Thông báo FAIL cho các mission khác cũng ghi theo
+            # đúng mission (title + target_desc) thay vì mẫu cứng thể thao.
             if (last_action_rule == "open_dialog" and spec.needs_dialog
                     and "PlayerActivity" in (obs["activity"] or "")
                     and not ui_state.get("has_dialog") and not gate.dialog_seen):
-                gate.force_fail(
-                    "OK mở PLAYER thay vì dialog đích: bấm OK trên thẻ trận mở "
-                    "%s (không thấy dialog chọn phòng) — mission cần dialog, "
-                    "không phải player" % obs["activity"],
-                    last_frame_ref)
-                print("   ❌ [Mission FAIL] %s" % gate.outcome_reason, flush=True)
-                break
+                if spec.name == "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE" \
+                        and _is_episode_chip_focus(last_action_focused_sig,
+                                                   last_action_focused_text):
+                    print("   ℹ️ [Episode Picker] OK trên tập (%s) mở %s — hành vi đúng, không FAIL"
+                          % (last_action_focused_text or last_action_focused_sig,
+                             obs["activity"]), flush=True)
+                    gate.note_dialog_implied()
+                else:
+                    gate.force_fail(
+                        "OK mở PLAYER thay vì dialog đích (%s): bấm OK trên '%s' mở "
+                        "%s mà không thấy dialog '%s' — mission cần dialog, "
+                        "không phải player"
+                        % (spec.title, (last_action_focused_text or "?")[:30],
+                           obs["activity"], spec.target_desc),
+                        last_frame_ref)
+                    print("   ❌ [Mission FAIL] %s" % gate.outcome_reason, flush=True)
+                    break
 
             verdict, reason, _ev = gate.evaluate(last_frame_ref)
             if verdict == "VISION_PENDING":
@@ -934,6 +966,8 @@ class RealtimeRunner:
                     driver.execute(act)
                     self._note_seek_if_needed(gate, act, obs["activity"])
                     last_action_rule = act.rule
+                    last_action_focused_sig = ui_state.get("focused_sig")
+                    last_action_focused_text = ui_state.get("focused_text")
                     continue
                 verdict, reason, _ev = gate.evaluate(last_frame_ref)
             if verdict == "PASS":
@@ -953,6 +987,8 @@ class RealtimeRunner:
             driver.execute(action)
             self._note_seek_if_needed(gate, action, obs["activity"])
             last_action_rule = action.rule
+            last_action_focused_sig = ui_state.get("focused_sig")
+            last_action_focused_text = ui_state.get("focused_text")
 
         if gate.outcome is None:
             verdict, reason, _ev = gate.evaluate(last_frame_ref)

@@ -2481,6 +2481,9 @@ def main():
     test_h4_runner_vision_confirm_current_frame()
     # --- H4-runner (2): màn đang tải không tính là đang phát ---
     test_h4_runner_loading_screen_not_playing()
+    # --- H2 (vòng sửa sau trial 5, run 43183031119) ---
+    test_h2_episode_dialog_detected()
+    test_h2_episode_picker_player_is_not_fail()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -3714,6 +3717,207 @@ def test_h4_runner_loading_screen_not_playing():
     finally:
         runner_mod.RealtimeDevice = _orig_dev
     print("H4_RUNNER_LOADING_SCREEN_NOT_PLAYING_OK")
+
+
+def test_h2_episode_dialog_detected():
+    """H2(b) (trial 5 run 43183031119): dialog chọn tập mở rõ (step_051)
+    nhưng gate.dialog_seen vẫn false suốt mission. Gốc rễ: 'episodeList'
+    trong dialog_id_set là id CHẾT (không tồn tại trong app — layout thật
+    là dialog_film_episodes.xml, lưới tập là dialogEpisodesGrid), còn
+    dialogBtnClose nằm ở footer, bị cắt khỏi màn hình khi dialog cao hơn
+    màn hình nên detector chỉ còn trông vào mỗi id đó. Giờ detector nhận
+    dialog qua các id phần trên (dialogFilmTitle/dialogEpisodesGrid/...) +
+    mọi id bắt đầu bằng 'dialog'. Kiểm bằng XML dump THẬT (parse như live).
+    - (a) dump trial-5 step_051 (KHÔNG có dialogBtnClose — footer ngoài
+      màn hình) -> has_dialog True nhờ dialogFilmTitle/dialogEpisodesGrid;
+    - (b) chỉ dialogBtnClose -> True (đường cũ giữ nguyên);
+    - (c) dialogLeague (dialog RoomPicker) -> True (luật prefix);
+    - (d) id dialog mới chưa biết -> True (luật prefix);
+    - (e) màn thường (nút CHỌN TẬP, chưa mở dialog) -> False;
+    - (f) chỉ tvEpisodeName đơn độc -> False (chip này còn dùng trong
+      player nên KHÔNG được tính là dialog — tránh false-positive)."""
+    import device as _devmod
+
+    def _fake_xml_h2(nodes):
+        parts = ['<hierarchy rotation="0">']
+        for _id, _txt, _foc in nodes:
+            parts.append(
+                '<node index="0" text="%s" resource-id="com.kenhlive.tv:id/%s" '
+                'class="android.widget.Button" package="com.kenhlive.tv" '
+                'content-desc="" checkable="false" checked="false" clickable="true" '
+                'enabled="true" focusable="true" focused="%s" scrollable="false" '
+                'long-clickable="false" password="false" selected="false" '
+                'bounds="[100,200][500,600]" />' % (_txt, _id, "true" if _foc else "false"))
+        parts.append('</hierarchy>')
+        return "".join(parts)
+
+    _orig_sh = _devmod.sh
+    try:
+        # (a) dialog chọn tập trial 5: không có dialogBtnClose.
+        _devmod.sh = lambda cmd, timeout=30: _fake_xml_h2([
+            ("nav_home", "Trang chủ", False),
+            ("dialogFilmPoster", "", False),
+            ("dialogFilmTitle", "Tuyệt Thế Chiến Hồn", False),
+            ("dialogFilmMeta", "2024 · Hành Động", False),
+            ("dialogEpisodesGrid", "", False),
+            ("tvEpisodeName", "Tập 1", True)])
+        _st = _devmod.RealtimeDevice().dump_ui_state()
+        print("dialog chọn tập (không dialogBtnClose) -> has_dialog:",
+              _st["has_dialog"], "| dialog_ids:", _st["dialog_ids"],
+              "| focused:", _st["focused_sig"])
+        assert _st["has_dialog"] is True, \
+            "dialog chọn tập phải được nhận dù footer (dialogBtnClose) ngoài màn hình"
+        assert "dialogEpisodesGrid" in _st["dialog_ids"] \
+            and "dialogFilmTitle" in _st["dialog_ids"]
+        assert _st["focused_sig"].startswith("tvEpisodeName#")
+        # (b) chỉ dialogBtnClose -> True như trước.
+        _devmod.sh = lambda cmd, timeout=30: _fake_xml_h2([
+            ("dialogBtnClose", "Đóng", True)])
+        assert _devmod.RealtimeDevice().dump_ui_state()["has_dialog"] is True, \
+            "dialogBtnClose đơn độc vẫn phải nhận là dialog"
+        # (c) dialogLeague (RoomPicker) -> True.
+        _devmod.sh = lambda cmd, timeout=30: _fake_xml_h2([
+            ("dialogLeague", "Giải đấu", False)])
+        assert _devmod.RealtimeDevice().dump_ui_state()["has_dialog"] is True, \
+            "dialogLeague của RoomPicker phải được nhận (luật prefix 'dialog')"
+        # (d) id dialog mới chưa biết -> True.
+        _devmod.sh = lambda cmd, timeout=30: _fake_xml_h2([
+            ("dialogSomethingNew", "", False)])
+        assert _devmod.RealtimeDevice().dump_ui_state()["has_dialog"] is True, \
+            "id bắt đầu bằng 'dialog' thì phải tính là dialog (chống tái phát)"
+        # (e) màn thường: nút CHỌN TẬP chưa mở dialog -> False.
+        _devmod.sh = lambda cmd, timeout=30: _fake_xml_h2([
+            ("nav_home", "Trang chủ", False),
+            ("btnHeroEpisodes", "CHỌN TẬP", True)])
+        assert _devmod.RealtimeDevice().dump_ui_state()["has_dialog"] is False, \
+            "nút CHỌN TẬP trên màn chính không phải dialog"
+        # (f) chỉ tvEpisodeName đơn độc -> False (chip còn dùng trong player).
+        _devmod.sh = lambda cmd, timeout=30: _fake_xml_h2([
+            ("tvEpisodeName", "Tập 1", True)])
+        assert _devmod.RealtimeDevice().dump_ui_state()["has_dialog"] is False, \
+            "tvEpisodeName đơn độc không được tính là dialog (còn dùng trong player)"
+    finally:
+        _devmod.sh = _orig_sh
+    print("H2_EPISODE_DIALOG_DETECTED_OK")
+
+
+def test_h2_episode_picker_player_is_not_fail():
+    """H2(a) (trial 5 run 43183031119): mission chọn tập FAIL oan — OK trên
+    'Tập 1' mở player đúng tập nhưng runner FAIL bằng mẫu mission thể thao
+    ('thẻ trận', 'dialog chọn phòng') vì gate coi 'kết thúc ở Player' là
+    lỗi. Giờ: OK trên chip tập -> player là hành vi đúng — runner ghi nhận
+    dialog theo suy luận (dialog_implied) rồi để gate đánh giá, mission
+    PASS; thông báo FAIL cho mission khác ghi theo đúng mission. Chạy
+    mission thật trên FakeDevice diễn lại đúng 4 bước trial 5 (đi tới nút
+    CHỌN TẬP -> OK mở dialog -> dialog mở nhưng dump không nhận ra
+    (has_dialog False, như trial 5) -> OK trên 'Tập 1' -> player)."""
+    import shutil as _sh
+    _sh.rmtree("/tmp/qa_mock_h2_ep", ignore_errors=True)
+    from missions import get_missions
+    _specs = {s.name: s for s in get_missions()}
+    _sp = _specs["MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE"]
+
+    _DUMP_HOME = {
+        "focused_sig": "nav_home#[362,0][563,112]",
+        "focused_text": "Trang chủ",
+        "focused_bounds": "[362,0][563,112]",
+        "focusable_count": 8,
+        "all_visible_texts": [("nav_home", "Trang chủ"),
+                              ("btnHeroEpisodes", "CHỌN TẬP"),
+                              ("heroTitle", "Tuyệt Thế Chiến Hồn")],
+        "all_visible_nodes": [
+            {"id": "nav_home", "text": "Trang chủ", "bounds": "[362,0][563,112]"},
+            {"id": "btnHeroEpisodes", "text": "CHỌN TẬP", "bounds": "[494,518][850,602]"}],
+        "has_dialog": False, "dialog_ids": [],
+        "selected_ids": ["nav_home"],
+        "ui_summary": "[FOCUSED] nav_home ('Trang chủ')",
+        "osd_visible": False,
+    }
+    _DUMP_ON_BUTTON = dict(
+        _DUMP_HOME,
+        focused_sig="btnHeroEpisodes#[494,518][850,602]",
+        focused_text="CHỌN TẬP",
+        focused_bounds="[494,518][850,602]",
+        ui_summary="[FOCUSED] btnHeroEpisodes ('CHỌN TẬP')")
+    # Dialog mở nhưng dump KHÔNG nhận ra (has_dialog False) — đúng tình
+    # trạng trial 5 step_051 (footer ngoài màn hình, episodeList là id
+    # chết). Không còn node 'CHỌN TẬP' nào với tới được (như dump thật).
+    _DUMP_DIALOG_MISSED = {
+        "focused_sig": "tvEpisodeName#[386,696][612,772]",
+        "focused_text": "Tập 1",
+        "focused_bounds": "[386,696][612,772]",
+        "focusable_count": 22,
+        "all_visible_texts": [("dialogFilmTitle", "Tuyệt Thế Chiến Hồn"),
+                              ("dialogSection", "CHỌN SERVER & TẬP PHIM"),
+                              ("tvEpisodeName", "Tập 1"),
+                              ("tvEpisodeName2", "Tập 2")],
+        "all_visible_nodes": [
+            {"id": "dialogFilmTitle", "text": "Tuyệt Thế Chiến Hồn",
+             "bounds": "[386,60][900,140]"},
+            {"id": "tvEpisodeName", "text": "Tập 1", "bounds": "[386,696][612,772]"},
+            {"id": "tvEpisodeName2", "text": "Tập 2", "bounds": "[640,696][866,772]"}],
+        "has_dialog": False, "dialog_ids": [],
+        "selected_ids": [],
+        "ui_summary": "[FOCUSED] tvEpisodeName ('Tập 1')",
+        "osd_visible": False,
+    }
+    _DUMP_PLAYER = {
+        "focused_sig": "NONE",
+        "focused_text": "",
+        "focused_bounds": None,
+        "focusable_count": 4,
+        "all_visible_texts": [("playerTitle", "Tuyệt Thế Chiến Hồn"),
+                              ("playerEpisode", "Tập 01")],
+        "all_visible_nodes": [],
+        "has_dialog": False, "dialog_ids": [],
+        "selected_ids": [],
+        "ui_summary": "(Không tìm thấy focusable view)",
+        "osd_visible": True,
+    }
+
+    class _EpDevice(FakeDevice):
+        def _oks(self):
+            return self.keys.count("OK")
+
+        def _dpads(self):
+            return sum(1 for k in self.keys if (k or "").startswith("DPAD"))
+
+        def dump_ui_state(self):
+            _n_ok, _n_dpad = self._oks(), self._dpads()
+            if _n_ok == 0:
+                return dict(_DUMP_ON_BUTTON) if _n_dpad >= 1 else dict(_DUMP_HOME)
+            if _n_ok == 1:
+                return dict(_DUMP_DIALOG_MISSED)
+            return dict(_DUMP_PLAYER)
+
+        def current_activity(self):
+            return ("com.kenhlive.tv/.PlayerActivity" if self._oks() >= 2
+                    else "com.kenhlive.tv/.MainActivity")
+
+    _orig_dev = runner_mod.RealtimeDevice
+    runner_mod.RealtimeDevice = _EpDevice
+    try:
+        _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_h2_ep", serial=None,
+                                       vision_budget=0, no_vision=True)
+        _rep = _r.run([_sp])
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev
+    _res = _r.mission_results[0]
+    print("EPISODE_PICKER OK trên Tập 1 -> player:", _res["outcome"],
+          "| reason:", _res["reason"][:160], "| keys:", _r.device.keys)
+    assert _res["outcome"] == "PASS", \
+        "OK trên Tập 1 mở player đúng tập thì mission chọn tập phải PASS (được %s: %s)" \
+        % (_res["outcome"], _res["reason"])
+    assert _res["evidence"]["dialog_seen"] is True, \
+        "dialog phải được ghi nhận (suy luận từ hành vi chọn tập)"
+    assert _res["evidence"]["dialog_implied"] is True, \
+        "evidence phải ghi rõ dialog_seen là suy luận (dialog_implied), không bịa lặng"
+    assert "thẻ trận" not in _res["reason"] \
+        and "dialog chọn phòng" not in _res["reason"], \
+        "mission chọn tập không được FAIL bằng mẫu mission thể thao"
+    assert _r.device.keys.count("OK") == 2, \
+        "chỉ bấm OK 2 lần (mở dialog, chọn Tập 1), keys: %s" % _r.device.keys
+    print("H2_EPISODE_PICKER_PLAYER_IS_NOT_FAIL_OK")
 
 
 if __name__ == "__main__":

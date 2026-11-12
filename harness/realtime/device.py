@@ -242,7 +242,7 @@ class RealtimeDevice:
         # ID dialog đã biết (cập nhật sau CI-T1): btnCloseFeedback = nút đóng
         # của dialog chào mừng "THÔNG BÁO" lần đầu; dialogBtnClose = nút đóng
         # của dialog chọn tập. dialog_ids trả về để driver phân biệt dialog
-        # chặn (welcome) với dialog đích (roomList/episodeList/...).
+        # chặn (welcome) với dialog đích (roomList/dialogEpisodesGrid/...).
         # CI-T7 mục 1: thêm id của MatchDetailPanel — cái mở ra khi bấm thẻ
         # trận là PANEL chi tiết (LiveFragment.openGroupPicker -> dialog
         # dialog_match_detail.xml, KHÔNG phải RoomPickerDialog độc lập).
@@ -254,9 +254,30 @@ class RealtimeDevice:
         # focus lúc panel mở — step_011 CI-T6) là dialog đang mở. An toàn:
         # không id layout nào khác bắt đầu bằng "panel" (channelCarouselPanel
         # / sportOptionsPanel đều KẾT THÚC bằng "Panel").
-        dialog_id_set = ("dialogTitle", "roomList", "episodeList", "ivTelegramQr",
+        # H2 (trial 5 run 43183031119): 'episodeList' cũ KHÔNG tồn tại
+        # trong app (grep toàn bộ res/layout và java/ đều không có) — id
+        # THẬT của dialog chọn tập (dialog_film_episodes.xml) là
+        # dialogEpisodesGrid + các id dialogFilm*/dialogBtn*; dialogBtnClose
+        # nằm ở footer, bị cắt khỏi màn hình khi dialog cao hơn màn hình
+        # (step_051: không thấy nút Đóng/Lưu Phim) nên không được trông vào
+        # mỗi mình nó — các id phần trên dialog (tiêu đề, poster, meta,
+        # lưới tập) luôn có trong dump khi dialog mở. Ngoài set tường minh,
+        # mọi id bắt đầu bằng "dialog" đều tính là dialog: grep toàn bộ
+        # res/layout cho thấy mọi @+id/dialog* đều thuộc layout dialog
+        # (dialogFilm* = EpisodePickerDialog, dialogLeague = RoomPicker,
+        # dialogTitle = dialog chào mừng) — không id màn thường nào bắt
+        # đầu bằng "dialog".
+        dialog_id_set = ("dialogTitle", "roomList", "ivTelegramQr",
                          "btnOpenTelegram", "alertTitle", "btnCloseFeedback",
                          "dialogBtnClose",
+                         "dialogFilmBackdrop", "dialogFilmPoster",
+                         "dialogFilmTitle", "dialogFilmOrigTitle",
+                         "dialogFilmBadgesRow", "dialogFilmMeta",
+                         "dialogFilmCrew", "dialogFilmDesc",
+                         "dialogServersRow", "dialogChunksRow",
+                         "dialogEpisodesGrid", "dialogNoEpisodes",
+                         "dialogLoading", "dialogBtnPlay",
+                         "dialogBtnFavorite", "dialogBtnDeleteHistory",
                          "panelLeague", "panelBadge", "panelHostName",
                          "panelHostIcon", "panelScore", "panelClock",
                          "panelGuestIcon", "panelGuestName", "panelBlvTitle",
@@ -296,6 +317,7 @@ class RealtimeDevice:
                         all_visible_texts.append((r_id, txt))
                         all_visible_nodes.append({"id": r_id, "text": txt, "bounds": bounds})
                     if r_id in dialog_id_set or r_id.startswith("panel") \
+                            or r_id.startswith("dialog") \
                             or r_id == "blvCardRoot":
                         has_dialog = True
                         if r_id not in dialog_ids:
