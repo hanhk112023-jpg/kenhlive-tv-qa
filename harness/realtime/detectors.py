@@ -472,14 +472,25 @@ def detect_schedule_live_no_score(ui_state, activity, ctx, frame_ref, t_offset):
     # CI-T8 mục 7: ghi nhận run CÓ thấy hàng LIVE nào không — dù hàng đó
     # có tỉ số hay không. Run không có hàng LIVE thì detector (e) chưa được
     # kiểm (UNTESTED), không được im lặng như CI-T7.
+    # CI-T9 mục 4: ghi thêm cờ schedule_live_with_score khi thấy một hàng
+    # LIVE CÓ token tỉ số — hàng trận thật. Hàng SẮP ĐÁ không tính (chưa
+    # đá thì chưa có tỉ số). Gate mission chỉ giữ PASS khi cờ này đặt.
     _live_rows = 0
+    _live_scored_rows = 0
     for r in rows:
         low = [t.lower() for _, t in r["nodes"]]
         if any(_live_re.search(t) or "trực tiếp" in t for t in low):
             _live_rows += 1
+            if not any("sắp đá" in t for t in low) \
+                    and any(_score_re.match(t) for _, t in r["nodes"]):
+                _live_scored_rows += 1
     if _live_rows:
         ctx["schedule_live_seen"] = True
         ctx["schedule_live_rows"] = ctx.get("schedule_live_rows", 0) + _live_rows
+    if _live_scored_rows:
+        ctx["schedule_live_with_score"] = True
+        ctx["schedule_live_with_score_rows"] = \
+            ctx.get("schedule_live_with_score_rows", 0) + _live_scored_rows
     for r in rows:
         texts = [t for _, t in r["nodes"]]
         low = [t.lower() for t in texts]

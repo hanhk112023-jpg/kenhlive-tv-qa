@@ -2437,6 +2437,8 @@ def main():
 
     # --- CI-T9 mục 3 (hàm test_ci_t9_* ở cuối file) ---
     test_ci_t9_nav_excluded_from_live_rows()
+    # --- CI-T9 mục 4 ---
+    test_ci_t9_gate_requires_scored_live_row(specs)
 
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
@@ -2452,6 +2454,89 @@ def main():
           and report2["nim_usage"]["requests_used"] == 0)
     print("MOCK_RUNNER_OK" if ok else "MOCK_RUNNER_FAIL")
     return 0 if ok else 1
+
+
+def test_ci_t9_gate_requires_scored_live_row(specs):
+    """CI-T9 mục 4: mission SCHEDULE_LIVE_DIRECTED chỉ giữ PASS khi đã thấy
+    hàng LIVE CÓ tỉ số (cờ schedule_live_with_score).
+    - Detector: hàng LIVE có '2 : 1' -> with_score đặt; hàng LIVE chỉ có
+      giờ kickoff -> live_seen đặt, with_score KHÔNG đặt.
+    - Runner: (a) dump có hàng LIVE có tỉ số -> mission PASS giữ + report
+      schedule_live_with_score True; (b) dump chỉ có hàng LIVE không tỉ số
+      -> mission UNVERIFIED (không PASS mềm) + with_score False.
+      Hành vi UNVERIFIED khi run KHÔNG có hàng LIVE nào giữ nguyên (N24)."""
+    import detectors as _det
+    import shutil as _sh
+    _nodes_scored = [
+        {"id": "schedHeader", "text": "Hôm nay", "bounds": "[0,150][1920,260]"},
+        {"id": "nav_schedule", "text": "TRỰC TIẾP", "bounds": "[362,0][563,112]"},
+        {"id": "schedMatch", "text": "Vietnam vs Thailand", "bounds": "[100,300][900,460]"},
+        {"id": "cardBadge", "text": "LIVE", "bounds": "[820,320][880,350]"},
+        {"id": "schedScore", "text": "2 : 1", "bounds": "[820,370][880,400]"},
+    ]
+    _nodes_noscore = [dict(n) for n in _nodes_scored]
+    _nodes_noscore[-1] = {"id": "schedScore", "text": "18:30", "bounds": "[820,370][880,400]"}
+    _ctx_s = {"reported": set()}
+    _det.detect_schedule_live_no_score(
+        {"all_visible_nodes": _nodes_scored}, "com.kenhlive.tv/.MainActivity",
+        _ctx_s, "step_001.jpg", 0.0)
+    print("LIVE + tỉ số -> live_seen:", _ctx_s.get("schedule_live_seen"),
+          "| with_score:", _ctx_s.get("schedule_live_with_score"))
+    assert _ctx_s.get("schedule_live_with_score") is True, \
+        "hàng LIVE có tỉ số phải đặt cờ schedule_live_with_score"
+    assert _ctx_s.get("schedule_live_with_score_rows", 0) == 1
+    _ctx_n = {"reported": set()}
+    _det.detect_schedule_live_no_score(
+        {"all_visible_nodes": _nodes_noscore}, "com.kenhlive.tv/.MainActivity",
+        _ctx_n, "step_001.jpg", 0.0)
+    print("LIVE + giờ kickoff -> live_seen:", _ctx_n.get("schedule_live_seen"),
+          "| with_score:", _ctx_n.get("schedule_live_with_score"))
+    assert _ctx_n.get("schedule_live_seen") is True, \
+        "hàng LIVE không tỉ số vẫn phải đặt cờ live_seen"
+    assert _ctx_n.get("schedule_live_with_score") is not True, \
+        "hàng LIVE không tỉ số không được đặt cờ with_score"
+
+    def _sched_device(nodes):
+        class _SchedDevice(FakeDevice):
+            def dump_ui_state(self):
+                _d = dict(FakeDevice.HOME_DUMP)
+                _d["all_visible_nodes"] = nodes
+                _d["all_visible_texts"] = [(n["id"], n["text"]) for n in nodes]
+                return _d
+        return _SchedDevice
+
+    def _run_directed(nodes, out_dir):
+        _sh.rmtree(out_dir, ignore_errors=True)
+        _orig = runner_mod.RealtimeDevice
+        runner_mod.RealtimeDevice = _sched_device(nodes)
+        try:
+            _r = runner_mod.RealtimeRunner(out_dir=out_dir, serial=None,
+                                           vision_budget=0, no_vision=True)
+            _rep = _r.run([specs["MISSION_SCHEDULE_LIVE_DIRECTED"]])
+        finally:
+            runner_mod.RealtimeDevice = _orig
+        return _r, _rep
+
+    # (a) hàng LIVE có tỉ số -> PASS giữ.
+    _r_a, _rep_a = _run_directed(_nodes_scored, "/tmp/qa_mock_live_scored")
+    print("directed + hàng LIVE có tỉ số -> outcome:",
+          _r_a.mission_results[0]["outcome"],
+          "| with_score:", _rep_a.get("schedule_live_with_score"))
+    assert _r_a.mission_results[0]["outcome"] == "PASS", \
+        "đã thấy hàng LIVE có tỉ số thì mission directed phải giữ PASS"
+    assert _rep_a.get("schedule_live_with_score") is True
+    assert _rep_a.get("schedule_live_seen") is True
+    # (b) hàng LIVE không tỉ số -> UNVERIFIED, không PASS mềm.
+    _r_b, _rep_b = _run_directed(_nodes_noscore, "/tmp/qa_mock_live_noscore")
+    print("directed + hàng LIVE không tỉ số -> outcome:",
+          _r_b.mission_results[0]["outcome"],
+          "| live_seen:", _rep_b.get("schedule_live_seen"),
+          "| with_score:", _rep_b.get("schedule_live_with_score"))
+    assert _r_b.mission_results[0]["outcome"] == "UNVERIFIED", \
+        "chỉ thấy hàng LIVE không tỉ số thì mission không được PASS mềm"
+    assert _rep_b.get("schedule_live_seen") is True
+    assert _rep_b.get("schedule_live_with_score") is False
+    print("CI_T9_GATE_SCORED_OK")
 
 
 def test_ci_t9_nav_excluded_from_live_rows():

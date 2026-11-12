@@ -795,12 +795,23 @@ class RealtimeRunner:
         # trên text đó mà không thấy hàng LIVE nào thì mission chưa kiểm
         # được gì — chỉ khi detector đã thấy hàng LIVE (cờ schedule_live_seen
         # đặt trong _observe) thì PASS mới giữ.
-        if getattr(spec, "requires_live_row", False) \
-                and not self.detector_ctx.get("schedule_live_seen"):
-            gate.outcome = "UNVERIFIED"
-            gate.outcome_reason = ("Không có hàng LIVE nào ở tab Lịch trong run này — "
-                                   "chưa kiểm được tỉ số trận đang đá (UNVERIFIED)")
-            print("   ❓ [Mission UNVERIFIED] %s: run không có hàng LIVE" % spec.name, flush=True)
+        # CI-T9 mục 4: PASS chỉ giữ khi đã thấy hàng LIVE CÓ tỉ số
+        # (cờ schedule_live_with_score) — hàng LIVE không tỉ số thì
+        # detector (e) đã tố bằng finding, mission chưa kiểm được trận
+        # đang đá hiển thị tỉ số nên cũng UNVERIFIED, không PASS mềm.
+        if getattr(spec, "requires_live_row", False):
+            _live_seen = bool(self.detector_ctx.get("schedule_live_seen"))
+            _live_scored = bool(self.detector_ctx.get("schedule_live_with_score"))
+            if not _live_seen:
+                gate.outcome = "UNVERIFIED"
+                gate.outcome_reason = ("Không có hàng LIVE nào ở tab Lịch trong run này — "
+                                       "chưa kiểm được tỉ số trận đang đá (UNVERIFIED)")
+                print("   ❓ [Mission UNVERIFIED] %s: run không có hàng LIVE" % spec.name, flush=True)
+            elif not _live_scored:
+                gate.outcome = "UNVERIFIED"
+                gate.outcome_reason = ("Có hàng LIVE ở tab Lịch nhưng không hàng nào có tỉ số — "
+                                       "chưa kiểm được trận đang đá hiển thị tỉ số (UNVERIFIED)")
+                print("   ❓ [Mission UNVERIFIED] %s: hàng LIVE không có tỉ số" % spec.name, flush=True)
         return self._finish_mission(spec, gate, last_obs and [last_obs] or [],
                                     dialog_obs=dialog_obs)
 
@@ -1044,6 +1055,10 @@ class RealtimeRunner:
         # không im lặng như CI-T7.
         _live_seen = bool(self.detector_ctx.get("schedule_live_seen"))
         report["schedule_live_seen"] = _live_seen
+        # CI-T9 mục 4: run có thấy hàng LIVE CÓ tỉ số không (gate mission
+        # chỉ giữ PASS khi cờ này đặt — xem run_mission).
+        report["schedule_live_with_score"] = bool(
+            self.detector_ctx.get("schedule_live_with_score"))
         if not _live_seen:
             # judge giữ reference list unverified nên append vào
             # self.unverified là đủ — không append thêm vào report.
