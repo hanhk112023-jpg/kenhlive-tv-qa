@@ -1,9 +1,10 @@
 name: APK Video Tour
 
-# Quay video quá trình test APK mới (main line: source cũ + waves 1-3 + wave 4)
-# trên Android TV emulator: boot Tab Thể thao -> rail -> Lịch -> Truyền hình
-# -> Phim -> Hub. Chỉ đọc code, build debug APK, quay màn hình, upload video.
-# Không proxy, không launcher phụ.
+# Quay video quá trình test APK mới (main line: source cũ + waves 1-5)
+# trên Android TV emulator. Tour KHÁM PHÁ: không theo kịch bản cứng, chỉ dùng
+# các thao tác chung (DPAD, ENTER, BACK, screenshot, UI dump) rồi tự dò:
+# đi hết rail ghi lại nhãn, vào nội dung, mở từng tab khám phá ra, BACK,
+# kiểm tra crash qua logcat. Không proxy, không launcher phụ.
 
 on:
   workflow_dispatch:
