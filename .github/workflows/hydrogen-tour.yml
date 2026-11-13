@@ -1,12 +1,11 @@
 name: Hydrogen APK Video Tour
 
-# Quay video quá trình test bản Hydrogen (repo kenhlive-hydrogen) trên
-# Android TV emulator, theo kiểu KHÁM PHÁ (tour tự dò UI, không kịch bản cứng).
-# Source checkout bằng deploy key HYDROGEN_CHECKOUT_KEY (path app/).
-# Kết quả giao bằng COMMIT vào repo này (hydrogen-tour/: video + APK +
-# log khám phá + ảnh màn hình) vì artifact storage của tài khoản đang đầy
-# (GitHub chỉ tính lại sau 6-12h nên upload artifact vẫn lỗi quota);
-# upload artifact chỉ là phụ (continue-on-error).
+# Quay video quá trình test bản Hydrogen trên Android TV emulator, theo kiểu
+# KHÁM PHÁ (tour tự dò UI, không kịch bản cứng). Source bản Hydrogen nằm
+# trong repo này (hydrogen/). Kết quả giao bằng COMMIT vào repo này
+# (hydrogen-tour/: video + APK + log khám phá + ảnh màn hình) vì artifact
+# storage của tài khoản đang đầy (GitHub chỉ tính lại sau 6-12h nên upload
+# artifact vẫn lỗi quota); upload artifact chỉ là phụ (continue-on-error).
 
 on:
   workflow_dispatch:
@@ -19,16 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Checkout QA repo (tour scripts)
+      - name: Checkout QA repo
         uses: actions/checkout@v4
-
-      - name: Checkout Hydrogen source (private)
-        uses: actions/checkout@v4
-        with:
-          repository: hanhk112023-jpg/kenhlive-hydrogen
-          ref: main
-          ssh-key: ${{ secrets.HYDROGEN_CHECKOUT_KEY }}
-          path: app
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
@@ -37,7 +28,7 @@ jobs:
           java-version: '17'
 
       - name: Build debug APK
-        working-directory: app
+        working-directory: hydrogen
         run: |
           chmod +x gradlew
           echo "sdk.dir=$ANDROID_HOME" > local.properties
@@ -55,15 +46,15 @@ jobs:
           arch: x86
           target: android-tv
           profile: tv_1080p
-          # Tour script sống trong repo Hydrogen; chạy từ trong thư mục app/
-          # để đường dẫn app/build/... trong script trỏ đúng APK.
-          script: cd app && bash tour/run_tour.sh
+          # Tour script sống trong hydrogen/tour; chạy từ trong thư mục
+          # hydrogen/ để đường dẫn app/build/... trong script trỏ đúng APK.
+          script: cd hydrogen && bash tour/run_tour.sh
 
       - name: Collect tour output
         if: always()
         run: |
           mkdir -p hydrogen-tour && cp -r /tmp/tour/* hydrogen-tour/ 2>/dev/null || true
-          APK=$(ls app/app/build/outputs/apk/debug/*-universal-debug.apk 2>/dev/null || ls app/app/build/outputs/apk/debug/*-debug.apk 2>/dev/null | head -1)
+          APK=$(ls hydrogen/app/build/outputs/apk/debug/*-universal-debug.apk 2>/dev/null || ls hydrogen/app/build/outputs/apk/debug/*-debug.apk 2>/dev/null | head -1)
           [ -n "$APK" ] && cp "$APK" hydrogen-tour/app-debug.apk && (cd hydrogen-tour && sha256sum app-debug.apk > app-debug.apk.sha256) || true
           ls -la hydrogen-tour/
 

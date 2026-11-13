@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="kl3_page_margin">56dp</dimen>
+    <dimen name="kl3_hero_title_size">40sp</dimen>
+    <dimen name="kl3_section_title_size">22sp</dimen>
+</resources>

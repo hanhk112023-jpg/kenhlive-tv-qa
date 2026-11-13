@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.KenhLive" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@color/kl3_bg_primary</item>
+        <item name="colorPrimary">@color/kl3_accent_red</item>
+        <item name="colorSurface">@color/kl3_surface</item>
+        <item name="android:textColorPrimary">@color/kl3_text_primary</item>
+        <item name="android:textColorSecondary">@color/kl3_text_secondary</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="Theme.KenhLive.Fullscreen" parent="Theme.KenhLive">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <style name="kl3_TextDisplay">
+        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/kl3_text_primary</item>
+    </style>
+
+    <style name="kl3_TextBody">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textColor">@color/kl3_text_primary</item>
+    </style>
+</resources>

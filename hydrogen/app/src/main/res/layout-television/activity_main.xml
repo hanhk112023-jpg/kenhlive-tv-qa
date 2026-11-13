@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/kl3_bg_primary">
+
+    <!-- Full-screen Fragment content -->
+    <FrameLayout
+        android:id="@+id/fragmentContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Scrim #80000000 behind TV rail when open -->
+    <View
+        android:id="@+id/tvRailScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/kl3_scrim"
+        android:visibility="visible" />
+
+    <!-- Left Auto-Hiding TV Navigation Rail (220dp) -->
+    <LinearLayout
+        android:id="@+id/tvRailContainer"
+        android:layout_width="@dimen/kl3_rail_width"
+        android:layout_height="match_parent"
+        android:background="@color/kl3_rail_bg"
+        android:orientation="vertical"
+        android:paddingTop="28dp"
+        android:paddingBottom="24dp">
+
+        <TextView
+            style="@style/kl3_TextDisplay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="20dp"
+            android:text="@string/app_name"
+            android:textColor="@color/kl3_accent_red"
+            android:textSize="24sp" />
+
+        <include
+            android:id="@+id/railTabSports"
+            layout="@layout/item_tv_rail_tab" />
+
+        <include
+            android:id="@+id/railTabIptv"
+            layout="@layout/item_tv_rail_tab" />
+
+        <include
+            android:id="@+id/railTabMovies"
+            layout="@layout/item_tv_rail_tab" />
+
+        <include
+            android:id="@+id/railTabSchedule"
+            layout="@layout/item_tv_rail_tab" />
+
+        <include
+            android:id="@+id/railTabSearch"
+            layout="@layout/item_tv_rail_tab" />
+
+        <include
+            android:id="@+id/railTabSettings"
+            layout="@layout/item_tv_rail_tab" />
+
+    </LinearLayout>
+
+</FrameLayout>

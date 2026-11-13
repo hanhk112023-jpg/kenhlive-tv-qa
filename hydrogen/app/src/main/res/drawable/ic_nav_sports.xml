@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Custom KenhLive Sports: Stadium Pitch & Center Circle -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#F5F2EB"
+        android:strokeWidth="1.8"
+        android:strokeLineJoin="round"
+        android:pathData="M3,5h18v14H3z M12,5v14" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#C1272D"
+        android:strokeWidth="1.8"
+        android:pathData="M12,9a3,3 0 1,0 0,6a3,3 0 1,0 0,-6z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#F5F2EB"
+        android:strokeWidth="1.6"
+        android:pathData="M3,9h2.5v6H3 M21,9h-2.5v6H21" />
+</vector>

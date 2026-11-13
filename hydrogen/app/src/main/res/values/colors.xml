@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- KenhLive v3 Design System Tokens (kl3_*) -->
+    <color name="kl3_bg_primary">#141210</color>
+    <color name="kl3_surface">#232019</color>
+    <color name="kl3_surface_elevated">#2D2921</color>
+    <color name="kl3_accent_red">#C1272D</color>
+    <color name="kl3_scrim">#80000000</color>
+    <color name="kl3_rail_bg">#181512</color>
+
+    <color name="kl3_text_primary">#F5F2EB</color>
+    <color name="kl3_text_secondary">#B8B0A2</color>
+    <color name="kl3_text_muted">#7D766B</color>
+
+    <color name="kl3_score_live_gold">#FFD166</color>
+    <color name="kl3_badge_live_bg">#C1272D</color>
+    <color name="kl3_badge_upcoming_bg">#0284C7</color>
+    <color name="kl3_badge_finished_bg">#524D46</color>
+
+    <color name="kl3_focus_stroke">#FFFFFF</color>
+    <color name="kl3_divider">#332E26</color>
+</resources>

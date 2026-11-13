@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/kl3_bg_primary"
+    android:orientation="vertical"
+    android:paddingHorizontal="@dimen/kl3_page_margin"
+    android:paddingTop="20dp">
+
+    <TextView
+        style="@style/kl3_TextDisplay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/kl3_nav_settings"
+        android:textSize="@dimen/kl3_section_title_size" />
+
+    <TextView
+        android:id="@+id/tvAppVersion"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/kl3_text_secondary"
+        android:textSize="14sp" />
+
+    <Button
+        android:id="@+id/btnCheckUpdate"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/kl3_card_bg"
+        android:gravity="start|center_vertical"
+        android:paddingHorizontal="16dp"
+        android:text="@string/kl3_settings_check_update"
+        android:textColor="@color/kl3_text_primary" />
+
+    <Button
+        android:id="@+id/btnClearCache"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/kl3_card_bg"
+        android:gravity="start|center_vertical"
+        android:paddingHorizontal="16dp"
+        android:text="@string/kl3_settings_clear_cache"
+        android:textColor="@color/kl3_text_primary" />
+
+    <Button
+        android:id="@+id/btnReportBug"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/kl3_card_bg"
+        android:gravity="start|center_vertical"
+        android:paddingHorizontal="16dp"
+        android:text="@string/kl3_settings_report_bug"
+        android:textColor="@color/kl3_text_primary" />
+
+    <Button
+        android:id="@+id/btnOpenHub"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/kl3_card_bg"
+        android:gravity="start|center_vertical"
+        android:paddingHorizontal="16dp"
+        android:text="@string/kl3_settings_open_hub"
+        android:textColor="@color/kl3_text_primary" />
+
+    <TextView
+        android:id="@+id/tvSettingsStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textColor="@color/kl3_score_live_gold"
+        android:textSize="14sp" />
+</LinearLayout>

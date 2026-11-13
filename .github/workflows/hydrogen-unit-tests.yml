@@ -1,7 +1,6 @@
 name: Hydrogen Unit Tests
 
-# Chạy unit test JVM của bản Hydrogen (repo kenhlive-hydrogen).
-# Source checkout bằng deploy key HYDROGEN_CHECKOUT_KEY (path app/).
+# Chạy unit test JVM của bản Hydrogen (source trong repo này: hydrogen/).
 # Upload report là phụ (continue-on-error) vì artifact storage đang đầy.
 
 on:
@@ -15,13 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout Hydrogen source (private)
+      - name: Checkout QA repo
         uses: actions/checkout@v4
-        with:
-          repository: hanhk112023-jpg/kenhlive-hydrogen
-          ref: main
-          ssh-key: ${{ secrets.HYDROGEN_CHECKOUT_KEY }}
-          path: app
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
@@ -30,7 +24,7 @@ jobs:
           java-version: '17'
 
       - name: Run unit tests
-        working-directory: app
+        working-directory: hydrogen
         run: |
           chmod +x gradlew
           echo "sdk.dir=$ANDROID_HOME" > local.properties
@@ -42,5 +36,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hydrogen-unit-test-reports
-          path: app/app/build/test-results/testDebugUnitTest/
+          path: hydrogen/app/build/test-results/testDebugUnitTest/
           if-no-files-found: warn
