@@ -869,5 +869,187 @@ def run_all_detectors(frame_png, ui_state, activity, ctx, frame_ref, t_offset, o
         findings += detect_text_overlap(frame_png, ui_state, activity, ctx, frame_ref, t_offset, ocr)
         findings += detect_clipped_text(frame_png, ui_state, activity, ctx, frame_ref, t_offset, ocr)
         findings += detect_subtitle_seekbar_overlap(frame_png, ui_state, activity, ctx, frame_ref, t_offset, ocr)
+    # H15 (wave 6): hậu kiểm HIGH có bằng chứng sai — 3 mẫu HIGH giả lặp
+    # lại ở trial 10/11/12 (frame trích dẫn không chứa lỗi bị tố). Chỉ loại
+    # khi chứng minh được bằng dữ liệu đã có; không đủ bằng chứng kết luận
+    # thì giữ nguyên. Finding bị loại vào ctx["guard_dismissed"].
+    findings, _dismissed = guard_high_findings(
+        findings, ui_state, activity, ctx, frame_ref)
+    for _f, _r in _dismissed:
+        print("      🛡 [GUARD-H15] loại HIGH sai-bằng-chứng: %s — %s"
+              % (_f.get("issue"), _r), flush=True)
     detect_wrong_logo(ui_state, activity, ctx, frame_ref, t_offset)
     return findings
+
+
+# ---------------------------------------------------------------------------
+# H15 (wave 6) — judge-guard: loại HIGH có BẰNG CHỨNG SAI trước khi chấm
+# điểm. Ba HIGH giả lặp lại ở trial 10/11/12 (run 43328505259) đều trích
+# frame không chứa lỗi bị tố:
+#   1. "Hàng LIVE chỉ hiện giờ kickoff thay vì tỉ số" — trích frame sidebar /
+#      tab Live-Thể thao trong khi claim nói về tab Lịch (3 lần liên tiếp).
+#   2. "Phụ đề đè lên thanh seekbar" — trích frame player KHÔNG có phụ đề;
+#      chữ OCR guard đọc được là nút 'Về trực tiếp' + nhãn 'TRỰC TIẾP'
+#      (4 lần liên tiếp). Lỗi phụ-đè-seekbar THẬT (trial 12 step_066
+#      WebPlayer) có text phụ đề thật -> guard giữ nguyên.
+#   3. "Focus lọt xuống màn hình nền khi Dialog đang mở" — focus thực ra
+#      nằm trong mục 'Trận cùng giờ' của CHÍNH dialog BLV; dump không có
+#      dialog_bounds nên detector chỉ nhìn focused_sig -> tố oan (2 lần).
+# Guard chạy trên dữ liệu ĐÃ CÓ (ui_state + OCR cache của frame trích dẫn),
+# KHÔNG gọi thêm vision/OCR. Nguyên tắc: chỉ loại khi chứng minh được bằng
+# chứng sai; không đủ dữ liệu để kết luận thì GIỮ finding (không giấu
+# lỗi thật). Finding bị loại ghi vào ctx["guard_dismissed"] để report truy
+# vết được lý do.
+
+
+def _norm_text(s):
+    """Chuẩn hóa để so khớp guard: thường + bỏ dấu + gộp space (giống
+    driver._norm)."""
+    import unicodedata
+    s = unicodedata.normalize("NFD", s or "")
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = s.replace("đ", "d").replace("Đ", "D").lower()
+    s = re.sub(r"[^a-z0-9à-ỹ]+", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _parse_bounds(bounds_str):
+    m = re.findall(r"-?\d+", bounds_str or "")
+    if len(m) < 4:
+        return None
+    return tuple(int(v) for v in m[:4])
+
+
+def _guard_schedule_live_frame(f, ui_state):
+    """Claim 'hàng LIVE chỉ hiện giờ kickoff' chỉ đúng khi frame trích dẫn
+    THẬT SỰ là màn Lịch (tab Lịch thi đấu). Trả lý do loại hoặc None."""
+    sel = ui_state.get("selected_ids") or []
+    try:
+        from device import NAV_ID_TO_TAB
+    except Exception:
+        NAV_ID_TO_TAB = {}
+    tabs = [NAV_ID_TO_TAB[r] for r in sel if r in NAV_ID_TO_TAB]
+    if tabs:
+        # Frame có tab được chọn rõ ràng: claim chỉ giữ khi đó là tab Lịch.
+        if 1 in tabs:
+            return None
+        return ("frame trích dẫn ở tab %s, không phải tab Lịch — claim "
+                "'giờ kickoff thay tỉ số' chỉ áp cho hàng ở tab Lịch"
+                % tabs[0])
+    # Không đọc được tab: cần marker màn Lịch trong dump của CHÍNH frame đó.
+    blob = _norm_text(" ".join(
+        [str(i) for i in (ui_state.get("dialog_ids") or [])] +
+        [t for _, t in (ui_state.get("all_visible_texts") or [])]))
+    sched_markers = ("schedlist", "schedcard", "lich thi dau",
+                     "hom nay", "ngay mai")
+    if any(k in blob for k in sched_markers):
+        return None  # có dấu hiệu màn Lịch -> không kết luận được -> giữ
+    return ("frame trích dẫn không phải màn Lịch (không nav_schedule, "
+            "không marker 'Lịch thi đấu/Hôm nay/Ngày mai'/id sched*) — "
+            "lỗi Lịch thật phải do gate mission #5/#8 ghi nhận, không "
+            "được tố bằng frame sidebar/Live")
+
+
+def _guard_subtitle_seekbar(f, ui_state, ctx, frame_ref):
+    """Claim 'phụ đề đè seekbar' chỉ đúng khi OCR của CHÍNH frame trích dẫn
+    có box chữ-phụ-đề cắt ngang hàng seekbar VÀ text đó KHÔNG phải chữ UI
+    (nút/nhãn điều khiển). 'Về trực tiếp'/'TRỰC TIẾP' là control của player,
+    không phải phụ đề -> loại. Trả lý do hoặc None (giữ)."""
+    ev_frame = (f.get("evidence") or {}).get("frame") or frame_ref
+    cache = (ctx or {}).get("_ocr_cache") or {}
+    boxes = cache.get((ev_frame, BOTTOM_BAR_BAND))
+    if boxes is None:
+        # Thử mọi key cùng frame (region có thể khác tuple object nhưng
+        # BOTTOM_BAR_BAND là hằng nên key chuẩn); không có -> không kết
+        # luận được -> giữ finding.
+        for (fr, region), b in cache.items():
+            if fr == ev_frame and region == BOTTOM_BAR_BAND:
+                boxes = b
+                break
+    if not boxes:
+        return None  # không có OCR của frame đó -> không kết luận -> giữ
+    time_re = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
+    times = [b for b in boxes if time_re.match((b.get("text") or "").strip())]
+    if not times:
+        return ("OCR frame trích dẫn không còn mốc giờ seekbar — claim "
+                "'phụ đề đè seekbar' thiếu neo hình học")
+    row_top = min(b["y0"] for b in times)
+    row_bottom = max(b["y1"] for b in times)
+    subs = []
+    for b in boxes:
+        t = (b.get("text") or "").strip()
+        if time_re.match(t):
+            continue
+        if sum(1 for ch in t if ch.isalpha()) < 2:
+            continue
+        if b["y0"] < row_bottom and b["y1"] > row_top:
+            subs.append(b)
+    if len(subs) < 2:
+        return ("OCR frame trích dẫn chỉ còn %d box chữ cắt ngang seekbar "
+                "(<2) — claim gốc không tái lập được trên bằng chứng" % len(subs))
+    # Phân biệt phụ đề THẬT vs chữ UI (nút 'Về trực tiếp', nhãn
+    # 'TRỰC TIẾP'): nếu MỌI box 'phụ đề' đều khớp text UI dump thì đây là
+    # control player bị OCR đọc nhầm, không phải phụ đề.
+    ui_texts = [t for _, t in (ui_state.get("all_visible_texts") or [])]
+    ui_norms = [_norm_text(t) for t in ui_texts if _norm_text(t)]
+
+    def _explained_by_ui(sub_text):
+        s = _norm_text(sub_text)
+        if not s:
+            return True  # box không có chữ -> không phải phụ đề
+        return any(s in u or u in s for u in ui_norms)
+
+    unexplained = [b["text"] for b in subs if not _explained_by_ui(b["text"])]
+    if unexplained:
+        return None  # còn text không phải UI -> phụ đề thật có thể tồn tại -> giữ
+    return ("mọi box 'phụ đề' cắt seekbar đều khớp text UI (%s) — đây là "
+            "control player bị OCR đọc nhầm, không phải phụ đề đè seekbar"
+            % ", ".join("'%s'" % t for t in ui_texts[:6]))
+
+
+def _guard_dialog_focus_leak(f, ui_state):
+    """Claim 'focus lọt xuống nền khi Dialog mở' chỉ đúng khi focused view
+    nằm NGOÀI bounds của dialog đang mở. Focus nằm TRONG dialog_bounds (VD
+    mục 'Trận cùng giờ' của chính dialog BLV) là focus nội dung dialog —
+    KHÔNG phải lọt nền. Thiếu bounds -> không kết luận -> giữ."""
+    fb = _parse_bounds(ui_state.get("focused_bounds"))
+    db = _parse_bounds(ui_state.get("dialog_bounds"))
+    if not fb or not db:
+        return None
+    fx = (fb[0] + fb[2]) / 2.0
+    fy = (fb[1] + fb[3]) / 2.0
+    if db[0] <= fx <= db[2] and db[1] <= fy <= db[3]:
+        return ("tâm focus (%d,%d) nằm TRONG dialog_bounds %s — focus đang "
+                "ở nội dung dialog (VD mục 'Trận cùng giờ'), không phải "
+                "lọt xuống màn nền" % (fx, fy, ui_state.get("dialog_bounds")))
+    return None  # focus ngoài dialog -> claim đứng -> giữ
+
+
+def guard_high_findings(findings, ui_state, activity, ctx, frame_ref):
+    """Hậu kiểm HIGH trước khi chấm: trả (kept, dismissed).
+    dismissed = [(finding, reason)]. Chỉ đụng finding severity HIGH có
+    issue khớp 1 trong 3 mẫu đã tái phát; finding khác đi qua nguyên."""
+    kept, dismissed = [], []
+    for f in findings or []:
+        if f.get("severity") != "HIGH":
+            kept.append(f)
+            continue
+        issue = (f.get("issue", "") or "").lower()
+        reason = None
+        if "phụ đề" in issue and "seekbar" in issue:
+            reason = _guard_subtitle_seekbar(f, ui_state, ctx, frame_ref)
+        elif "lọt xuống màn hình nền" in issue:
+            reason = _guard_dialog_focus_leak(f, ui_state)
+        elif "kickoff" in issue and "tỉ số" in issue:
+            reason = _guard_schedule_live_frame(f, ui_state)
+        if reason:
+            dismissed.append((f, reason))
+        else:
+            kept.append(f)
+    if dismissed:
+        ctx.setdefault("guard_dismissed", []).extend(
+            {"issue": f.get("issue"), "reason": r,
+             "frame": (f.get("evidence") or {}).get("frame"),
+             "activity": activity}
+            for f, r in dismissed)
+    return kept, dismissed

@@ -1368,6 +1368,11 @@ class RealtimeRunner:
                           "provider": self.vision.provider},
             timings=timings)
         report["video"] = video_file
+        # H15: các HIGH bị judge-guard loại vì bằng chứng sai — ghi vào
+        # report để truy vết (guard chỉ loại claim trích sai frame, không
+        # giấu defect thật).
+        report["guard_dismissed"] = list(
+            self.detector_ctx.get("guard_dismissed", []))
         report["video_speed_factor"] = video_speed_factor
         report["video_recorded_seconds"] = video_recorded_seconds
         # CI-T9 mục 5: độ phủ video báo theo THỜI GIAN HÀNH ĐỘNG (t của

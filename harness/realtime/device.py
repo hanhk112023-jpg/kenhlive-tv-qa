@@ -342,6 +342,7 @@ class RealtimeDevice:
         # (chỉ có r_id + text thì không gắn được badge với thẻ).
         selected_ids, has_dialog = [], False
         dialog_ids = []
+        dialog_bounds = None  # H15: bounds hợp của dialog đang mở (None nếu không có)
         # ID dialog đã biết (cập nhật sau CI-T1): btnCloseFeedback = nút đóng
         # của dialog chào mừng "THÔNG BÁO" lần đầu; dialogBtnClose = nút đóng
         # của dialog chọn tập. dialog_ids trả về để driver phân biệt dialog
@@ -393,7 +394,34 @@ class RealtimeDevice:
                 if start != -1 and end != -1:
                     xml_text = xml_text[start:end + len("</hierarchy>")]
                 root = ET.fromstring(xml_text.strip())
-                for elem in root.iter("node"):
+                # H15 (judge-guard): bounds HỢP của toàn bộ node thuộc
+                # dialog đang mở — node khớp tiêu chí dialog + MỌI node con
+                # cháu của nó (đệ quy, vì dump là cây XML lồng nhau). Dùng
+                # để kiểm claim 'focus lọt xuống nền khi dialog mở': focus
+                # nằm TRONG dialog_bounds nghĩa là focus đang ở nội dung
+                # dialog (VD mục 'Trận cùng giờ' của chính dialog BLV),
+                # không phải lọt nền. Node dialog không có descendant
+                # (VD alertTitle là lá) chỉ đóng góp bounds của chính nó —
+                # guard khi đó không kết luận được (giữ claim, không giấu).
+                _dlg_bounds = None
+
+                def _union_bounds(acc, bounds_str):
+                    m = re.findall(r"-?\d+", bounds_str or "")
+                    if len(m) < 4:
+                        return acc
+                    x1, y1, x2, y2 = map(int, m[:4])
+                    if acc is None:
+                        return [x1, y1, x2, y2]
+                    return [min(acc[0], x1), min(acc[1], y1),
+                            max(acc[2], x2), max(acc[3], y2)]
+
+                def _is_dialog_node(r_id):
+                    return r_id in dialog_id_set or r_id.startswith("panel") \
+                        or r_id.startswith("dialog") or r_id == "blvCardRoot"
+
+                def _walk(elem, in_dialog):
+                    nonlocal _dlg_bounds, has_dialog
+                    nonlocal focused_sig, focused_text, focused_bounds
                     a = elem.attrib
                     is_focused = a.get("focused") == "true"
                     is_focusable = a.get("focusable") == "true"
@@ -419,11 +447,15 @@ class RealtimeDevice:
                     if txt and _in_view:
                         all_visible_texts.append((r_id, txt))
                         all_visible_nodes.append({"id": r_id, "text": txt, "bounds": bounds})
-                    if r_id in dialog_id_set or r_id.startswith("panel") \
-                            or r_id.startswith("dialog") \
-                            or r_id == "blvCardRoot":
+                    _dlg_node = _is_dialog_node(r_id)
+                    if (_dlg_node or in_dialog) and bounds:
+                        _dlg_bounds = _union_bounds(_dlg_bounds, bounds)
+                    # Chỉ node KHỚP tiêu chí dialog mới vào dialog_ids /
+                    # has_dialog (như code cũ) — node con cháu chỉ góp
+                    # bounds vào dialog_bounds, không làm nhiễu danh sách id.
+                    if _dlg_node:
                         has_dialog = True
-                        if r_id not in dialog_ids:
+                        if r_id and r_id not in dialog_ids:
                             dialog_ids.append(r_id)
                     if is_focusable:
                         focusable_nodes.append({"id": r_id, "text": txt, "bounds": bounds, "focused": is_focused})
@@ -433,6 +465,13 @@ class RealtimeDevice:
                         focused_sig = "%s#%s" % (r_id or "view", bounds)
                         focused_text = txt
                         focused_bounds = bounds
+                    for _ch in elem:
+                        _walk(_ch, in_dialog or _dlg_node)
+
+                for _top in root:
+                    _walk(_top, False)
+                if _dlg_bounds is not None:
+                    dialog_bounds = "[%d,%d][%d,%d]" % tuple(_dlg_bounds)
             except Exception:
                 pass
         return {
@@ -444,6 +483,7 @@ class RealtimeDevice:
             "all_visible_nodes": all_visible_nodes,
             "has_dialog": has_dialog,
             "dialog_ids": dialog_ids,
+            "dialog_bounds": dialog_bounds,
             "selected_ids": selected_ids,
             "ui_summary": "\n".join(summary_lines[:25]) or "(Không tìm thấy focusable view)",
         }
