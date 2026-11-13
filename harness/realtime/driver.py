@@ -567,6 +567,19 @@ class Driver:
                 return True
         return False
 
+    def _on_episode_chip(self, ui_state):
+        """Focus đang ở chip tập 'Tập N' của dialog chọn tập (id
+        tvEpisodeName hoặc text 'Tập <số>') — OK ở đây là CHỌN TẬP mở
+        player, hành vi ĐÚNG của mission, không phải 'mở dialog đích' mù.
+        Chip chỉ tồn tại BÊN TRONG dialog chọn tập nên dialog đích chắc
+        chắn đã mở — kể cả khi dump trượt has_dialog (trial 5 step_051:
+        footer ngoài màn hình). Miễn luật H13 goto-strict; KHÔNG áp cho
+        nút action của dialog (nút đỏ storage không phải chip tập)."""
+        if (ui_state.get("focused_sig") or "").startswith("tvEpisodeName"):
+            return True
+        return bool(re.match(r"(?i)^tập\s*\d+",
+                             (ui_state.get("focused_text") or "").strip()))
+
     def _dismiss_dialog_action(self, ui_state):
         """Trả Action đóng dialog chặn, hoặc None nếu không phải dialog chặn.
         Dialog chào mừng 'THÔNG BÁO' lần đầu (btnCloseFeedback) chặn MỌI
@@ -813,7 +826,8 @@ class Driver:
             # OK mù, không explore mù — explore có thể lạc sang hàng khác
             # rồi OK nhầm như trial 12). Hết max_steps vẫn FAIL trung
             # thực — không nới budget, không bịa OK.
-            if not self._focus_on_text(ui_state, m.goto_texts):
+            if not self._focus_on_text(ui_state, m.goto_texts) \
+                    and not self._on_episode_chip(ui_state):
                 goto = self._goto_text_action(ui_state, m.goto_texts)
                 if goto is not None:
                     return goto
@@ -841,7 +855,8 @@ class Driver:
         # phòng thủ: nếu _focus_on_text không còn khớp thì quay lại cuộn,
         # tuyệt đối không OK mù.
         if m.needs_dialog and not ui_state.get("has_dialog"):
-            if m.goto_texts and not self._focus_on_text(ui_state, m.goto_texts):
+            if m.goto_texts and not self._focus_on_text(ui_state, m.goto_texts) \
+                    and not self._on_episode_chip(ui_state):
                 goto = self._goto_text_action(ui_state, m.goto_texts)
                 if goto is not None:
                     return goto
