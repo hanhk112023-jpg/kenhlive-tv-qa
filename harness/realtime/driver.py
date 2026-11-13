@@ -7,6 +7,7 @@ mới kết luận mission. Ghi lại rule đã chọn cho mỗi quyết định
 """
 import hashlib
 import re
+import unicodedata
 from datetime import datetime, timedelta, timezone
 
 MAX_STUCK_LEVELS = 2      # kẹt 2 lần -> FAIL mission
@@ -21,6 +22,17 @@ _LIVE_SCAN_MAX = 6
 _NAV_BAND_Y = 140
 # Giờ app hiển thị theo GMT+7 (lịch thi đấu, giờ kickoff).
 _GMT7 = timezone(timedelta(hours=7))
+
+
+def _norm(s):
+    """Chuẩn hóa text để so khớp: thường + bỏ dấu tiếng Việt + gộp khoảng
+    trắng + bỏ ký tự không phải chữ/số (H13: 'Dung lượng bộ nhớ đệm' vs
+    'dung lượng bộ nhớ đệm', 'CHỌN TẬP' vs 'Chọn tập')."""
+    s = unicodedata.normalize("NFD", s or "")
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = s.replace("đ", "d").replace("Đ", "D").lower()
+    s = re.sub(r"[^a-z0-9à-ỹ]+", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
 
 
 def _texts_hash(visible_texts):
@@ -64,6 +76,7 @@ class Driver:
         self._no_change_streak = 0
         self._revisit_streak = 0  # số lần quay lại cùng state trong 6 bước gần nhất (A-B-A-B)
         self._dismiss_tries = 0    # số lần thử đóng dialog chặn trong mission
+        self._wrong_dialog_tries = 0  # H13: số lần BACK dialog không phải đích
         self._webplayer_waited = False      # đã WAIT 1 lần chờ WebPlayer phát chưa
         self._webplayer_play_pressed = False  # đã bấm Play 1 lần trong WebPlayer chưa
         self._long_press_tried = False  # đã long-press yêu thích 1 lần chưa (CI-T5 mục 10)
@@ -473,11 +486,12 @@ class Driver:
         """Đi tới nút đích theo nhãn text (VD 'CHỌN TẬP'): tìm node có text
         chứa nhãn (không phân biệt hoa/thường) rồi đi theo hướng bounds.
         Trả Action hoặc None (nhãn chưa thấy / đã đứng trên nút)."""
-        wants = [t.lower() for t in (texts or [])]
+        wants = [_norm(t) for t in (texts or [])]
+        wants = [w for w in wants if w]
         if not wants:
             return None
         for n in (ui_state.get("all_visible_nodes") or []):
-            txt = (n.get("text") or "").lower()
+            txt = _norm(n.get("text"))
             if not any(w in txt for w in wants):
                 continue
             nb = re.findall(r"-?\d+", n.get("bounds") or "")
@@ -502,7 +516,8 @@ class Driver:
         focused_view.text nên không nhận ra và không bấm OK lần nào, mission
         FAIL 8 bước). Tâm node text phải nằm trong bounds focus mở rộng
         40px (cùng cách _focused_card_texts gắn badge với thẻ)."""
-        wants = [t.lower() for t in (texts or [])]
+        wants = [_norm(t) for t in (texts or [])]
+        wants = [w for w in wants if w]
         fb = ui_state.get("focused_bounds")
         if not wants or not fb:
             return False
@@ -512,7 +527,7 @@ class Driver:
         fx1, fy1, fx2, fy2 = map(int, m[:4])
         ex1, ey1, ex2, ey2 = fx1 - 40, fy1 - 40, fx2 + 40, fy2 + 40
         for n in (ui_state.get("all_visible_nodes") or []):
-            txt = (n.get("text") or "").lower()
+            txt = _norm(n.get("text"))
             if not any(w in txt for w in wants):
                 continue
             nm = re.findall(r"-?\d+", n.get("bounds") or "")
@@ -533,6 +548,7 @@ class Driver:
         có luật này nên 16/17 mission kẹt)."""
         if not ui_state.get("has_dialog"):
             self._dismiss_tries = 0
+            self._wrong_dialog_tries = 0
             return None
         dialog_ids = ui_state.get("dialog_ids") or []
         is_welcome = "btnCloseFeedback" in dialog_ids
@@ -572,6 +588,31 @@ class Driver:
         dismiss = self._dismiss_dialog_action(ui_state)
         if dismiss is not None:
             return dismiss
+
+        # -- 0a. H13: dialog đang mở nhưng KHÔNG phải dialog đích — mission có
+        # goto_texts + required_texts chỉ tồn tại BÊN TRONG dialog đích (VD
+        # 'xóa toàn bộ bộ nhớ đệm' chỉ có trên nút Positive của storage
+        # dialog, không có trong danh sách Cài đặt). Trial 12 (run
+        # 43328505259) mission #20: OK mù mở nhầm dialog 'Chất lượng hình',
+        # driver explore mù trong dialog đó tới hết bước. Nếu blob text của
+        # dump không chứa required_text nào -> dialog này là nhầm -> BACK
+        # đóng (tối đa 3 lần), observation sau has_dialog=False nên luật
+        # 1b tự quay lại goto từ focus hiện tại. An toàn: mission không có
+        # goto_texts/required_texts không bị ảnh hưởng; feedback dialog
+        # ('nhóm telegram' có sẵn trong list nền) và episode picker ('tập'
+        # có khắp dump) không bao giờ kích hoạt guard này.
+        if m.needs_dialog and m.goto_texts and m.required_texts \
+                and ui_state.get("has_dialog") \
+                and self._wrong_dialog_tries < 3:
+            _blob_n = _norm(" ".join(t for _, t in
+                                    ui_state.get("all_visible_texts", [])))
+            if not any(_norm(t) in _blob_n for t in m.required_texts):
+                self._wrong_dialog_tries += 1
+                return Action("KEY", "BACK", rule="wrong_dialog_back",
+                              thought="Dialog đang mở thiếu text đích '%s' — "
+                                      "không phải dialog cần mở, BACK đóng "
+                                      "rồi quay lại goto (lần %d/3)"
+                                      % (m.required_texts[0], self._wrong_dialog_tries))
 
         # -- 0b. Kẹt: thoát cục bộ lần 1, vision lần 2, FAIL lần 3.
         if self.stuck():
@@ -732,14 +773,27 @@ class Driver:
         # đi theo hướng bounds; đã đứng trên nút (goto trả None) thì rơi
         # xuống luật 1 bấm OK như thường.
         if m.needs_dialog and not ui_state.get("has_dialog") and m.goto_texts:
-            # Focus đã đứng trên hàng đích (text con trong bounds focus —
-            # row settings là view không mang text) thì rơi xuống luật 1
-            # bấm OK mở dialog, không đi lòng vòng theo tâm text con lệch
-            # khỏi tâm hàng (trial 10 mission #20: DPAD_LEFT mãi không OK).
+            # H13 (trial 12 run 43328505259, mission #20 FAIL lần 3):
+            # driver bấm OK mù 4 lần — 3 lần trên tab nav 'CÀI ĐẶT'
+            # (focused_text='') và 1 lần mở nhầm dialog 'Chất lượng hình' —
+            # vì goto_text_action trả None khi hàng đích nằm dưới fold
+            # (node bị lọc khỏi dump) nên luật rơi xuống open_dialog OK
+            # bất kể focus đang ở đâu. Giờ: CHỈ được OK khi _focus_on_text
+            # xác nhận hàng đang focus mang text đích (chuẩn hóa thường +
+            # bỏ dấu); mọi trường hợp khác đều điều hướng — goto theo
+            # bounds nếu thấy node đích, không thì CUộn DOWN tiếp (không
+            # OK mù, không explore mù — explore có thể lạc sang hàng khác
+            # rồi OK nhầm như trial 12). Hết max_steps vẫn FAIL trung
+            # thực — không nới budget, không bịa OK.
             if not self._focus_on_text(ui_state, m.goto_texts):
                 goto = self._goto_text_action(ui_state, m.goto_texts)
                 if goto is not None:
                     return goto
+                return Action("KEY", "DPAD_DOWN", rule="goto_target_scroll",
+                              thought="Chưa xác nhận focus trên hàng đích "
+                                      "'%s' (text rỗng/không khớp hoặc hàng "
+                                      "đích dưới fold) — cuộn xuống tiếp, "
+                                      "CẤM OK mù" % m.goto_texts[0])
 
         # -- 1c. Mission cần long-press yêu thích (CI-T5 mục 10, nợ cũ):
         # IPTV favorites chưa từng kiểm tra thật vì driver không bao giờ phát
@@ -754,7 +808,18 @@ class Driver:
                                       % focused_text[:30])
 
         # -- 1. Mission có dialog đích mà dialog chưa mở: bấm OK trên focused.
+        # H13: mission có goto_texts mà tới được đây nghĩa là đã đứng trên
+        # hàng đích (luật 1b chặn mọi trường hợp khác) — nhưng giữ 1 lớp
+        # phòng thủ: nếu _focus_on_text không còn khớp thì quay lại cuộn,
+        # tuyệt đối không OK mù.
         if m.needs_dialog and not ui_state.get("has_dialog"):
+            if m.goto_texts and not self._focus_on_text(ui_state, m.goto_texts):
+                goto = self._goto_text_action(ui_state, m.goto_texts)
+                if goto is not None:
+                    return goto
+                return Action("KEY", "DPAD_DOWN", rule="goto_target_scroll",
+                              thought="Mất dấu hàng đích '%s' — cuộn xuống "
+                                      "tiếp, CẤM OK mù" % m.goto_texts[0])
             if focused_sig != "NONE":
                 return Action("KEY", "OK", rule="open_dialog",
                               thought="Mở dialog đích từ '%s'" % focused_text[:30])
