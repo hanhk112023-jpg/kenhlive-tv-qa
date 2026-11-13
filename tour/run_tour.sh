@@ -6,11 +6,21 @@
 set -u
 OUT=/tmp/tour; mkdir -p $OUT
 adb root >/dev/null 2>&1 || true; sleep 1
+adb wait-for-device >/dev/null 2>&1 || true
 adb shell wm size 1920x1080
 adb shell wm density 320
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 0
-adb install -r app/app/build/outputs/apk/debug/app-debug.apk
+# APK build ra tên app-universal-debug.apk (do ABI splits trong app/build.gradle),
+# không phải app-debug.apk — tìm đúng file, thiếu thì dừng rõ ràng.
+APK=$(ls app/app/build/outputs/apk/debug/*-universal-debug.apk 2>/dev/null || ls app/app/build/outputs/apk/debug/*-debug.apk 2>/dev/null | head -1)
+if [ -z "$APK" ] || [ ! -f "$APK" ]; then
+  echo "::error::khong thay APK debug"
+  ls -R app/app/build/outputs/apk/debug/ 2>/dev/null || true
+  exit 1
+fi
+echo "Cai APK: $APK"
+adb install -r "$APK"
 adb shell am force-stop com.kenhlive.tv; sleep 1
 adb logcat -c
 
