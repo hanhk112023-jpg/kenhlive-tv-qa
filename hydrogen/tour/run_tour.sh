@@ -44,6 +44,8 @@ shot() { adb exec-out screencap -p > "$OUT/$1" 2>/dev/null || true; }
 
 # Đọc cây UI: in ra text đang focus, số node có text, vài text đầu.
 # Dùng python3 có sẵn trên runner để parse XML dump.
+# Lưu ý: node focus có thể là container không có text (ví dụ mục rail) —
+# khi đó lấy text của con trực tiếp đầu tiên có text.
 dump_summary() {
   local tag="$1"
   adb shell uiautomator dump /sdcard/window_dump.xml >/dev/null 2>&1 || { echo "[$tag] DUMP-FAIL" >> $LOG; return 1; }
@@ -55,16 +57,49 @@ try:
     root = ET.parse(path).getroot()
 except Exception as e:
     print(f"[{tag}] XML-ERR {e}"); sys.exit(0)
+def focus_text(n):
+    t = (n.get("text") or "").strip()
+    if t: return t
+    t = (n.get("content-desc") or "").strip()
+    if t: return t
+    for c in n:
+        t = (c.get("text") or "").strip() or (c.get("content-desc") or "").strip()
+        if t: return t
+    return ""
 texts, focused, focusable = [], "", 0
 for n in root.iter("node"):
     t = (n.get("text") or "").strip()
     if t: texts.append(t)
-    if n.get("focused") == "true": focused = t or n.get("content-desc", "")
+    if n.get("focused") == "true": focused = focus_text(n)
     if n.get("focusable") == "true": focusable += 1
 print(f"[{tag}] FOCUS={focused!r} TEXTS={len(texts)} FOCUSABLE={focusable}")
 for t in texts[:12]: print(f"[{tag}]   - {t}")
 if len(texts) < 3: print(f"[{tag}] FLAG: MAN HINH GAN NHU TRONG ({len(texts)} text)")
 if any("has stopped" in t or "keeps stopping" in t for t in texts): print(f"[{tag}] FLAG: CO THE CRASH (dialog dung ung dung)")
+PYEOF
+}
+
+# Lấy text của node đang focus (kèm fallback con trực tiếp), dùng khi dò rail.
+focused_text() {
+  adb shell uiautomator dump /sdcard/window_dump.xml >/dev/null 2>&1 || { echo ""; return; }
+  adb pull /sdcard/window_dump.xml $OUT/rail_tmp.xml >/dev/null 2>&1 || { echo ""; return; }
+  python3 - "$OUT/rail_tmp.xml" 2>/dev/null <<'PYEOF' || echo ""
+import sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+def focus_text(n):
+    t = (n.get("text") or "").strip()
+    if t: return t
+    t = (n.get("content-desc") or "").strip()
+    if t: return t
+    for c in n:
+        t = (c.get("text") or "").strip() or (c.get("content-desc") or "").strip()
+        if t: return t
+    return ""
+for n in root.iter("node"):
+    if n.get("focused") == "true":
+        print(focus_text(n)); break
+else:
+    print("")
 PYEOF
 }
 
@@ -114,7 +149,7 @@ RAIL_LABELS=()
 PREV_FOCUS=""
 for i in 1 2 3 4 5 6 7 8; do
   key 20; sleep 2
-  F=$(adb shell uiautomator dump /sdcard/window_dump.xml >/dev/null 2>&1 && adb pull /sdcard/window_dump.xml $OUT/rail_tmp.xml >/dev/null 2>&1 && python3 -c "import xml.etree.ElementTree as ET; r=ET.parse('$OUT/rail_tmp.xml').getroot(); print(next(( (n.get('text') or n.get('content-desc','')).strip() for n in r.iter('node') if n.get('focused')=='true'), ''))" 2>/dev/null || echo "")
+  F=$(focused_text)
   echo "[rail] DOWN $i -> FOCUS=${F!r}" >> $LOG
   if [ -n "$F" ] && [ "$F" = "$PREV_FOCUS" ]; then echo "[rail] focus lap lai, dung do" >> $LOG; break; fi
   if [ -n "$F" ]; then
@@ -138,7 +173,7 @@ for label in "${RAIL_LABELS[@]}"; do
   for i in 1 2 3 4 5; do key 21; sleep 1; done
   FOUND=0
   for i in 1 2 3 4 5 6 7 8; do
-    F=$(adb shell uiautomator dump /sdcard/window_dump.xml >/dev/null 2>&1 && adb pull /sdcard/window_dump.xml $OUT/rail_tmp.xml >/dev/null 2>&1 && python3 -c "import xml.etree.ElementTree as ET; r=ET.parse('$OUT/rail_tmp.xml').getroot(); print(next(( (n.get('text') or n.get('content-desc','')).strip() for n in r.iter('node') if n.get('focused')=='true'), ''))" 2>/dev/null || echo "")
+    F=$(focused_text)
     if [ "$F" = "$label" ]; then FOUND=1; break; fi
     key 20; sleep 1
   done
