@@ -77,8 +77,14 @@ class Driver:
         self._revisit_streak = 0  # số lần quay lại cùng state trong 6 bước gần nhất (A-B-A-B)
         self._dismiss_tries = 0    # số lần thử đóng dialog chặn trong mission
         self._wrong_dialog_tries = 0  # H13: số lần BACK dialog không phải đích
-        self._webplayer_waited = False      # đã WAIT 1 lần chờ WebPlayer phát chưa
-        self._webplayer_play_pressed = False  # đã bấm Play 1 lần trong WebPlayer chưa
+        # H14 (trial 12 run 43328505259, mission #14 FAIL): đếm số quan
+        # sát LIÊN TIẾP đo được video đứng yên (is_playing=False,
+        # motion_state False) trong WebPlayerActivity + số lần đã re-fire
+        # Play. OK vào WebView lúc embed đang tải/autoplay từng tự pause
+        # video ở 00:05 — giờ chỉ re-play khi đo được đứng yên >= 2 quan
+        # sát liên tiếp, tối đa 2 lần/mission.
+        self._wp_frozen_streak = 0
+        self._wp_replay_count = 0
         self._long_press_tried = False  # đã long-press yêu thích 1 lần chưa (CI-T5 mục 10)
         self._keyboard_open_tries = 0  # CI-T9 mục 7: số lần OK mở bàn phím (tối đa 2)
         self._keyboard_typed = False  # CI-T9 mục 7: đã gõ từ khóa khi bàn phím mở chưa
@@ -104,6 +110,13 @@ class Driver:
         sử); ngoài player None xử như False (hành vi cũ)."""
         act = activity or ""
         is_player = "PlayerActivity" in act or "WebPlayerActivity" in act
+        # H14: streak 'video đứng yên' của WebPlayer — chỉ motion_state
+        # False (ĐO ĐƯỢC không phát) mới đếm; True (đang phát) hoặc None
+        # (UNKNOWN: watcher đói mẫu / màn tải) đều reset — không cho OK
+        # re-play trên tín hiệu chưa đo được.
+        if "WebPlayerActivity" in act:
+            self._wp_frozen_streak = self._wp_frozen_streak + 1 \
+                if motion_playing is False else 0
         # CI-T8 mục 6: đang gõ bàn phím = trạng thái ĐANG ĐỔI (phím nhấn,
         # highlight di chuyển) — dump có thể không đổi vì bàn phím in-app
         # mù với uiautomator, nhưng màn hình vẫn đang tương tác. Reset
@@ -339,6 +352,21 @@ class Driver:
                           thought="Đi tới nút THỬ LẠI (%s, lệch %d,%d)"
                                   % (key, dx, dy))
         return None
+
+    def _wp_play_focus_ok(self, ui_state):
+        """H14: focus hiện tại có an toàn để bấm OK = toggle play/pause
+        không? OK chỉ toggle khi focus ở WebView / nút play-pause của app;
+        focus ở nút khác (tốc độ, tua, danh sách tập…) thì OK làm việc
+        khác — không được bấm. Nhận diện qua focused_sig/focused_text
+        (WebView mù với uiautomator nên thường là 'view'/'Player' toàn
+        màn — trial 12 step 55/61)."""
+        sig = (ui_state.get("focused_sig") or "").lower()
+        txt = (ui_state.get("focused_text") or "").lower()
+        if sig == "none":
+            return True
+        if "playpause" in sig or "webview" in sig or "webplayer" in sig:
+            return True
+        return "phát" in txt or "tạm dừng" in txt or "player" in txt
 
     def _needs_live_target(self):
         """Mission chỉ được mở trận ĐANG ĐÁ: mission cần player VÀ spec
@@ -858,16 +886,51 @@ class Driver:
                                       "phím (tránh tua/pause làm nhiễu F63)")
             if m.needs_motion and not gate.motion_seen:
                 if "WebPlayerActivity" in act:
-                    # CI-T5 mục 3: WebPlayer đã mở mà video chưa phát thì
-                    # đừng chỉ WAIT mãi — WAIT 1 lần cho stream kịp tải,
-                    # rồi bấm Play (OK) 1 lần, sau đó lại WAIT (không bấm
-                    # Play liên tục kẻo toggle thành Pause).
-                    if self._webplayer_waited and not self._webplayer_play_pressed:
-                        self._webplayer_play_pressed = True
-                        return Action("KEY", "OK", rule="play_webplayer",
-                                      thought="WebPlayer đã mở mà video chưa phát — "
-                                              "bấm Play (OK) thay vì chỉ chờ")
-                    self._webplayer_waited = True
+                    # H14 (trial 12 run 43328505259, mission #14 FAIL):
+                    # step 2 rule play_webplayer bấm OK vào WebView TRONG
+                    # LÚC ĐANG TẢI — cú OK đó nhiều khả năng pause embed
+                    # vừa autoplay (video dừng ở 00:05, đứng yên 8 lần đọc)
+                    # rồi driver chỉ WAIT tới hết bước, dù focus đã rơi đúng
+                    # btnWebPlayPause của app mà không bấm. Giờ:
+                    # (1) loading_screen còn hiện -> CHỈ WAIT, không OK mù
+                    #     vào vùng video;
+                    # (2) video ĐO ĐƯỢC đứng yên (is_playing=False,
+                    #     _wp_frozen_streak >= 2 quan sát liên tiếp qua
+                    #     note_state) -> re-fire Play, tối đa 2 lần/mission
+                    #     (tránh loop toggle pause/play);
+                    # (3) focus chưa ở vùng an-toàn-cho-OK (WebView/nút
+                    #     play) -> đi tới btnWebPlayPause trước, không OK
+                    #     lên nút khác.
+                    if ui_state.get("loading_screen"):
+                        return Action("WAIT", "2.0", rule="wait_stream",
+                                      thought="WebPlayer đang tải — chỉ chờ, "
+                                              "không OK vào vùng video")
+                    if self._wp_frozen_streak >= 2 \
+                            and self._wp_replay_count < 2:
+                        if self._wp_play_focus_ok(ui_state):
+                            self._wp_replay_count += 1
+                            _streak = self._wp_frozen_streak
+                            # Reset streak: re-play kế tiếp phải chờ thêm
+                            # >= 2 quan sát đứng yên MỚI — nếu không 2 cú
+                            # OK bắn liền nhau trước khi motion kịp đo được
+                            # sẽ toggle pause->play->pause (loop).
+                            self._wp_frozen_streak = 0
+                            return Action(
+                                "KEY", "OK", rule="play_webplayer",
+                                thought="Video đo được đứng yên %d quan sát "
+                                        "(is_playing=False) — bấm Play lại "
+                                        "(lần %d/2)" % (_streak,
+                                                        self._wp_replay_count))
+                        goto_play = self._goto_view_action(
+                            ui_state, ["btnWebPlayPause", "btnWebPlay"])
+                        if goto_play is not None:
+                            goto_play.rule = "goto_play_button"
+                            goto_play.thought = ("Focus chưa ở nút play — đi "
+                                                 "tới btnWebPlayPause trước "
+                                                 "khi bấm Play lại")
+                            return goto_play
+                    return Action("WAIT", "2.0", rule="wait_stream",
+                                  thought="Chờ video tải và chuyển động")
                 return Action("WAIT", "2.0", rule="wait_stream",
                               thought="Chờ video tải và chuyển động")
             # H4: IPTV_EPG — kênh ĐÃ phát (motion_seen) thì GIỮ NGUYÊN, không
