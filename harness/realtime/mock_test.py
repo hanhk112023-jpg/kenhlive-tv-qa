@@ -253,20 +253,31 @@ def main():
              "has_dialog": False, "dialog_ids": []}
     a_fb = drv6.next_action(ui_fb, "com.kenhlive.tv/.MainActivity", None, 0.0)
     assert a_fb.rule == "skip_upcoming_card", "fallback adjacency cũng phải loại thẻ [SẮP ĐÁ]"
-    # WebPlayer đã mở mà video chưa phát: WAIT 1 lần rồi bấm Play (OK),
-    # sau đó lại WAIT (không bấm Play liên tục kẻo toggle thành Pause).
+    # WebPlayer chưa phát — H14 (trial 12 run 43328505259, mission #14):
+    # KHÔNG còn luật 'WAIT 1 lần rồi OK mù'. Loading còn hiện -> chỉ WAIT;
+    # video ĐO ĐƯỢC đứng yên (is_playing=False) >= 2 quan sát liên tiếp ->
+    # bấm Play lại (tối đa 2 lần/mission).
     drv7 = Driver(FakeDevice(), EvidenceGate(specs["MISSION_VOD_PLAYER_SEEK_AND_RESUME"]),
                   specs["MISSION_VOD_PLAYER_SEEK_AND_RESUME"])
     ui_wp = dict(FakeDevice.HOME_DUMP, focused_sig="btnPlay#[800,900][1000,1000]",
-                 focused_text="Phát")
+                 focused_text="Phát", loading_screen=True)
     a_w1 = drv7.next_action(ui_wp, "com.kenhlive.tv/.phim.WebPlayerActivity", None, 0.0)
     a_w2 = drv7.next_action(ui_wp, "com.kenhlive.tv/.phim.WebPlayerActivity", None, 0.0)
     a_w3 = drv7.next_action(ui_wp, "com.kenhlive.tv/.phim.WebPlayerActivity", None, 0.0)
-    print("WebPlayer chưa phát:", [(a.type, a.param, a.rule) for a in (a_w1, a_w2, a_w3)])
-    assert (a_w1.type, a_w1.param, a_w1.rule) == ("WAIT", "2.0", "wait_stream")
-    assert (a_w2.type, a_w2.param, a_w2.rule) == ("KEY", "OK", "play_webplayer"), \
-        "WebPlayer chưa phát sau 1 lần chờ thì phải bấm Play thay vì chỉ WAIT"
-    assert a_w3.rule == "wait_stream", "đã bấm Play 1 lần rồi thì quay lại WAIT"
+    print("WebPlayer loading:", [(a.type, a.param, a.rule) for a in (a_w1, a_w2, a_w3)])
+    assert all(a.rule == "wait_stream" for a in (a_w1, a_w2, a_w3)), \
+        "loading_screen còn hiện thì chỉ WAIT, không OK vào vùng video"
+    # Hết loading, video đo được đứng yên 2 quan sát -> bấm Play lại.
+    ui_wp2 = dict(ui_wp, loading_screen=False)
+    _act_wp = "com.kenhlive.tv/.phim.WebPlayerActivity"
+    drv7.note_state(ui_wp2, _act_wp, motion_playing=False)
+    a_w4 = drv7.next_action(ui_wp2, _act_wp, None, 0.0)
+    assert a_w4.rule == "wait_stream", "mới 1 quan sát đứng yên -> chưa đủ 2, vẫn WAIT"
+    drv7.note_state(ui_wp2, _act_wp, motion_playing=False)
+    a_w5 = drv7.next_action(ui_wp2, _act_wp, None, 0.0)
+    print("WebPlayer đứng yên x2 ->", a_w5.type, a_w5.param, "| rule:", a_w5.rule)
+    assert (a_w5.type, a_w5.param, a_w5.rule) == ("KEY", "OK", "play_webplayer"), \
+        "video đo được đứng yên >=2 quan sát thì phải bấm Play lại"
     print("LIVE_TARGET_ONLY_OK")
 
     # --- Test N4: skip-upcoming phổ quát + goto thẻ LIVE (CI-T6 mục 5+6) ---
@@ -2557,6 +2568,10 @@ def main():
     test_f63_webplayer_probe_unavailable_is_unverified()
     # --- Blocker trial-9→10: dọn dialog tàn dư đầu mission (DESIGN §15.24) ---
     test_reset_clears_leftover_dialog_between_missions()
+    # --- Wave 6 (trial 12 run 43328505259): H13/H14/H15 ---
+    test_h13_storage_dialog_no_blind_ok()
+    test_h14_webplayer_loading_wait_and_bounded_replay()
+    test_h15_judge_guard_three_false_high_patterns()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -4793,8 +4808,15 @@ def test_reset_clears_leftover_dialog_between_missions():
                                       "com.kenhlive.tv/.MainActivity", None, 0.0)
         print("feedback TRƯỚC reset (storage dialog mở) ->", _a_bug.type,
               _a_bug.param, "| rule:", _a_bug.rule)
-        assert _a_bug.rule.startswith("explore"), \
-            "lỗi gốc: driver trên dialog tàn dư chỉ explore (được [%s])" % _a_bug.rule
+        # H13 (wave 6): driver không còn explore mù trong dialog tàn dư —
+        # dialog thiếu text đích 'nhóm telegram' -> wrong_dialog_back (BACK
+        # đóng rồi resume goto). Quan trọng nhất: KHÔNG BAO GIỜ OK (focus
+        # đang ở nút đỏ 'Xóa toàn bộ bộ nhớ đệm').
+        assert _a_bug.rule == "wrong_dialog_back" \
+            and not (_a_bug.type == "KEY" and _a_bug.param == "OK"), \
+            "driver trên dialog tàn dư phải BACK đóng nhầm dialog, không OK, " \
+            "không explore (được %s %s [%s])" \
+            % (_a_bug.type, _a_bug.param, _a_bug.rule)
         _drv_fix = Driver(_dev_bug, EvidenceGate(_fb), _fb)
         _a_fix = _drv_fix.next_action(dict(_SETTINGS_LIST),
                                       "com.kenhlive.tv/.MainActivity", None, 0.0)
@@ -4835,6 +4857,382 @@ def test_reset_clears_leftover_dialog_between_missions():
         "không dialog + đúng tab thì reset không được gửi phím nào (được %s)" \
         % _r3.device.keys
     print("RESET_CLEARS_LEFTOVER_DIALOG_OK")
+
+
+def test_h13_storage_dialog_no_blind_ok():
+    """H13 (trial 12 run 43328505259, mission #20 FAIL lần 3): driver bấm
+    OK mù 4 lần — 3 lần trên tab nav 'CÀI ĐẶT' (focused_text='') và 1 lần
+    mở nhầm dialog 'Chất lượng hình' — rồi explore mù trong dialog sai tới
+    hết bước; dialog đích D6 ('Xóa toàn bộ bộ nhớ đệm') không bao giờ mở.
+    Luật mới:
+    (a) focus nav / focused_text rỗng -> CẤM OK, phải goto/scroll;
+    (b) focus trên hàng KHÔNG phải đích ('Chất lượng hình') -> CẤM OK;
+    (c) dialog sai đang mở -> BACK (wrong_dialog_back) rồi resume goto,
+        KHÔNG explore mù;
+    (d) hàng 'Xóa bộ nhớ đệm ảnh' (clearCache — xóa NGAY, không dialog)
+        -> KHÔNG BAO GIỜ OK;
+    (e) đã đứng đúng hàng 'Dung lượng bộ nhớ đệm' -> OK mở dialog đích
+        (an toàn: dialog chưa mở, nút đỏ nằm TRONG dialog)."""
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+    _spec = {s.name: s for s in get_missions()}[
+        "MISSION_SETTINGS_STORAGE_DIALOG"]
+    _act = "com.kenhlive.tv/.MainActivity"
+    _dev = FakeDevice()
+    _dev._tab = 4
+    _drv = Driver(_dev, EvidenceGate(_spec), _spec)
+
+    _NODES_VISIBLE = [
+        {"id": "rowQuality", "text": "Chất lượng hình",
+         "bounds": "[100,300][900,420]"},
+        {"id": "rowStorageUsage", "text": "Dung lượng bộ nhớ đệm",
+         "bounds": "[100,450][900,570]"},
+        {"id": "rowClearCache", "text": "Xóa bộ nhớ đệm ảnh",
+         "bounds": "[100,600][900,720]"}]
+    _TEXTS_VISIBLE = [("nav_settings", "Cài đặt"),
+                      ("rowQuality", "Chất lượng hình"),
+                      ("rowStorageUsage", "Dung lượng bộ nhớ đệm"),
+                      ("rowClearCache", "Xóa bộ nhớ đệm ảnh")]
+
+    def _ui_list(focus_sig, focus_text, focus_bounds):
+        return {
+            "focused_sig": focus_sig, "focused_text": focus_text,
+            "focused_bounds": focus_bounds,
+            "all_visible_texts": list(_TEXTS_VISIBLE),
+            "all_visible_nodes": [dict(n) for n in _NODES_VISIBLE],
+            "has_dialog": False, "dialog_ids": [],
+            "selected_ids": ["nav_settings"]}
+
+    # (a) focus trên nav, focused_text rỗng (đúng step 86-88 trial 12).
+    _ui_nav = _ui_list("nav_settings#[362,900][563,1012]", "",
+                       "[362,900][563,1012]")
+    for _i in range(3):
+        _a = _drv.next_action(_ui_nav, _act, None, float(_i))
+        print("H13 nav rỗng ->", _a.type, _a.param, "| rule:", _a.rule)
+        assert not (_a.type == "KEY" and _a.param == "OK"), \
+            "focus nav + text rỗng thì CẤM OK (được %s %s [%s])" \
+            % (_a.type, _a.param, _a.rule)
+        assert _a.rule in ("goto_view_text", "goto_target_scroll",
+                           "goto_view", "explore:down", "explore:right"), \
+            "phải điều hướng tới hàng đích, không đứng yên (được [%s])" % _a.rule
+    # (b) focus trên hàng 'Chất lượng hình' — không phải đích.
+    _ui_quality = _ui_list("rowQuality#[100,300][900,420]",
+                           "Chất lượng hình", "[100,300][900,420]")
+    _a_q = _drv.next_action(_ui_quality, _act, None, 3.0)
+    print("H13 hàng Chất lượng hình ->", _a_q.type, _a_q.param,
+          "| rule:", _a_q.rule)
+    assert not (_a_q.type == "KEY" and _a_q.param == "OK"), \
+        "hàng không phải đích thì CẤM OK (được %s %s [%s])" \
+        % (_a_q.type, _a_q.param, _a_q.rule)
+    assert _a_q.rule in ("goto_view_text", "goto_target_scroll",
+                         "goto_view"), \
+        "phải đi tiếp tới 'Dung lượng bộ nhớ đệm' (được [%s])" % _a_q.rule
+    # (d) hàng 'Xóa bộ nhớ đệm ảnh' — clearCache() xóa NGAY, tuyệt đối không OK.
+    _ui_cache = _ui_list("rowClearCache#[100,600][900,720]",
+                         "Xóa bộ nhớ đệm ảnh", "[100,600][900,720]")
+    for _i in range(3):
+        _a_c = _drv.next_action(_ui_cache, _act, None, 4.0 + _i)
+        assert not (_a_c.type == "KEY" and _a_c.param == "OK"), \
+            "hàng 'Xóa bộ nhớ đệm ảnh' KHÔNG BAO GIỜ được OK — xóa cache thật" \
+            "(được %s %s [%s])" % (_a_c.type, _a_c.param, _a_c.rule)
+    # (c) dialog SAI đang mở ('Chất lượng hình' — thiếu 'xóa toàn bộ bộ
+    # nhớ đệm') -> BACK đóng, không explore.
+    _ui_wrong_dlg = {
+        "focused_sig": "button1#[500,900][1100,1000]",
+        "focused_text": "Cao nhất (nét)", "focused_bounds": "[500,900][1100,1000]",
+        "all_visible_texts": [("alertTitle", "Chất lượng hình"),
+                              ("optAuto", "Tự động"),
+                              ("optHigh", "Cao nhất (nét)"),
+                              ("optStable", "Ổn định (mượt)")],
+        "all_visible_nodes": [
+            {"id": "optAuto", "text": "Tự động", "bounds": "[200,600][800,700]"},
+            {"id": "optHigh", "text": "Cao nhất (nét)", "bounds": "[200,720][800,820]"}],
+        "has_dialog": True, "dialog_ids": ["alertTitle"],
+        "selected_ids": ["nav_settings"]}
+    _a_d = _drv.next_action(_ui_wrong_dlg, _act, None, 7.0)
+    print("H13 dialog sai ->", _a_d.type, _a_d.param, "| rule:", _a_d.rule)
+    assert (_a_d.type, _a_d.param, _a_d.rule) == ("KEY", "BACK", "wrong_dialog_back"), \
+        "dialog thiếu text đích phải BACK đóng (được %s %s [%s])" \
+        % (_a_d.type, _a_d.param, _a_d.rule)
+    # Sau BACK: dialog đóng, driver resume goto từ focus hiện tại —
+    # vẫn KHÔNG OK, vẫn hướng về hàng đích.
+    _a_r = _drv.next_action(_ui_quality, _act, None, 8.0)
+    print("H13 sau BACK (list, focus hàng khác) ->", _a_r.type, _a_r.param,
+          "| rule:", _a_r.rule)
+    assert not (_a_r.type == "KEY" and _a_r.param == "OK") \
+        and _a_r.rule in ("goto_view_text", "goto_target_scroll", "goto_view"), \
+        "sau khi đóng dialog sai phải resume goto, không explore mù, không OK " \
+        "(được %s %s [%s])" % (_a_r.type, _a_r.param, _a_r.rule)
+    # (e) đứng đúng hàng đích -> OK mở dialog (an toàn: dialog chưa mở).
+    _ui_target = _ui_list("settingsRow#[100,450][900,570]", "",
+                          "[100,450][900,570]")
+    _a_t = _drv.next_action(_ui_target, _act, None, 9.0)
+    print("H13 đúng hàng đích ->", _a_t.type, _a_t.param, "| rule:", _a_t.rule)
+    assert (_a_t.type, _a_t.param, _a_t.rule) == ("KEY", "OK", "open_dialog"), \
+        "đã focus đúng 'Dung lượng bộ nhớ đệm' thì OK mở dialog đích " \
+        "(được %s %s [%s])" % (_a_t.type, _a_t.param, _a_t.rule)
+    # Và khi dialog đích ĐÃ mở: driver không bao giờ OK (nút đỏ an toàn).
+    _ui_dlg = {
+        "focused_sig": "button1#[500,900][1100,1000]",
+        "focused_text": "Xóa toàn bộ bộ nhớ đệm",
+        "focused_bounds": "[500,900][1100,1000]",
+        "all_visible_texts": [("alertTitle", "Dung lượng & nguồn dữ liệu"),
+                              ("dlgMsg", "Xóa bộ nhớ đệm không làm mất lịch sử xem."),
+                              ("button1", "Xóa toàn bộ bộ nhớ đệm"),
+                              ("button2", "Đóng")],
+        "all_visible_nodes": [],
+        "has_dialog": True, "dialog_ids": ["alertTitle"],
+        "selected_ids": ["nav_settings"]}
+    _a_d2 = _drv.next_action(_ui_dlg, _act, None, 10.0)
+    print("H13 dialog đích mở, focus nút đỏ ->", _a_d2.type, _a_d2.param,
+          "| rule:", _a_d2.rule)
+    assert not (_a_d2.type == "KEY" and _a_d2.param == "OK"), \
+        "dialog đích đang mở + focus trên nút đỏ -> TUYỆT ĐỐI không OK"
+    print("H13_STORAGE_NO_BLIND_OK_OK")
+
+
+def test_h14_webplayer_loading_wait_and_bounded_replay():
+    """H14 (trial 12 run 43328505259, mission #14 FAIL): step 2 rule
+    play_webplayer bấm OK vào WebView TRONG LÚC ĐANG TẢI — cú OK đó pause
+    embed vừa autoplay (video đứng 00:05 suốt 8 lần đọc); sau đó driver
+    chỉ WAIT tới hết bước dù focus đã ở btnWebPlayPause.
+    (a) loading_screen còn hiện -> chỉ WAIT, không OK;
+    (b) video đo được đứng yên (is_playing=False) >= 2 quan sát liên tiếp
+        + focus ở nút play -> OK bấm Play lại;
+    (c) focus ở nút KHÁC (tốc độ) -> đi tới btnWebPlayPause trước, không
+        OK lên nút khác;
+    (d) re-play tối đa 2 lần/mission rồi FAIL trung thực (không loop)."""
+    from driver import Driver
+    from gate import EvidenceGate
+    from missions import get_missions
+    _spec = {s.name: s for s in get_missions()}[
+        "MISSION_VOD_PLAYER_SEEK_AND_RESUME"]
+    _act = "com.kenhlive.tv/.phim.WebPlayerActivity"
+
+    def _ui(focus_sig, focus_text, focus_bounds, loading=False, nodes=None):
+        return {
+            "focused_sig": focus_sig, "focused_text": focus_text,
+            "focused_bounds": focus_bounds,
+            "all_visible_texts": [], "all_visible_nodes": nodes or [],
+            "has_dialog": False, "dialog_ids": [], "selected_ids": [],
+            "loading_screen": loading}
+
+    _ui_play = _ui("btnWebPlayPause#[684,176][796,288]", "Phát/Tạm dừng",
+                   "[684,176][796,288]")
+    # (a) loading còn hiện -> WAIT, không OK (kể cả sau nhiều lần).
+    _drv = Driver(FakeDevice(), EvidenceGate(_spec), _spec)
+    _ui_load = _ui("view#[0,0][1920,1080]", "Player", "[0,0][1920,1080]",
+                   loading=True)
+    for _i in range(4):
+        _drv.note_state(_ui_load, _act, motion_playing=None)
+        _a = _drv.next_action(_ui_load, _act, None, float(_i))
+        assert (_a.type, _a.rule) == ("WAIT", "wait_stream"), \
+            "loading phải WAIT, không OK (được %s %s [%s])" \
+            % (_a.type, _a.param, _a.rule)
+    # (b) hết loading, đứng yên đo được -> Play lại sau đúng 2 quan sát.
+    _drv2 = Driver(FakeDevice(), EvidenceGate(_spec), _spec)
+    for _i in range(2):
+        _drv2.note_state(_ui_play, _act, motion_playing=False)
+        _a2 = _drv2.next_action(_ui_play, _act, None, 10.0 + _i)
+        print("H14 frozen obs %d ->" % (_i + 1), _a2.type, _a2.param,
+              "| rule:", _a2.rule)
+        if _i == 0:
+            assert _a2.rule == "wait_stream", \
+                "mới 1 quan sát đứng yên -> chưa đủ, vẫn WAIT"
+        else:
+            assert (_a2.type, _a2.param, _a2.rule) == \
+                ("KEY", "OK", "play_webplayer"), \
+                "đứng yên >=2 quan sát thì phải bấm Play lại"
+    # Phát lại được (motion True) -> không bấm thêm.
+    _drv2.note_state(_ui_play, _act, motion_playing=True)
+    _a2b = _drv2.next_action(_ui_play, _act, None, 12.5)
+    assert _a2b.rule == "wait_stream", \
+        "motion True (đang phát) thì không được bấm Play nữa"
+    # (c) focus ở nút tốc độ -> đi tới btnWebPlayPause, không OK lên nút khác.
+    _drv3 = Driver(FakeDevice(), EvidenceGate(_spec), _spec)
+    _ui_speed = _ui("btnWebSpeed#[900,176][1010,288]", "Tốc độ",
+                    "[900,176][1010,288]",
+                    nodes=[{"id": "btnWebPlayPause", "text": "Phát/Tạm dừng",
+                            "bounds": "[684,176][796,288]"}])
+    for _i in range(2):
+        _drv3.note_state(_ui_speed, _act, motion_playing=False)
+    _a3 = _drv3.next_action(_ui_speed, _act, None, 20.0)
+    print("H14 focus nút tốc độ ->", _a3.type, _a3.param, "| rule:", _a3.rule)
+    assert not (_a3.type == "KEY" and _a3.param == "OK"), \
+        "focus ở nút khác thì CẤM OK — phải đi tới nút play trước"
+    assert _a3.rule == "goto_play_button", \
+        "phải đi tới btnWebPlayPause trước khi replay (được [%s])" % _a3.rule
+    # (d) trần 2 lần re-play: video cứ đứng yên -> đúng 2 OK play_webplayer
+    # rồi thôi (mission FAIL trung thực qua stuck, không loop).
+    _drv4 = Driver(FakeDevice(), EvidenceGate(_spec), _spec)
+    _replays = 0
+    for _i in range(14):
+        _drv4.note_state(_ui_play, _act, motion_playing=False)
+        _a4 = _drv4.next_action(_ui_play, _act, None, 30.0 + _i)
+        if _a4.rule == "play_webplayer":
+            _replays += 1
+            print("H14 replay #%d ở obs %d" % (_replays, _i + 1))
+    print("H14 tổng replay:", _replays)
+    assert _replays == 2, \
+        "re-play tối đa 2 lần/mission (được %d)" % _replays
+    print("H14_WEBPLAYER_REPLAY_OK")
+
+
+def test_h15_judge_guard_three_false_high_patterns():
+    """H15 (trial 10/11/12): 3 HIGH giả lặp lại, 0 cái trích đúng frame —
+    judge-guard hậu kiểm trước khi chấm, KHÔNG gọi thêm vision:
+    (1) claim 'hàng LIVE chỉ hiện giờ kickoff' -> frame phải là màn Lịch;
+        frame sidebar/tab Live -> loại. Frame tab Lịch -> giữ.
+    (2) claim 'phụ đề đè seekbar' -> OCR frame trích dẫn phải có >=2 box
+        chữ cắt ngang seekbar VÀ ít nhất 1 box KHÔNG phải chữ UI; toàn
+        control player ('Về trực tiếp'/'TRỰC TIẾP') -> loại. Phụ đề thật
+        -> giữ. Thiếu OCR cache -> giữ (không kết luận được).
+    (3) claim 'focus lọt nền khi dialog mở' -> tâm focused_bounds phải
+        nằm NGOÀI dialog_bounds; nằm trong -> loại. Thiếu bounds -> giữ.
+    Guard chỉ loại BẰNG CHỨNG SAI — không giấu defect thật."""
+    import detectors as det
+    import device as _devmod
+
+    def _mk_high(issue):
+        return {"severity": "HIGH", "area": "test", "issue": issue,
+                "detail": "d", "suggestion": "s",
+                "evidence": {"frame": "step_001_test.jpg",
+                             "video_t": 10.0, "ui_state": "sig"}}
+
+    ctx = {}
+    # --- (1) schedule-live-no-score ---
+    _f1 = _mk_high("Hàng LIVE chỉ hiện giờ kickoff thay vì tỉ số: '18:30'")
+    _ui_sidebar = {"selected_ids": ["nav_live"],
+                   "all_visible_texts": [("cardScore", "0 : 0"),
+                                         ("tvTitle", "Trận đấu")],
+                   "all_visible_nodes": [], "dialog_ids": []}
+    _kept, _dis = det.guard_high_findings(
+        [_f1], _ui_sidebar, "com.kenhlive.tv/.MainActivity", ctx,
+        "step_001_test.jpg")
+    print("H15 sched sidebar -> kept:", len(_kept), "| dismissed:", len(_dis))
+    assert len(_dis) == 1 and not _kept, \
+        "frame tab Live/sidebar không phải màn Lịch -> phải loại claim"
+    _ui_sched = {"selected_ids": ["nav_schedule"],
+                 "all_visible_texts": [("schedCard", "Lịch thi đấu"),
+                                       ("hôm nay", "Hôm nay")],
+                 "all_visible_nodes": [], "dialog_ids": []}
+    _kept, _dis = det.guard_high_findings(
+        [_f1], _ui_sched, "com.kenhlive.tv/.MainActivity", ctx,
+        "step_001_test.jpg")
+    assert len(_kept) == 1 and not _dis, \
+        "frame tab Lịch thì claim đứng -> phải giữ"
+    # Không đọc được tab nhưng có marker màn Lịch -> giữ (không giấu).
+    _ui_marker = {"selected_ids": [],
+                  "all_visible_texts": [("tvTitle", "Lịch thi đấu hôm nay")],
+                  "all_visible_nodes": [], "dialog_ids": []}
+    _kept, _dis = det.guard_high_findings(
+        [_f1], _ui_marker, "com.kenhlive.tv/.MainActivity", ctx,
+        "step_001_test.jpg")
+    assert len(_kept) == 1, "có marker Lịch thì không được loại"
+
+    # --- (2) subtitle-over-seekbar ---
+    _f2 = _mk_high("Phụ đề đè lên thanh seekbar")
+    _ui_player = {"all_visible_texts": [("btnBackLive", "Về trực tiếp"),
+                                        ("badgeLive", "TRỰC TIẾP")],
+                  "focused_bounds": "[0,0][1920,1080]"}
+    # OCR 'phụ đề' thật ra là control player.
+    _boxes_ctl = [
+        {"text": "00:05", "x0": 0, "y0": 900, "x1": 80, "y1": 930},
+        {"text": "01:09:54", "x0": 1840, "y0": 900, "x1": 1920, "y1": 930},
+        {"text": "Về trực tiếp", "x0": 100, "y0": 895, "x1": 300, "y1": 940},
+        {"text": ")TRỰC", "x0": 1500, "y0": 895, "x1": 1700, "y1": 940}]
+    _ctx2 = {"_ocr_cache": {("step_001_test.jpg", det.BOTTOM_BAR_BAND): _boxes_ctl}}
+    _kept, _dis = det.guard_high_findings(
+        [_f2], _ui_player, "com.kenhlive.tv/.phim.PlayerActivity", _ctx2,
+        "step_001_test.jpg")
+    print("H15 sub=control -> kept:", len(_kept), "| dismissed:", len(_dis))
+    assert len(_dis) == 1 and not _kept, \
+        "'phụ đề' thực ra là nút 'Về trực tiếp'/'TRỰC TIẾP' -> phải loại"
+    # Phụ đề THẬT (text không khớp UI nào) -> giữ.
+    _boxes_sub = [dict(b) for b in _boxes_ctl[:2]] + [
+        {"text": "Trước vinh quang", "x0": 200, "y0": 890, "x1": 500, "y1": 945},
+        {"text": "đường dài phía trước", "x0": 600, "y0": 890, "x1": 900, "y1": 945}]
+    _ctx3 = {"_ocr_cache": {("step_001_test.jpg", det.BOTTOM_BAR_BAND): _boxes_sub}}
+    _kept, _dis = det.guard_high_findings(
+        [_f2], _ui_player, "com.kenhlive.tv/.phim.PlayerActivity", _ctx3,
+        "step_001_test.jpg")
+    assert len(_kept) == 1 and not _dis, \
+        "phụ đề thật cắt seekbar (text không phải UI) -> phải giữ"
+    # Thiếu OCR cache -> không kết luận được -> giữ.
+    _kept, _dis = det.guard_high_findings(
+        [_f2], _ui_player, "com.kenhlive.tv/.phim.PlayerActivity", {},
+        "step_001_test.jpg")
+    assert len(_kept) == 1, "không có OCR của frame trích dẫn thì phải giữ"
+
+    # --- (3) dialog focus-leak ---
+    _f3 = _mk_high("Focus lọt xuống màn hình nền (schedCard#[..]) khi Dialog đang mở")
+    # (i) dialog_bounds từ dump THẬT: node dialog cha + descendant.
+    _xml = (
+        '<hierarchy rotation="0">'
+        '<node index="0" text="" resource-id="com.kenhlive.tv:id/blvCardRoot" '
+        'class="android.widget.FrameLayout" package="com.kenhlive.tv" '
+        'content-desc="" checkable="false" checked="false" clickable="true" '
+        'enabled="true" focusable="false" focused="false" scrollable="false" '
+        'long-clickable="false" password="false" selected="false" '
+        'bounds="[200,150][1700,900]">'
+        '<node index="0" text="Trận cùng giờ" resource-id="com.kenhlive.tv:id/panelSameTimeTitle" '
+        'class="android.widget.TextView" package="com.kenhlive.tv" '
+        'content-desc="" checkable="false" checked="false" clickable="false" '
+        'enabled="true" focusable="true" focused="true" scrollable="false" '
+        'long-clickable="false" password="false" selected="false" '
+        'bounds="[220,400][700,460]"/>'
+        '</node>'
+        '<node index="1" text="Lịch" resource-id="com.kenhlive.tv:id/nav_schedule" '
+        'class="android.widget.TextView" package="com.kenhlive.tv" '
+        'content-desc="" checkable="false" checked="false" clickable="true" '
+        'enabled="true" focusable="true" focused="false" scrollable="false" '
+        'long-clickable="false" password="false" selected="false" '
+        'bounds="[362,900][563,1012]"/>'
+        '</hierarchy>')
+    _orig_sh = _devmod.sh
+    try:
+        _devmod.sh = lambda cmd, timeout=30: _xml
+        _st = _devmod.RealtimeDevice().dump_ui_state()
+    finally:
+        _devmod.sh = _orig_sh
+    print("dialog_bounds dump:", _st.get("dialog_bounds"),
+          "| focused:", _st.get("focused_sig"))
+    assert _st.get("dialog_bounds") == "[200,150][1700,900]", \
+        "dialog_bounds phải là bounds hợp của dialog + descendant (được %s)" \
+        % _st.get("dialog_bounds")
+    assert _st.get("has_dialog") is True
+    # Focus 'panelSameTimeTitle' nằm TRONG dialog -> claim lọt nền là giả.
+    _kept, _dis = det.guard_high_findings(
+        [_f3], _st, "com.kenhlive.tv/.MainActivity", {}, "step_001_test.jpg")
+    print("H15 dlg focus-trong -> kept:", len(_kept), "| dismissed:", len(_dis))
+    assert len(_dis) == 1 and not _kept, \
+        "focus nằm TRONG dialog_bounds (mục 'Trận cùng giờ') -> phải loại"
+    # Focus THẬT SỰ ngoài dialog (nav) -> claim đứng -> giữ.
+    _st_out = dict(_st, focused_bounds="[362,900][563,1012]",
+                   focused_sig="nav_schedule#[362,900][563,1012]")
+    _kept, _dis = det.guard_high_findings(
+        [_f3], _st_out, "com.kenhlive.tv/.MainActivity", {}, "step_001_test.jpg")
+    assert len(_kept) == 1 and not _dis, \
+        "focus ngoài dialog_bounds thì claim lọt nền là thật -> phải giữ"
+    # Thiếu dialog_bounds -> không kết luận -> giữ.
+    _kept, _dis = det.guard_high_findings(
+        [_f3], {"has_dialog": True}, "com.kenhlive.tv/.MainActivity", {},
+        "step_001_test.jpg")
+    assert len(_kept) == 1, "thiếu bounds thì phải giữ (không giấu lỗi)"
+    # Finding không thuộc 3 mẫu -> đi qua nguyên, không bị đụng.
+    _f_other = _mk_high("Chữ bị cắt cụt: 'abc…'")
+    _kept, _dis = det.guard_high_findings(
+        [_f_other], _ui_sidebar, "com.kenhlive.tv/.MainActivity", ctx,
+        "step_001_test.jpg")
+    assert len(_kept) == 1 and not _dis, "HIGH mẫu khác không được guard đụng"
+    # MEDIUM/LOW không bị guard đụng kể cả issue khớp.
+    _f_low = dict(_f1, severity="LOW")
+    _kept, _dis = det.guard_high_findings(
+        [_f_low], _ui_sidebar, "com.kenhlive.tv/.MainActivity", ctx,
+        "step_001_test.jpg")
+    assert len(_kept) == 1 and not _dis, "guard chỉ lọc HIGH"
+    print("H15_GUARD_OK")
 
 
 if __name__ == "__main__":
