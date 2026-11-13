@@ -2392,3 +2392,105 @@ danh sách vô hại (đã là luật CI-T5 §4); (3) gate #21 "nhóm telegram"
 thiết kế needs_dialog nhưng nếu detector dialog hỏng thì FAIL trung
 thực; (4) tour video trial 11 thiếu màn storage dialog — trial 12 PASS
 #20 thì tour mới đủ màn để giao Evelyn.
+
+### 15.29. Trial 12 (run 43328505259) — 2 FAIL đều là harness (H13+H14 mới), A22–A26 chưa khỏi
+
+**Kết quả run.** `hanhk112023-jpg/kenhlive-tv-qa` QA-Realtime-Trial
+43328505259, dispatch 2026-11-13 06:24 VN (`quick=false`, full 22
+mission): **SUCCESS 32m44s, QA 26m19s (1579s), 18/20 PASS, 2 UNVERIFIED
+(#5/#8 — cùng gốc A22), 2 FAIL (#14, #20 — đều harness),
+NEEDS_FIX 62/100**; vision 8 calls OPENAI
+(`integrate.api.nvidia.com`, nemotron-3.5-super-vl), **0×429**.
+Eye-review đầy đủ: `~/workspace/kenhlive-plan/qa-run-43328505259/VISUAL-REVIEW.md`
+(36/36 shot + tour 319s @4x + reel 3 entry).
+
+**Điểm sáng đã kiểm lại bằng mắt + số liệu.**
+- Mission #16 `MISSION_VOD_WEBPLAYER_REAL_PLAYBACK` (F63) **PASS lần 2
+  liên tiếp**: probe 6 lần 103564 → 193656 ms (+90,1s / 145,6s tường,
+  62% tốc độ tường), scene diff **16,02%**; mắt thấy 3 cảnh phim thật
+  khác nhau (hành lang tối + phụ đề, người đeo mặt nạ trên sân khấu,
+  2 người ở bàn tiệc). **F63 khỏi chắc.**
+- Mission #18 MultiView **PASS**: 2 ô phát thật — **A21 khỏi**.
+- Mission #21 **PASS lần đầu (H12 khỏi)**: dialog Telegram mở, gate
+  "nhóm telegram" thấy được, nút đỏ "ĐÃ HIỂU / ĐÓNG" focus.
+- **A24(c) khỏi**: pill player "Hiệp 1: 32' · EST 0 - 0 IND" (trước là
+  "NỮ 1 - 1 NỮ"). API-K1 khỏi lần 2 ("Tổng 5 tập" = 5 nút).
+
+**Wave 5 chưa khỏi (app) — A22 rộng hơn tưởng, A23/A24/A26 còn.**
+- **A22 (HIGH):** 2/3 hàng LIVE tab Lịch vẫn thiếu tỉ số (Ponte Preta
+  vs Operario Ferroviario PR, Cerro Largo vs Club Atletico Progreso;
+  phút live vẫn chạy 77'→79' nên dữ liệu live thật). Fix wave 5 chỉ
+  chữa ca đội nữ; 2 trận này là CLB nam — gốc rộng hơn: lookup theo
+  tên trượt ở biến thể khác ("Club Atletico Progreso" vs "Progreso":
+  strip "Club" nhưng giữ "Atletico"; hậu tố "PR"). Bằng chứng meta
+  TỒN TẠI: card Thể thao cùng trận hiện "Cerro Largo 1:0 Progreso".
+  Hướng sửa wave 6: khớp cặp theo cả 2 phía + giờ/giải làm khóa phụ,
+  hoặc Lịch dùng chung nhóm trận đã enrich như tab Thể thao. **Không
+  bịa tỉ số.**
+- **A23 (MEDIUM):** tên vẫn gãy giữa từ ("Philadelp/hia 76ers",
+  "Independient/e Rivadavia", "Estudiante/s La Plata") — autosize
+  thu nhỏ không đủ, `breakStrategy=simple` vẫn chẻ từ dài.
+- **A24(a)+(b) (MEDIUM):** nút "▶ Phát" vẫn đè hộp spinner "Đang tải
+  luồng…"; "Về trực tiếp" vẫn đè nhãn "TRỰC TIẾP" (step_019).
+  (a) có thể nút hiện lại sau khi spinner bật; (b) `behindLive` vẫn
+  đúng ở vị trí 0 nên nút hiện dù đang buffering — cần ẩn cả khi
+  `behindLive` mà state != READY.
+- **A26 (LOW):** spinner vẫn trên video đang phát (step_021 Thể thao,
+  step_043 IPTV) — guard `!isPlaying` chưa chặn ca chuyển kênh /
+  rebuffer-trong-lúc-phát. WebPlayer step_074 là spinner **của embed**
+  (probe vẫn tăng) — ghi chú, không ép sửa app-side.
+- **A25/A27 không kiểm được:** không khung nào hiện toast tua; caption
+  QR không nhìn thấy được ở step_104 dù code đã sửa (10sp `#737373`
+  trên nền tối — có thể chỉ mờ ở ảnh 960×540, hoặc card vẫn cao quá
+  viewport; URL vẫn cắt nửa dưới). **Chưa thấy = chưa khỏi.**
+
+**Lỗi mới (eye-review).**
+- **A28 (MEDIUM):** dòng nguồn dưới thẻ ĐANG PHÁT nát chữ — "[ColaTV]
+  BLV POCA … 1M xem" bị cắt/chồng, không đọc được.
+- **A29 (LOW):** tách riêng từ A24(b) — pill "Về trực tiếp" đè nhãn
+  "TRỰC TIẾP" (step_019); đây cũng là cái judge nhầm thành "phụ đề đè
+  seekbar" lần 4.
+- **A30 (MEDIUM):** phụ đề WebPlayer dòng 2 đè seekbar OSD (step_066,
+  mission #15) — phụ đề của embed, seekbar của app.
+- **A31 (LOW):** toast "Tự chuyển sang kênh VTV1 HD…" đè nút EPG/Yêu
+  thích ở bottom bar IPTV (step_040/045).
+
+**2 FAIL — đều là harness (timeline `qa_session.json`).**
+- **H13 (HIGH) — mission #20 FAIL lần 3 liên tiếp.** Driver bấm OK mù
+  4 lần với `focused_text=''` (3 lần trên tab nav "CÀI ĐẶT", 1 lần mở
+  nhầm dialog "Chất lượng hình" — step_092, tour t≈285s); `goto` tới
+  "dung lượng bộ nhớ đệm" không bao giờ tới đích; BACK đóng dialog chậm
+  (tour t≈297s) rồi driver explore mù → FAIL "Kẹt cấp 2" ở step 12.
+  Sửa wave 6: `open_dialog` chỉ bấm OK khi text hàng đang focus **khớp
+  `goto_texts`** (`focused_text` rỗng = chưa tới đích, cấm OK); `goto`
+  hoàn tất trước mọi OK; sau BACK đóng nhầm dialog thì **quay lại
+  `goto`**, không explore mù. Tour video **vẫn thiếu màn storage
+  dialog** — chưa giao được cho Evelyn.
+- **H14 (MEDIUM) — mission #14 FAIL.** Driver bấm OK vào WebView trong
+  lúc đang tải (step 2, step_056) — nhiều khả năng tự pause embed vừa
+  autoplay ở 00:05 (step_061: màn đen + nút Play lớn của embed); sau đó
+  chỉ WAIT 8 lần đọc, dù step 6 focus đã ở `btnWebPlayPause` của app mà
+  không bấm OK. Không phải lỗi app (cùng phim #15 phát 58→78s, #16
+  probe +90s). Sửa wave 6: không OK vào WebView khi đang tải; khi video
+  pause (đồng hồ đứng yên + `is_playing=False`) thì bấm Play lại.
+  Ghi chú: watchdog U-H1 không hiện màn lỗi dù #14 đứng 40s+ — nghi
+  position 5s > 0 nên watchdog tính là "đã chạy"; wave 6 kiểm điều kiện
+  watchdog.
+
+**Judge: 3 HIGH, 0 cái trích đúng frame (lần 3 liên tiếp).**
+- HIGH #1 (LIVE chỉ hiện giờ kickoff '07:00'): đúng họ (A22) nhưng sai
+  frame — step_037 là card sidebar, card đó hiện 0:0.
+- HIGH #2 (phụ đề đè seekbar): đúng họ (A30) nhưng sai frame — step_019
+  không có phụ đề nào; bằng chứng đúng là step_066. Lần 4 liên tiếp
+  claim này sai frame.
+- HIGH #3 (focus lọt nền, cardRoot#[180,808]): **GIẢ** — focus nằm trong
+  mục "Trận cùng giờ" của chính dialog BLV (step_012). Lần 2 liên tiếp
+  cùng frame này.
+- Điểm 62 = 100 − 12×3 HIGH − round(2/20×20) — công thức đúng, bằng
+  chứng sai.
+
+**Chưa chắc, chờ wave 6:** (1) A27 cần ảnh nét hơn hoặc gate OCR trên
+chính text caption để kết luận; (2) `max_steps=14` cho #20 không còn là
+vấn đề chính — H13 mới là gốc (OK mù), nới bước không sửa được; (3)
+tour video trial 12 vẫn thiếu màn storage dialog — chỉ giao khi #20
+PASS.
