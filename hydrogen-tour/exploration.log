@@ -11,8 +11,15 @@
 [step01]   - Tìm Kiếm
 [step01]   - Cài Đặt
 [rail] Bat dau do rail
-[rail] Cac muc tim thay: 
-[step02] FOCUS='Truyền Hình' TEXTS=11 FOCUSABLE=10
+[rail] DOWN 1 -> FOCUS='Truyền Hình'
+[rail] DOWN 2 -> FOCUS='Phim Truyện'
+[rail] DOWN 3 -> FOCUS='Lịch Thi Đấu'
+[rail] DOWN 4 -> FOCUS='Tìm Kiếm'
+[rail] DOWN 5 -> FOCUS='Cài Đặt'
+[rail] DOWN 6 -> FOCUS='Cài Đặt'
+[rail] focus lap lai, dung do
+[rail] Cac muc tim thay: Truyền Hình Phim Truyện Lịch Thi Đấu Tìm Kiếm Cài Đặt
+[step02] FOCUS='Cài Đặt' TEXTS=11 FOCUSABLE=10
 [step02]   - Tất cả
 [step02]   - Đang live
 [step02]   - Sắp đá
@@ -58,15 +65,45 @@
 [step06]   - Đang live
 [step06]   - Sắp đá
 [step06]   - Hiện chưa có dữ liệu trận đấu thật.
-[step07] FOCUS='Trang chủ' TEXTS=11 FOCUSABLE=10
-[step07]   - Tất cả
-[step07]   - Đang live
-[step07]   - Sắp đá
-[step07]   - Hiện chưa có dữ liệu trận đấu thật.
-[step07]   - KenhLive
-[step07]   - Trang chủ
+[step07] FOCUS='' TEXTS=44 FOCUSABLE=22
 [step07]   - Truyền Hình
-[step07]   - Phim Truyện
-[step07]   - Lịch Thi Đấu
-[step07]   - Tìm Kiếm
-[step07]   - Cài Đặt
+[step07]   - 860 kênh
+[step07]   - Tất cả
+[step07]   - Updated 14/11 02:22
+[step07]   - Vua Sân Cỏ TV
+[step07]   - Khô Gà TV
+[step07]   - Chuối Chiên TV
+[step07]   - Giờ Vàng TV
+[step07]   - Bia Ôm TV
+[step07]   - S8 TV
+[step07]   - Updated 14/11 02:22
+[step07]   - Updated 14/11 02:22
+[step08] FOCUS='Tập 179' TEXTS=31 FOCUSABLE=11
+[step08]   - Phim Truyện
+[step08]   - Tập 179
+[step08]   - Đấu La Đại Lục 2 (Tuyệt Thế Đường Môn)
+[step08]   - 2023 · Vietsub
+[step08]   - Tập 17
+[step08]   - Siêu Nhân Tiga
+[step08]   - 1996 · Vietsub + Lồng Tiếng
+[step08]   - Tập 20
+[step08]   - Gấp Ánh Trăng
+[step08]   - 2026 · Vietsub + Thuyết Minh
+[step08]   - Tập 22
+[step08]   - Chuyện Cũ Miền Biên Ải
+[step09] FOCUS='' TEXTS=2 FOCUSABLE=1
+[step09]   - Lịch Thi Đấu
+[step09]   - Không có lịch thi đấu trong 7 ngày tới.
+[step09] FLAG: MAN HINH GAN NHU TRONG (2 text)
+[tab] KHONG TIM LAI DUOC muc [Tìm Kiếm], bo qua
+[tab] KHONG TIM LAI DUOC muc [Cài Đặt], bo qua
+[step10] FOCUS='Lịch Thi Đấu' TEXTS=9 FOCUSABLE=7
+[step10]   - Lịch Thi Đấu
+[step10]   - Không có lịch thi đấu trong 7 ngày tới.
+[step10]   - KenhLive
+[step10]   - Trang chủ
+[step10]   - Truyền Hình
+[step10]   - Phim Truyện
+[step10]   - Lịch Thi Đấu
+[step10]   - Tìm Kiếm
+[step10]   - Cài Đặt
