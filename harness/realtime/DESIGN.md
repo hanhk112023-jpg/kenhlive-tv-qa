@@ -2494,3 +2494,79 @@ chính text caption để kết luận; (2) `max_steps=14` cho #20 không còn l
 vấn đề chính — H13 mới là gốc (OK mù), nới bước không sửa được; (3)
 tour video trial 12 vẫn thiếu màn storage dialog — chỉ giao khi #20
 PASS.
+
+### 15.30. Wave 6 harness — H13/H14 đã sửa + H15 judge-guard (sau trial 12)
+
+**Phạm vi:** chỉ harness (`harness/realtime/`), không đụng app. Ba fix,
+ba commit riêng (+1 fixup H13 +1 commit test +1 commit docs này).
+
+**H13 (HIGH, mission #20 FAIL lần 3) — `driver.py`.**
+- `_norm()`: thường + bỏ dấu tiếng Việt + gộp space, dùng cho mọi so
+  khớp text (`_goto_text_action`, `_focus_on_text`).
+- Luật 1b/1: mission `needs_dialog` + `goto_texts` chỉ được OK khi
+  `_focus_on_text` xác nhận hàng đang focus mang text đích; `focused_text`
+  rỗng / không khớp / hàng đích dưới fold -> `goto_view_text` hoặc
+  `goto_target_scroll` (DPAD_DOWN), **cấm OK mù, cấm explore mù**.
+- Luật 0a `wrong_dialog_back`: dialog đang mở mà blob text thiếu mọi
+  `required_texts` -> BACK (tối đa 3), observation sau `has_dialog=False`
+  nên tự resume goto. Guard không kích hoạt cho mission không có
+  goto/required texts nên feedback dialog ('nhóm telegram' có sẵn trong
+  list) và episode picker ('tập' khắp dump) không bị ảnh hưởng.
+- Fixup (`93759de`): `_on_episode_chip` miễn goto-strict cho chip
+  'Tập N'/`tvEpisodeName` — chip chỉ tồn tại trong dialog chọn tập nên
+  OK trên chip là chọn tập đúng, không phải OK mù (mock H2 bắt được
+  regression này).
+- An toàn giữ nguyên: nút đỏ 'Xóa toàn bộ bộ nhớ đệm' không bao giờ bị
+  OK — mock assert cả 3 hướng (list, dialog đích mở, focus trên nút đỏ).
+
+**H14 (MEDIUM, mission #14 FAIL) — `driver.py`.**
+- `loading_screen` còn hiện -> chỉ `wait_stream`, không OK vào WebView
+  (xóa đường `play_webplayer` cũ 'WAIT 1 lần rồi OK mù' — cú OK đó pause
+  embed vừa autoplay).
+- `_wp_frozen_streak` (note_state): chỉ `is_playing=False` ĐO ĐƯỢC mới
+  đếm, True/None reset; >=2 quan sát liên tiếp + `_wp_replay_count<2`
+  -> OK `play_webplayer` (tối đa 2 lần/mission). Sau mỗi replay reset
+  streak để tránh 2 OK liền nhau toggle pause->play->pause trước khi
+  motion kịp đo.
+- `_wp_play_focus_ok`: chỉ OK khi focus ở WebView/nút play-pause;
+  focus nút khác (tốc độ, tua…) -> `goto_play_button` tới
+  btnWebPlayPause trước, không OK lên nút khác.
+
+**H15 (MEDIUM, judge-guard) — `detectors.py` + `device.py` + `runner.py`.**
+- `device.dump_ui_state` thêm `dialog_bounds`: bounds hợp của node
+  dialog + mọi descendant (duyệt cây XML đệ quy); `dialog_ids`/
+  `has_dialog` giữ nguyên ngữ nghĩa cũ.
+- `guard_high_findings` chạy cuối `run_all_detectors`, trước khi finding
+  vào `self.findings`/chấm điểm; KHÔNG gọi thêm vision/OCR (dùng OCR
+  cache của chính frame trích dẫn). Chỉ loại khi chứng minh được bằng
+  chứng sai; thiếu dữ liệu kết luận -> giữ nguyên. Finding bị loại ghi
+  `ctx['guard_dismissed']` + log `GUARD-H15`, runner đưa vào report.
+- 3 guard: (a) 'hàng LIVE chỉ hiện giờ kickoff' -> frame phải là màn
+  Lịch (selected nav_schedule hoặc marker 'Lịch thi đấu/Hôm nay/Ngày
+  mai'/id sched*); frame tab khác -> loại. (b) 'phụ đề đè seekbar' ->
+  OCR frame trích dẫn phải có >=2 box chữ cắt ngang seekbar và ít nhất
+  1 box không khớp text UI; nếu mọi box đều là control player
+  ('Về trực tiếp'/'TRỰC TIẾP') -> loại. (c) 'focus lọt nền khi dialog
+  mở' -> tâm focused_bounds phải nằm NGOÀI dialog_bounds; nằm trong
+  -> loại.
+- **Nguyên tắc: guard chỉ lọc claim trích SAI frame, không giấu lỗi
+  thật.** Lỗi phụ-đề-seekbar thật (trial 12 step_066 WebPlayer) có text
+  phụ đề không khớp UI nào -> giữ; lỗi Lịch thật do gate mission #5/#8
+  ghi nhận, không phụ thuộc frame judge trích.
+
+**Mock:** `test_h13_storage_dialog_no_blind_ok`,
+`test_h14_webplayer_loading_wait_and_bounded_replay`,
+`test_h15_judge_guard_three_false_high_patterns` + 2 test cũ cập nhật
+(block WebPlayer chờ-1-WAIT-rồi-OK cũ; reset dialog tàn dư giờ
+wrong_dialog_back thay explore).
+
+**Chưa chắc, chờ trial 13:** (1) H13 giả định dialog sai luôn thiếu
+`required_texts` trong blob — dialog có lẫn text đích ở vùng nền sẽ
+không bị nhận là sai; (2) H14 replay dựa trên `motion_state=False` —
+nếu watcher đói mẫu liên tục (None) thì streak không đếm, driver vẫn
+chỉ WAIT (an toàn nhưng có thể chậm nhận pause thật); (3) H15 guard
+schedule cần `selected_ids` hoặc marker text — frame Lịch đã cuộn sâu
+mất nav-selected lẫn marker có thể bị loại oan (chưa thấy trong mock);
+(4) `dialog_bounds` chỉ đúng khi dump parse được cây lồng nhau — node
+dialog không descendant (VD alertTitle lá) cho bounds hẹp, guard khi đó
+không kết luận -> giữ claim.
