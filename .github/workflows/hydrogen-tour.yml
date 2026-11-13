@@ -67,7 +67,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "nothing to commit"
           else
-            git commit -m "hydrogen tour: exploratory video tour output (run $GITHUB_RUN_ID)"
+            git commit -m "hydrogen tour: exploratory video tour output (run $GITHUB_RUN_ID) [skip ci]"
             git push
           fi
 
