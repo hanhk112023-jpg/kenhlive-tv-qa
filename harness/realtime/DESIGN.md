@@ -2570,3 +2570,24 @@ mất nav-selected lẫn marker có thể bị loại oan (chưa thấy trong mo
 (4) `dialog_bounds` chỉ đúng khi dump parse được cây lồng nhau — node
 dialog không descendant (VD alertTitle lá) cho bounds hẹp, guard khi đó
 không kết luận -> giữ claim.
+
+### 15.31. Trial 13 (run 43346650730) — PASS 96/100, 4 FAIL đều là harness; H14/H15 khỏi, H13 quá tay
+
+**Kết quả:** SUCCESS 38m28s (QA 1974s = 32m54s), **18/22 PASS, 0 UNVERIFIED, 4 FAIL, 0 finding, NEEDS_FIX 96/100**. Vision 9 calls OPENAI, 0×429. `schedule_live_with_score=true`. `guard_dismissed` 1 mục. Eye-check Astra 36/36 shot + 12 frame tour: **0 false PASS**. VISUAL-REVIEW: `~/workspace/kenhlive-plan/qa-run-43346650730/VISUAL-REVIEW.md`.
+
+**Khỏi (ghi F): F79 = A24(a)** (step_019: spinner tải không còn nút ▶ chồng), **F80 = A29** (step_019: không còn "Về trực tiếp" chồng "TRỰC TIẾP"), **F81 = H14** (#14 wait-only lúc tải + #15 replay có giới hạn, cùng PASS), **F82 = H15** (guard loại đúng 1 HIGH trích sai frame step_035 — frame đó là rail Home, không phải Lịch; judge 0 HIGH giả). **F63 KHỎI lần 3**: probe +141,1s/159,3s wall (89%), scene diff 41,87%. A21 MultiView khỏi lần 3. A25/A27 không kiểm được.
+
+**4 FAIL — tất cả harness, 3 là regression do wave 6:**
+
+1. **#20 Storage dialog (H13 quá tay).** Timeline 14 bước toàn `goto_target_scroll`, focus dừng ở "Giờ Vàng TV" (bước 13), cách đích ~4 hàng. **Nguyên nhân gốc: docstring mission ghi hàng đích "~hàng 9" là SAI** — đếm thật từ `SettingsFragment.kt` + frame: đích "Dung lượng bộ nhớ đệm" là **hàng 16** (sau "Kiểm tra ngay" hàng 15). Cần 16 DOWN + OK + observe; max_steps=14 không bao giờ đủ. H13 sửa đúng nửa đầu (cấm OK mù) nhưng thay bằng scroll mù: `_goto_text_action` không trả action vì node đích chưa vào dump (dưới fold) nên driver DOWN từng hàng tới hết budget. Hàng đích tồn tại (step_107 mission chaos focus đúng "Dung lượng bộ nhớ đệm — Đệm 29.9 MB · APK 11.4 MB").
+2. **#21 Telegram QR (H13 + scroll-to-top không đủ; regression so với trial 12 PASS).** Mission bắt đầu ở hàng ~4 (UP ×8 từ hàng ~12 chỉ đưa về hàng 4, vẫn DƯỚI đích hàng 3 "Liên hệ & Báo lỗi") rồi chỉ đi DOWN — không bao giờ chạm đích. `needs_scroll_top` giả định danh sách ~8 hàng; thực tế 16+ hàng.
+3. **#13 Episode picker (regression so với trial 12 PASS).** `goto_view_text` 'CHỌN TẬP' 3 lần không hạ cánh (offset lặp 419,-186 / 175,-338), H13-scroll + vision-assist OK đưa driver **ra khỏi app — step_054 là Android TV launcher** (`com.google.android.tvlauncher/.MainActivity`). Nút CHỌN TẬP có thật trên màn hình (step_045).
+4. **#5 Player ExoPlayer (không phải lỗi app).** Driver mở Atl. Morelia vs Leones (kickoff 09:00) lúc ~08:43; app hiện đúng gate "Trận đấu chưa bắt đầu — quay lại lúc 09:00" (step_021, stream đã lên phía sau dialog). Directed-live resolver chọn nhầm trận chưa đá.
+
+**App còn mở (mắt thấy):** A22 chưa khỏi hẳn — hàng Llaneros FC vs Boyaca Chico (Hiệp 2: 90+') vẫn hiện giờ đá "07:00" không tỉ số (step_029/031 + tour t_005), dù gate #8 PASS nhờ hàng bóng rổ + hàng 0:0; cần đối chiếu meta Socolive cho fixture này (meta có tỉ số mà lookup trượt, hay provider không có tỉ số). A23 chưa khỏi hết — thẻ list sạch ("Philadelphia / 76ers") nhưng **thẻ hero Home vẫn gãy giữa từ** ("Philadelp / hia / 76ers", step_004). A26 chưa khỏi — step_041/042 spinner "Đang tải luồng..." trên video IPTV đang phát, cách nhau ~9s, cảnh đổi (08:52→08:53); stall-verify 600ms không chặn được đường channel-switch/rebuffer. A28 chưa khỏi — thẻ focus: nút "Xem ngay" che nửa dòng nguồn (chỉ còn "[Cola"), thẻ không focus đọc được đủ. A31 chưa khỏi, instance mới — step_039 toast "Mạng chập chờn: Đang tự kết nối lại luồng..." che nút "Yêu thích" (toast reconnect không qua lift fallback như toast auto-switch). A30: phụ đề embed đè seekbar embed (step_059) — đã biết, không fix app.
+
+**Tour vẫn thiếu 3 màn** (storage dialog, QR dialog, episode dialog) — chưa giao được video đầy đủ cho Evelyn.
+
+**Switchover CHƯA:** QA 32m54s > 30 phút + 4 FAIL.
+
+**Wave 7 chờ duyệt:** harness — H13-fix (#20 max_steps 14→22 + goto nhảy tới node đích khi vào dump; #21 scroll-to-top xác minh focus hàng 1, cho phép UP khi đích ở trên; H16 directed-live chỉ chọn trận đã kickoff; H17 phát hiện foreground rời package → relaunch + resume), app — A23-hero, A26, A28, A31-toast-path, A22-feed-check.
