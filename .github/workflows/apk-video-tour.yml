@@ -39,7 +39,13 @@ jobs:
         run: |
           chmod +x gradlew
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          ./gradlew assembleDebug --no-daemon
+          # Maven Central thỉnh thoảng trả 429 trên runner dùng chung IP
+          # (tour 43492590078 chết ở đây) — thử lại tối đa 3 lần như build.yml.
+          OK=0
+          for i in 1 2 3; do
+            if ./gradlew assembleDebug --no-daemon; then OK=1; break; else echo "gradle attempt $i failed, retry in 30s"; sleep 30; fi
+          done
+          [ "$OK" = "1" ] || { echo "::error::Gradle build failed after 3 attempts"; exit 1; }
 
       - name: KVM
         run: |
