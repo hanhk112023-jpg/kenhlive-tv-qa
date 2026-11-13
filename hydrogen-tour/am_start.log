@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.kenhlive.tv/.ui.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.kenhlive.tv/.ui.MainActivity
+TotalTime: 2225
+WaitTime: 2228
+Complete

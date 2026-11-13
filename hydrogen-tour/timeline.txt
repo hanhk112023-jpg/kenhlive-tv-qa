@@ -1,0 +1,8 @@
+2s|BOOT|
+10s|BOOT: man hinh dau tien|com.kenhlive.tv/com.kenhlive.tv.ui.MainActivity}
+17s|RAIL: sau khi do het rail|com.kenhlive.tv/com.kenhlive.tv.ui.MainActivity}
+35s|NOI DUNG: sau RIGHT khoi rail|com.kenhlive.tv/com.kenhlive.tv.ui.MainActivity}
+40s|NOI DUNG: DOWN 1|com.kenhlive.tv/com.kenhlive.tv.ui.MainActivity}
+44s|NOI DUNG: RIGHT 1|com.kenhlive.tv/com.kenhlive.tv.ui.MainActivity}
+49s|NOI DUNG: DOWN 2|com.kenhlive.tv/com.kenhlive.tv.ui.MainActivity}
+54s|BACK: phan hoi sau BACK|com.kenhlive.tv/com.kenhlive.tv.ui.MainActivity}

@@ -1,0 +1,72 @@
+[step01] FOCUS='Trang chủ' TEXTS=11 FOCUSABLE=10
+[step01]   - Tất cả
+[step01]   - Đang live
+[step01]   - Sắp đá
+[step01]   - Hiện chưa có dữ liệu trận đấu thật.
+[step01]   - KenhLive
+[step01]   - Trang chủ
+[step01]   - Truyền Hình
+[step01]   - Phim Truyện
+[step01]   - Lịch Thi Đấu
+[step01]   - Tìm Kiếm
+[step01]   - Cài Đặt
+[rail] Bat dau do rail
+[rail] Cac muc tim thay: 
+[step02] FOCUS='Truyền Hình' TEXTS=11 FOCUSABLE=10
+[step02]   - Tất cả
+[step02]   - Đang live
+[step02]   - Sắp đá
+[step02]   - Hiện chưa có dữ liệu trận đấu thật.
+[step02]   - KenhLive
+[step02]   - Trang chủ
+[step02]   - Truyền Hình
+[step02]   - Phim Truyện
+[step02]   - Lịch Thi Đấu
+[step02]   - Tìm Kiếm
+[step02]   - Cài Đặt
+[step03] FOCUS='Đang live' TEXTS=11 FOCUSABLE=10
+[step03]   - Tất cả
+[step03]   - Đang live
+[step03]   - Sắp đá
+[step03]   - Hiện chưa có dữ liệu trận đấu thật.
+[step03]   - KenhLive
+[step03]   - Trang chủ
+[step03]   - Truyền Hình
+[step03]   - Phim Truyện
+[step03]   - Lịch Thi Đấu
+[step03]   - Tìm Kiếm
+[step03]   - Cài Đặt
+[step04] FOCUS='Trang chủ' TEXTS=11 FOCUSABLE=10
+[step04]   - Tất cả
+[step04]   - Đang live
+[step04]   - Sắp đá
+[step04]   - Hiện chưa có dữ liệu trận đấu thật.
+[step04]   - KenhLive
+[step04]   - Trang chủ
+[step04]   - Truyền Hình
+[step04]   - Phim Truyện
+[step04]   - Lịch Thi Đấu
+[step04]   - Tìm Kiếm
+[step04]   - Cài Đặt
+[step05] FOCUS='Tất cả' TEXTS=4 FOCUSABLE=4
+[step05]   - Tất cả
+[step05]   - Đang live
+[step05]   - Sắp đá
+[step05]   - Hiện chưa có dữ liệu trận đấu thật.
+[step06] FOCUS='Tất cả' TEXTS=4 FOCUSABLE=4
+[step06]   - Tất cả
+[step06]   - Đang live
+[step06]   - Sắp đá
+[step06]   - Hiện chưa có dữ liệu trận đấu thật.
+[step07] FOCUS='Trang chủ' TEXTS=11 FOCUSABLE=10
+[step07]   - Tất cả
+[step07]   - Đang live
+[step07]   - Sắp đá
+[step07]   - Hiện chưa có dữ liệu trận đấu thật.
+[step07]   - KenhLive
+[step07]   - Trang chủ
+[step07]   - Truyền Hình
+[step07]   - Phim Truyện
+[step07]   - Lịch Thi Đấu
+[step07]   - Tìm Kiếm
+[step07]   - Cài Đặt
