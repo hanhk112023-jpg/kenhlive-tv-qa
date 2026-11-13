@@ -150,7 +150,7 @@ PREV_FOCUS=""
 for i in 1 2 3 4 5 6 7 8; do
   key 20; sleep 2
   F=$(focused_text)
-  echo "[rail] DOWN $i -> FOCUS=${F!r}" >> $LOG
+  echo "[rail] DOWN $i -> FOCUS='$F'" >> $LOG
   if [ -n "$F" ] && [ "$F" = "$PREV_FOCUS" ]; then echo "[rail] focus lap lai, dung do" >> $LOG; break; fi
   if [ -n "$F" ]; then
     case " ${RAIL_LABELS[*]} " in *" $F "*) ;; *) RAIL_LABELS+=("$F");; esac
