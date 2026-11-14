@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: hanhk112023-jpg/kenhlive-tv
-          ref: main
+          ref: feature/cinema-apple-cache
           ssh-key: ${{ secrets.APP_CHECKOUT_KEY }}
           path: app
 
