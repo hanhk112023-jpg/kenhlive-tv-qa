@@ -112,6 +112,7 @@ class FakeDevice(RealtimeDevice):
         self._tab = int(tab_index)
         self.keys.append("SWITCH_TAB(%d)" % tab_index)
         self._note("SWITCH_TAB(%d)" % tab_index)
+        return True
 
 
 def main():
@@ -5233,6 +5234,193 @@ def test_h15_judge_guard_three_false_high_patterns():
         "step_001_test.jpg")
     assert len(_kept) == 1 and not _dis, "guard chỉ lọc HIGH"
     print("H15_GUARD_OK")
+
+    test_switch_tab_fallback()
+    test_driver_stops_useless_switch_tab()
+    test_mission_fails_fast_on_stuck_tab()
+
+
+def test_switch_tab_fallback():
+    """Wave 6 mục (a): switch_tab có fallback + xác minh.
+    (1) Bản chính: am start --ei tab N thành công ngay -> không gọi deep-link, trả True.
+    (2) Bản Hydrogen v2: --ei tab N không đổi tab -> fallback kenhlive://tab/N thành công -> trả True.
+    (3) Cả 2 cách đều thất bại -> log lỗi và trả False."""
+    import device as _devmod
+
+    # (1) Bản chính: --ei tab đổi tab thành công
+    cmds = []
+    def _mock_sh1(cmd, timeout=30):
+        cmds.append(cmd)
+        return ""
+
+    dev1 = _devmod.RealtimeDevice()
+    dev1.dump_ui_state = lambda: {"selected_ids": ["nav_settings"]}
+    dev1.detect_tab_index = lambda st: 4
+    _orig_sh = _devmod.sh
+    _orig_sleep = _devmod.time.sleep
+    try:
+        _devmod.sh = _mock_sh1
+        _devmod.time.sleep = lambda s: None
+        res1 = dev1.switch_tab(4)
+    finally:
+        _devmod.sh = _orig_sh
+        _devmod.time.sleep = _orig_sleep
+
+    assert res1 is True, "bản chính đổi tab phải trả True"
+    assert len(cmds) == 1, "bản chính chỉ cần 1 lệnh --ei tab, không gọi fallback (đã chạy: %s)" % cmds
+    assert "--ei tab 4" in cmds[0], "lệnh đầu phải là --ei tab 4"
+    assert "SWITCH_TAB(4)" in dev1.action_history
+
+    # (2) Hydrogen v2: --ei tab giữ nguyên tab 2 -> fallback deep-link đổi sang tab 4
+    cmds2 = []
+    def _mock_sh2(cmd, timeout=30):
+        cmds2.append(cmd)
+        return ""
+
+    dev2 = _devmod.RealtimeDevice()
+    # Lần 1 đọc tab (sau --ei tab): vẫn tab 2; lần 2 đọc tab (sau deep-link): sang tab 4
+    _tab_seq = [2, 4]
+    dev2.dump_ui_state = lambda: {}
+    dev2.detect_tab_index = lambda st: _tab_seq.pop(0) if _tab_seq else 4
+    try:
+        _devmod.sh = _mock_sh2
+        _devmod.time.sleep = lambda s: None
+        res2 = dev2.switch_tab(4)
+    finally:
+        _devmod.sh = _orig_sh
+        _devmod.time.sleep = _orig_sleep
+
+    assert res2 is True, "Hydrogen v2 fallback deep-link thành công phải trả True"
+    assert len(cmds2) == 2, "phải chạy 2 lệnh: --ei tab rồi fallback deep-link (đã chạy: %s)" % cmds2
+    assert "--ei tab 4" in cmds2[0]
+    assert "kenhlive://tab/4" in cmds2[1]
+    assert "android.intent.action.VIEW" in cmds2[1]
+
+    # (3) Cả hai đều thất bại: tab vẫn là 2
+    cmds3 = []
+    dev3 = _devmod.RealtimeDevice()
+    dev3.dump_ui_state = lambda: {}
+    dev3.detect_tab_index = lambda st: 2  # luôn ở tab 2
+    try:
+        _devmod.sh = lambda cmd, timeout=30: cmds3.append(cmd) or ""
+        _devmod.time.sleep = lambda s: None
+        res3 = dev3.switch_tab(4)
+    finally:
+        _devmod.sh = _orig_sh
+        _devmod.time.sleep = _orig_sleep
+
+    assert res3 is False, "cả 2 cách không đổi được tab phải trả False"
+    assert len(cmds3) == 2, "phải thử cả 2 cách trước khi trả False"
+    print("SWITCH_TAB_FALLBACK_OK")
+
+
+def test_driver_stops_useless_switch_tab():
+    """Wave 6 mục (b): driver dừng lặp SWITCH_TAB sau 2 lần vô ích.
+    (1) Khi ở sai tab (tab 2 trong khi mission cần tab 4), driver thử SWITCH_TAB 4.
+    (2) Sau 2 lần SWITCH_TAB 4 liên tiếp mà tab vẫn là 2 (không đổi), bước thứ 3
+        driver trả Action('FAIL', rule='goto_tab', thought='Không chuyển được sang tab 4').
+    (3) Nếu tab đổi sang tab 4 sau lần 1, driver reset đếm và tiếp tục bình thường."""
+    from driver import Driver
+    from gate import EvidenceGate, MissionSpec
+
+    spec = MissionSpec("TEST_SETTINGS", "Test Settings", "desc", max_steps=10, tab=4)
+    gate = EvidenceGate(spec)
+
+    class StubDevice:
+        def __init__(self, tab=2):
+            self._tab = tab
+            self.action_history = []
+        def detect_tab_index(self, ui_state):
+            return self._tab
+        def _note(self, label):
+            self.action_history.append(label)
+
+    stub = StubDevice(tab=2)
+    drv = Driver(stub, gate, spec)
+    ui_state = {"focused_sig": "item#[0,0][100,100]", "all_visible_texts": []}
+
+    # Bước 1: lần đầu sai tab -> SWITCH_TAB 4
+    a1 = drv.next_action(ui_state, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    assert a1.type == "SWITCH_TAB" and a1.param == "4" and a1.rule == "goto_tab"
+    assert drv._switch_tab_attempts == 1
+
+    # Bước 2: tab vẫn là 2 (hành động vô ích) -> SWITCH_TAB 4 (lần 2)
+    a2 = drv.next_action(ui_state, "com.kenhlive.tv/.MainActivity", None, 1.0)
+    assert a2.type == "SWITCH_TAB" and a2.param == "4" and a2.rule == "goto_tab"
+    assert drv._switch_tab_attempts == 2
+
+    # Bước 3: tab vẫn là 2 -> DỪNG LẶP, trả FAIL
+    a3 = drv.next_action(ui_state, "com.kenhlive.tv/.MainActivity", None, 2.0)
+    assert a3.type == "FAIL" and a3.rule == "goto_tab"
+    assert "không chuyển được sang tab 4" in a3.thought.lower(), \
+        "thought phải nói rõ không chuyển được sang tab 4 (được %s)" % a3.thought
+
+    # Bước 4: gọi tiếp vẫn trả FAIL, không bắn SWITCH_TAB nữa
+    a4 = drv.next_action(ui_state, "com.kenhlive.tv/.MainActivity", None, 3.0)
+    assert a4.type == "FAIL"
+
+    # Reset khi tab thực sự đổi:
+    drv2 = Driver(stub, gate, spec)
+    a2_1 = drv2.next_action(ui_state, "com.kenhlive.tv/.MainActivity", None, 0.0)
+    assert a2_1.type == "SWITCH_TAB" and a2_1.param == "4"
+    assert drv2._switch_tab_attempts == 1
+
+    # Giả lập tab đổi thành công sang 4
+    stub._tab = 4
+    a2_2 = drv2.next_action(ui_state, "com.kenhlive.tv/.MainActivity", None, 1.0)
+    assert a2_2.type != "SWITCH_TAB" and a2_2.type != "FAIL", \
+        "tab đã đổi sang 4 thì không được SWITCH_TAB hay FAIL nữa (được %s %s)" % (a2_2.type, a2_2.rule)
+    assert drv2._switch_tab_attempts == 0
+
+    print("DRIVER_NO_USELESS_SWITCH_TAB_OK")
+
+
+def test_mission_fails_fast_on_stuck_tab():
+    """Wave 6 mục (c): mission kết thúc nhanh với lý do rõ thay vì đốt hết ngân sách bước.
+    Tái hiện đúng lỗi run 43547759727: agent kẹt ở tab 2, mission Cài đặt (max_steps=14)
+    cần tab 4. Trước fix: lặp 14 lần SWITCH_TAB 4 rồi FAIL hết ngân sách bước.
+    Sau fix: chỉ chạy 3 bước (2 lần SWITCH_TAB rồi FAIL ngay), lý do rõ ràng
+    'Không chuyển được sang tab 4'."""
+    from gate import MissionSpec
+    _orig_dev = runner_mod.RealtimeDevice
+    try:
+        class StuckTabDevice(FakeDevice):
+            def __init__(self, serial=None):
+                super().__init__(serial=serial)
+                self._tab = 2  # Kẹt ở tab 2, không đổi
+            def switch_tab(self, tab_index):
+                # Giả lập bản Hydrogen v2: lệnh switch_tab không đổi được tab
+                self.keys.append("SWITCH_TAB(%d)" % tab_index)
+                self._note("SWITCH_TAB(%d)" % tab_index)
+                return False
+
+        runner_mod.RealtimeDevice = StuckTabDevice
+        r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_fast_fail", serial=None,
+                                      vision_budget=0, no_vision=True)
+        # Spec cần tab 4, max_steps = 14
+        spec = MissionSpec("TEST_STUCK_MISSION", "Test Stuck Mission", "desc",
+                           max_steps=14, tab=4, required_texts=["cài đặt"])
+        res = r.run_mission(spec)
+
+        print("stuck tab outcome:", res["outcome"], "| reason:", res["reason"],
+              "| steps:", len(r.timeline))
+        assert res["outcome"] == "FAIL", "phải FAIL khi không chuyển được tab"
+        assert "không chuyển được sang tab 4" in res["reason"].lower(), \
+            "lý do phải rõ không chuyển được sang tab 4 (được: %s)" % res["reason"]
+        # Không được đốt hết 14 bước! Sau 2 lần SWITCH_TAB vô ích (bước 1, bước 2),
+        # bước 3 driver trả FAIL và runner dừng ngay -> timeline tối đa 3 observation!
+        assert len(r.timeline) <= 3, \
+            "mission phải fail nhanh sau tối đa 3 bước thay vì đốt hết 14 bước (timeline có %d bước)" \
+            % len(r.timeline)
+        # Kiểm tra danh sách action của device: chỉ có 2 lần SWITCH_TAB(4) trong mission
+        # (cộng 1 lần trong reset đầu mission nếu có)
+        _mission_switches = [k for k in r.device.keys if k == "SWITCH_TAB(4)"]
+        assert len(_mission_switches) <= 3, \
+            "không được lặp SWITCH_TAB quá nhiều (được %s)" % _mission_switches
+    finally:
+        runner_mod.RealtimeDevice = _orig_dev
+
+    print("MISSION_FAILS_FAST_ON_STUCK_TAB_OK")
 
 
 if __name__ == "__main__":

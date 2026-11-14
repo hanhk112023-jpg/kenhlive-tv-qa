@@ -181,12 +181,35 @@ class RealtimeDevice:
         self._note("TEXT(%s)" % text)
 
     def switch_tab(self, tab_index):
-        sh("%s shell am start -n %s/%s --ei tab %d -f 0x04000000" % (self.adb, self.pkg, MAIN_ACTIVITY, int(tab_index)))
-        self._note("SWITCH_TAB(%d)" % int(tab_index))
+        target = int(tab_index)
+        # Cách 1 (bản chính): am start --ei tab N (đọc getIntExtra)
+        sh("%s shell am start -n %s/%s --ei tab %d -f 0x04000000" % (self.adb, self.pkg, MAIN_ACTIVITY, target))
+        self._note("SWITCH_TAB(%d)" % target)
+        time.sleep(0.5)
+        try:
+            cur = self.detect_tab_index(self.dump_ui_state())
+        except Exception:
+            cur = None
+        if cur == target:
+            return True
+
+        # Cách 2 (fallback Hydrogen v2): deep-link kenhlive://tab/N (MainActivity.parseDeepLinkTab)
+        sh('%s shell am start -a android.intent.action.VIEW -d "kenhlive://tab/%d" -n %s/%s' % (self.adb, target, self.pkg, MAIN_ACTIVITY))
+        time.sleep(0.5)
+        try:
+            cur = self.detect_tab_index(self.dump_ui_state())
+        except Exception:
+            cur = None
+        if cur == target:
+            return True
+
+        print("SWITCH_TAB %d thất bại: app không nhận lệnh đổi tab" % target, flush=True)
+        return False
 
     def open_home(self):
-        self.switch_tab(6)
+        ok = self.switch_tab(6)
         self._note("OPEN_HOME_HUB")
+        return ok
 
     def launch_web_player(self):
         """Deep-link open=webplayer (F44): MainActivity tự resolve tập embed thật."""

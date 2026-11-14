@@ -89,6 +89,10 @@ class Driver:
         self._keyboard_open_tries = 0  # CI-T9 mục 7: số lần OK mở bàn phím (tối đa 2)
         self._keyboard_typed = False  # CI-T9 mục 7: đã gõ từ khóa khi bàn phím mở chưa
         self._seek_idx = 0  # H3: đếm bước quét tìm text mục tiêu (goto_texts)
+        # Wave 6: đếm số lần SWITCH_TAB liên tiếp tới cùng tab đích mà tab không đổi
+        self._switch_tab_target = None
+        self._switch_tab_from_tab = None
+        self._switch_tab_attempts = 0
 
     def _state_sig(self, ui_state, activity):
         return (ui_state.get("focused_sig", "NONE"),
@@ -695,12 +699,33 @@ class Driver:
         # chạy trên khung lưới/khung tải luồng, deny oan 2 lần. Trong player
         # thì tab không còn ý nghĩa (player mới là đích), ra khỏi player rồi
         # luật này mới được chạy lại.
+        # Wave 6: bộ đếm thất bại đổi tab — nếu sau 2 lần SWITCH_TAB liên tiếp
+        # tới cùng tab đích mà tab không đổi thì dừng mission nhanh thay vì lặp 8-14 lần.
         if m.tab is not None and "PlayerActivity" not in act \
                 and "WebPlayerActivity" not in act:
             cur_tab = self.device.detect_tab_index(ui_state)
-            if cur_tab is not None and cur_tab != m.tab:
-                return Action("SWITCH_TAB", str(m.tab), rule="goto_tab",
-                              thought="Đang ở tab %s, mission cần tab %s" % (cur_tab, m.tab))
+            if cur_tab is not None:
+                if cur_tab == m.tab:
+                    self._switch_tab_target = None
+                    self._switch_tab_from_tab = None
+                    self._switch_tab_attempts = 0
+                else:
+                    if self._switch_tab_target == m.tab and self._switch_tab_from_tab is not None:
+                        if cur_tab != self._switch_tab_from_tab:
+                            self._switch_tab_attempts = 0
+                            self._switch_tab_from_tab = cur_tab
+                    else:
+                        self._switch_tab_target = m.tab
+                        self._switch_tab_from_tab = cur_tab
+                        self._switch_tab_attempts = 0
+
+                    if self._switch_tab_attempts >= 2:
+                        return Action("FAIL", "", rule="goto_tab",
+                                      thought="Không chuyển được sang tab %s" % m.tab)
+
+                    self._switch_tab_attempts += 1
+                    return Action("SWITCH_TAB", str(m.tab), rule="goto_tab",
+                                  thought="Đang ở tab %s, mission cần tab %s" % (cur_tab, m.tab))
 
         # -- 0b2. Mission cần bàn phím thật (CI-T9 mục 7, SEARCH): CI-T8 bàn
         # phím không mở lần nào ở cả 95 bước vì driver chưa từng bấm OK trên
@@ -1028,12 +1053,13 @@ class Driver:
             return True, 1.0
         if t == "SWITCH_TAB":
             try:
-                d.switch_tab(int(p))
+                ok = d.switch_tab(int(p))
             except Exception:
                 return False, 0.0
             import time as _t
-            _t.sleep(1.2)
-            return True, 1.2
+            _t.sleep(0.5)
+            self._last_action = "%s %s" % (t, p)
+            return (bool(ok) if ok is not None else True), 0.5
         if t == "OPEN_HOME":
             d.open_home()
             import time as _t
