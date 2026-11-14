@@ -16,6 +16,14 @@ on:
         description: 'Chế độ nhanh (5 mission trọng tâm: Cold Start, Home, IPTV, Phim, Player Settings)'
         type: boolean
         default: true
+      file_url:
+        description: 'Link file phiên bản khác (Google Drive /file/d/<id>/view, link trực tiếp .zip source hoặc .apk) — để trống = test kenhlive-tv@main'
+        required: false
+        default: ''
+      version_name:
+        description: 'Tên phiên bản (đặt tên artifact, vd: hydrogen-v2)'
+        required: false
+        default: 'main'
 
 # Tier 1: job QA chỉ đọc code và upload artifact, không cần ghi contents.
 permissions:
@@ -28,6 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Checkout KenhLive TV app source (private)
+        if: inputs.file_url == ''
         uses: actions/checkout@v4
         with:
           repository: hanhk112023-jpg/kenhlive-tv
@@ -39,20 +48,127 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Build debug APK
-        working-directory: app
+      - name: Get version source (file_url)
+        id: source
+        if: inputs.file_url != ''
         run: |
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          chmod +x gradlew
-          # services.gradle.org hay timeout/504: thu lai toi 3 lan, moi lan cach 30s
-          OK=0
-          for i in 1 2 3; do
-            if ./gradlew assembleDebug --no-daemon; then OK=1; break; else echo "gradle attempt $i that bai, cho 30s roi thu lai"; sleep 30; fi
-          done
-          [ "$OK" = "1" ] || { echo "::error::Gradle build that bai sau 3 lan"; exit 1; }
-          if [ -f app/build/outputs/apk/debug/app-universal-debug.apk ]; then
-            cp app/build/outputs/apk/debug/app-universal-debug.apk app/build/outputs/apk/debug/app-debug.apk
+          set -e
+          URL="${{ inputs.file_url }}"
+          if echo "$URL" | grep -q "drive.google.com.*\/d\/"; then
+            ID=$(echo "$URL" | sed -n 's|.*\/d\/\([^/]*\).*|\1|p')
+            curl -sL "https://drive.google.com/uc?export=download&id=$ID" -o version-file
+          else
+            curl -sL "$URL" -o version-file
           fi
+          TYPE=$(file -b version-file)
+          echo "Downloaded: $TYPE ($(stat -c%s version-file) bytes)"
+          if unzip -l version-file 2>/dev/null | grep -q " AndroidManifest.xml$"; then
+            cp version-file version.apk
+            echo "kind=apk" >> $GITHUB_OUTPUT
+            echo "project=" >> $GITHUB_OUTPUT
+          elif echo "$TYPE" | grep -qi "Zip archive"; then
+            mkdir -p version-src
+            unzip -q version-file -d version-src
+            if [ -f version-src/KenhLive/settings.gradle.kts ] || [ -f version-src/KenhLive/settings.gradle ]; then
+              echo "project=version-src/KenhLive" >> $GITHUB_OUTPUT
+            elif [ -f version-src/settings.gradle.kts ] || [ -f version-src/settings.gradle ]; then
+              echo "project=version-src" >> $GITHUB_OUTPUT
+            else
+              echo "::error::ZIP khong chua Android project (khong thay settings.gradle*)"; exit 1
+            fi
+            echo "kind=source" >> $GITHUB_OUTPUT
+          else
+            echo "::error::File khong phai ZIP source hay APK: $TYPE"; exit 1
+          fi
+
+      - name: Gradle version (file_url)
+        id: gradle-ver
+        if: inputs.file_url != '' && steps.source.outputs.kind != 'apk'
+        run: |
+          P="${{ steps.source.outputs.project }}"
+          V="8.5"
+          if [ -f "$P/gradle/wrapper/gradle-wrapper.properties" ]; then
+            V=$(grep distributionUrl "$P/gradle/wrapper/gradle-wrapper.properties" | sed -n 's/.*gradle-\([0-9.]*\)-bin\.zip/\1/p')
+            V="${V:-8.5}"
+          fi
+          echo "Gradle version: $V (project: $P)"
+          echo "version=$V" >> $GITHUB_OUTPUT
+
+      - name: Setup Gradle (file_url)
+        if: inputs.file_url != '' && steps.source.outputs.kind != 'apk'
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: ${{ steps.gradle-ver.outputs.version }}
+
+      - name: Patch known Hydrogen compile error (file_url)
+        if: inputs.file_url != '' && steps.source.outputs.kind != 'apk'
+        run: |
+          P="${{ steps.source.outputs.project }}"
+          F="$P/app/src/main/java/com/kenhlive/tv/logic/TeamNameMatcher.kt"
+          if [ -f "$F" ] && grep -q "COMBINING_MARKS_REGEX.matcher(" "$F"; then
+            sed -i 's/COMBINING_MARKS_REGEX\.matcher(\(.*\))\.replaceAll("")/COMBINING_MARKS_REGEX.replace(\1, "")/' "$F"
+            echo "PATCHED: $F — loi cua Hydrogen (Kotlin Regex khong co .matcher()). Sua dung 1 dong; ban goc KHONG bien dich duoc."
+          else
+            echo "No TeamNameMatcher patch needed"
+          fi
+
+      - name: Launcher activities (file_url, source)
+        id: acts
+        if: inputs.file_url != '' && steps.source.outputs.kind != 'apk'
+        run: |
+          P="${{ steps.source.outputs.project }}"
+          OUT=$(python3 - "$P/app/src/main/AndroidManifest.xml" <<'PYEOF'
+          import sys, xml.etree.ElementTree as ET
+          t = ET.parse(sys.argv[1]); r = t.getroot()
+          launcher = main = ""
+          for a in r.iter('activity'):
+              name = a.get('{http://schemas.android.com/apk/res/android}name', '')
+              if name.endswith('MainActivity'): main = name
+              cats = [c.get('{http://schemas.android.com/apk/res/android}name', '') for f in a.iter('intent-filter') for c in f.iter('category')]
+              if any('LAUNCHER' in (c or '') for c in cats): launcher = name
+          print(launcher or ".MainActivity")
+          print(main or ".MainActivity")
+          PYEOF
+          )
+          echo "launcher=$(echo "$OUT" | sed -n '1p')" >> $GITHUB_OUTPUT
+          echo "main=$(echo "$OUT" | sed -n '2p')" >> $GITHUB_OUTPUT
+          echo "LAUNCHER=$(echo "$OUT" | sed -n '1p') MAIN=$(echo "$OUT" | sed -n '2p')"
+
+      - name: Build debug APK
+        run: |
+          set -e
+          mkdir -p qa-apk
+          if [ -n "${{ inputs.file_url }}" ]; then
+            if [ "${{ steps.source.outputs.kind }}" = "apk" ]; then
+              cp version.apk qa-apk/app-debug.apk
+            else
+              P="${{ steps.source.outputs.project }}"
+              echo "sdk.dir=$ANDROID_HOME" > "$P/local.properties"
+              OK=0
+              for i in 1 2 3; do
+                if (cd "$P" && gradle assembleDebug --no-daemon); then OK=1; break; else echo "gradle attempt $i that bai, cho 30s roi thu lai"; sleep 30; fi
+              done
+              [ "$OK" = "1" ] || { echo "::error::Gradle build that bai sau 3 lan"; exit 1; }
+              APK=$(ls $P/app/build/outputs/apk/debug/*-universal-debug.apk 2>/dev/null || ls $P/app/build/outputs/apk/debug/*-debug.apk 2>/dev/null | head -1)
+              [ -n "$APK" ] && [ -f "$APK" ] || { echo "::error::khong thay APK debug"; exit 1; }
+              cp "$APK" qa-apk/app-debug.apk
+            fi
+          else
+            echo "sdk.dir=$ANDROID_HOME" > app/local.properties
+            chmod +x app/gradlew
+            # services.gradle.org hay timeout/504: thu lai toi 3 lan, moi lan cach 30s
+            OK=0
+            for i in 1 2 3; do
+              if (cd app && ./gradlew assembleDebug --no-daemon); then OK=1; break; else echo "gradle attempt $i that bai, cho 30s roi thu lai"; sleep 30; fi
+            done
+            [ "$OK" = "1" ] || { echo "::error::Gradle build that bai sau 3 lan"; exit 1; }
+            if [ -f app/app/build/outputs/apk/debug/app-universal-debug.apk ]; then
+              cp app/app/build/outputs/apk/debug/app-universal-debug.apk qa-apk/app-debug.apk
+            else
+              cp app/app/build/outputs/apk/debug/app-debug.apk qa-apk/app-debug.apk
+            fi
+          fi
+          ls -la qa-apk/
 
       # proxy VN — lay node VLESS VN moi nhat tu file GitHub cong khai Au1rxx
       # (free-vpn-subscriptions/output/country/VN/singbox-0001.json), chay bang
@@ -261,6 +377,11 @@ jobs:
           OPENAI_API_BASE: ${{ env.AI_BASE_URL }}
           OPENAI_API_KEY: ${{ env.AI_API_KEY }}
           OPENAI_MODEL: ${{ env.AI_MODEL }}
+          # Phiên bản khác (file_url): activity dò từ manifest (vd: Hydrogen v2
+          # launcher=.ui.SplashActivity, main=.ui.MainActivity). Để trống =
+          # harness dùng .MainActivity như bản chính.
+          QA_LAUNCHER_ACTIVITY: ${{ steps.acts.outputs.launcher }}
+          QA_MAIN_ACTIVITY: ${{ steps.acts.outputs.main }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
@@ -274,13 +395,17 @@ jobs:
             adb shell wm density 320
             adb shell settings put system accelerometer_rotation 0
             adb shell settings put system user_rotation 0
-            adb install -r app/app/build/outputs/apk/debug/app-debug.apk
-            # Launcher rieng cho test (module :testlauncher): HOME duy nhat, khong
-            # co YouTube de script bam mu lac sang (bai hoc UI-Tour 2026-11-05).
-            adb install -r app/testlauncher/build/outputs/apk/debug/testlauncher-debug.apk || true
+            adb install -r qa-apk/app-debug.apk
+            # Launcher rieng cho test (module :testlauncher, chỉ có ở bản chính):
+            # HOME duy nhat, khong co YouTube de script bam mu lac sang
+            # (bai hoc UI-Tour 2026-11-05). Phiên bản khác không có module này
+            # thì bỏ qua.
+            if [ -f app/testlauncher/build/outputs/apk/debug/testlauncher-debug.apk ]; then
+              adb install -r app/testlauncher/build/outputs/apk/debug/testlauncher-debug.apk || true
+              adb shell cmd package set-home-activity com.kenhlive.testlauncher/com.kenhlive.testlauncher.TestLauncherActivity >/dev/null 2>&1 || true
+            fi
             adb shell pm disable-user com.google.android.youtube.tv >/dev/null 2>&1 || true
             adb shell pm disable-user com.google.android.youtube.tv.kids >/dev/null 2>&1 || true
-            adb shell cmd package set-home-activity com.kenhlive.testlauncher/com.kenhlive.testlauncher.TestLauncherActivity >/dev/null 2>&1 || true
             adb logcat -c
             # CI-T2: full mode (17 mission) — đo wall time toàn bộ so với
             # baseline 74m26s. Push dispatch không có inputs.quick nên ARGS=""
@@ -296,7 +421,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qa-report-realtime
+          name: qa-report-realtime-${{ inputs.version_name }}
           path: qa_out/
 
       - name: Kết quả

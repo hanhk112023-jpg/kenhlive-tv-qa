@@ -8,6 +8,7 @@ harness cũ (AndroidTVDevice/Probes) và giữ nguyên ngữ nghĩa.
 import io
 import json
 import math
+import os
 import re
 import subprocess
 import time
@@ -19,6 +20,13 @@ except ImportError:  # pragma: no cover
     Image = ImageChops = ImageStat = None
 
 PKG = "com.kenhlive.tv"
+
+# Activity khởi chạy: mặc định là MainActivity bản chính. Phiên bản khác
+# (vd: Hydrogen v2 có SplashActivity làm launcher, MainActivity ở .ui)
+# truyền qua env QA_LAUNCHER_ACTIVITY / QA_MAIN_ACTIVITY (workflow dò từ
+# manifest). Không đặt env = hành vi cũ, không đổi gì cho bản chính.
+MAIN_ACTIVITY = os.environ.get("QA_MAIN_ACTIVITY") or ".MainActivity"
+LAUNCHER_ACTIVITY = os.environ.get("QA_LAUNCHER_ACTIVITY") or MAIN_ACTIVITY
 
 KEY_MAP = {
     "UP": 19, "DPAD_UP": 19, "DOWN": 20, "DPAD_DOWN": 20,
@@ -116,7 +124,7 @@ class RealtimeDevice:
     # -- app lifecycle -------------------------------------------------
     def launch_app(self):
         t0 = time.time()
-        sh("%s shell am start -n %s/.MainActivity" % (self.adb, self.pkg))
+        sh("%s shell am start -n %s/%s" % (self.adb, self.pkg, LAUNCHER_ACTIVITY))
         while time.time() - t0 < 25:
             if self.is_app_in_foreground():
                 return round((time.time() - t0) * 1000)
@@ -173,7 +181,7 @@ class RealtimeDevice:
         self._note("TEXT(%s)" % text)
 
     def switch_tab(self, tab_index):
-        sh("%s shell am start -n %s/.MainActivity --ei tab %d -f 0x04000000" % (self.adb, self.pkg, int(tab_index)))
+        sh("%s shell am start -n %s/%s --ei tab %d -f 0x04000000" % (self.adb, self.pkg, MAIN_ACTIVITY, int(tab_index)))
         self._note("SWITCH_TAB(%d)" % int(tab_index))
 
     def open_home(self):
@@ -182,12 +190,12 @@ class RealtimeDevice:
 
     def launch_web_player(self):
         """Deep-link open=webplayer (F44): MainActivity tự resolve tập embed thật."""
-        sh("%s shell am start -n %s/.MainActivity --es open webplayer" % (self.adb, self.pkg))
+        sh("%s shell am start -n %s/%s --es open webplayer" % (self.adb, self.pkg, MAIN_ACTIVITY))
         self._note("LAUNCH_WEB_PLAYER")
 
     def launch_vod_player(self):
         """Deep-link open=vodplayer: PlayerActivity mặt VOD, tập m3u8 thật."""
-        sh("%s shell am start -n %s/.MainActivity --es open vodplayer" % (self.adb, self.pkg))
+        sh("%s shell am start -n %s/%s --es open vodplayer" % (self.adb, self.pkg, MAIN_ACTIVITY))
         self._note("LAUNCH_VOD_PLAYER")
 
     def launch_multiview(self):
