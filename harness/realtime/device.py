@@ -47,7 +47,10 @@ KEY_MAP = {
 # Từ khóa fallback xác định tab khi nav-selected không có trong dump.
 TAB_KEYWORDS = [
     (6, ["herofilmplay", "herofilmsave", "homebillboard", "heropager"]),
-    (5, ["phim", "nguonc", "btnheroplay", "apple pill", "phim bộ", "phim lẻ", "tiếp tục xem", "rạp phim tại gia"]),
+    # "phim" chung chung bi loai: ten kenh IPTV cung chua "phim" (vd: kenh phim),
+    # lam detect nham IPTV thanh Kho Phim (tab 5) roi bo qua SWITCH_TAB dau mission.
+    # Chi giu tu khoa dac thu cua man Kho Phim.
+    (5, ["nguonc", "btnheroplay", "apple pill", "phim bộ", "phim lẻ", "tiếp tục xem", "rạp phim tại gia"]),
     (4, ["settingslist", "cài đặt", "chất lượng video", "báo lỗi"]),
     (3, ["searchinput", "resultlist", "tìm kiếm"]),
     (2, ["iptv", "kênh tv", "channel", "vtv", "htv"]),

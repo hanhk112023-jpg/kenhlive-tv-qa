@@ -785,7 +785,13 @@ class RealtimeRunner:
                 cur = self.device.detect_tab_index(self.device.dump_ui_state())
             except Exception:
                 cur = None
-            if cur is not None and cur != spec.tab:
+            # Chuyen ca khi khong xac dinh duoc tab hien tai (cur=None): neu
+            # khong biet dang o tab nao thi phai ve tab dich cho chac. Truoc day
+            # chi chuyen khi cur != tab va cur khac None, nen khi detect tra
+            # None (khong co tu khoa) hoac tra sai (vd: "phim" trong ten kenh
+            # IPTV lam nham sang tab 5) thi mission bat dau sai tab, agent
+            # cuon mai trong tab cu (mission Phim ket o IPTV 2 lan chay lien).
+            if cur != spec.tab:
                 self.device.switch_tab(spec.tab)
                 time.sleep(1.0)
 
