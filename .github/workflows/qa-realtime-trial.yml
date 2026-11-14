@@ -60,7 +60,8 @@ jobs:
             REPO=$(echo "$SPEC" | cut -d@ -f1)
             BRANCH=$(echo "$SPEC" | cut -d@ -f2)
             mkdir -p ~/.ssh
-            printf '%s' "${{ secrets.V3_CHECKOUT_KEY }}" > ~/.ssh/v3_key
+            # Ghi key + newline cuối (ssh yêu cầu file key kết thúc bằng newline).
+            printf '%s\n' "${{ secrets.V3_CHECKOUT_KEY }}" > ~/.ssh/v3_key
             chmod 600 ~/.ssh/v3_key
             GIT_SSH_COMMAND="ssh -i ~/.ssh/v3_key -o StrictHostKeyChecking=no" git clone --depth 1 --branch "$BRANCH" "git@github.com:$REPO.git" version-src
             rm -f ~/.ssh/v3_key
