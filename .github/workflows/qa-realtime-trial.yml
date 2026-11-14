@@ -136,9 +136,9 @@ jobs:
 
       - name: Launcher activities (file_url, source)
         id: acts
-        if: inputs.file_url != '' && steps.source.outputs.kind != 'apk'
+        if: inputs.file_url == '' || (inputs.file_url != '' && steps.source.outputs.kind != 'apk')
         run: |
-          P="${{ steps.source.outputs.project }}"
+          if [ -n "${{ inputs.file_url }}" ]; then P="${{ steps.source.outputs.project }}"; else P="app"; fi
           OUT=$(python3 - "$P/app/src/main/AndroidManifest.xml" <<'PYEOF'
           import sys, xml.etree.ElementTree as ET
           t = ET.parse(sys.argv[1]); r = t.getroot()
@@ -399,9 +399,9 @@ jobs:
           OPENAI_API_BASE: ${{ env.AI_BASE_URL }}
           OPENAI_API_KEY: ${{ env.AI_API_KEY }}
           OPENAI_MODEL: ${{ env.AI_MODEL }}
-          # Phiên bản khác (file_url): activity dò từ manifest (vd: Hydrogen v2
-          # launcher=.ui.SplashActivity, main=.ui.MainActivity). Để trống =
-          # harness dùng .MainActivity như bản chính.
+          # Activity dò từ manifest (vd: v4 launcher=.ui.MainActivity).
+          # Cả file_url trống (kenhlive-tv@main) lẫn file_url khác đều dò,
+          # vì MainActivity có thể ở .ui (v4) chứ không phải .MainActivity.
           QA_LAUNCHER_ACTIVITY: ${{ steps.acts.outputs.launcher }}
           QA_MAIN_ACTIVITY: ${{ steps.acts.outputs.main }}
         uses: reactivecircus/android-emulator-runner@v2
