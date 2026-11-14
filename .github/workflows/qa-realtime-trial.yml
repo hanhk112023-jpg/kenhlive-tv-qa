@@ -423,6 +423,16 @@ jobs:
           name: qa-report-realtime-${{ inputs.version_name }}
           path: qa_out/
 
+      # APK đã build (qa-apk/app-debug.apk) — giữ lại để tải về, không để
+      # mất theo runner. Không bao giờ làm fail run (build lỗi thì chỉ cảnh báo).
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: apk-${{ inputs.version_name }}
+          path: qa-apk/app-debug.apk
+          if-no-files-found: warn
+
       - name: Kết quả
         if: always()
         run: python3 harness/ci_report.py
