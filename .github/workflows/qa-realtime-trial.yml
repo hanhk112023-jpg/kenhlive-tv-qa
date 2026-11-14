@@ -17,7 +17,7 @@ on:
         type: boolean
         default: true
       file_url:
-        description: 'Link file phiên bản khác (Google Drive /file/d/<id>/view, link trực tiếp .zip source hoặc .apk, hoặc github:owner/repo@branch để clone repo riêng tư qua V3_CHECKOUT_KEY) — để trống = test kenhlive-tv@main'
+        description: 'Link file phiên bản khác (Google Drive /file/d/<id>/view, link trực tiếp .zip source hoặc .apk, hoặc github:owner/repo@branch để clone repo riêng tư qua APP_CHECKOUT_KEY) — để trống = test kenhlive-tv@main'
         required: false
         default: ''
       version_name:
@@ -54,14 +54,16 @@ jobs:
         run: |
           set -e
           URL="${{ inputs.file_url }}"
-          # Repo GitHub riêng tư (vd: github:hanhk112023-jpg/kenhlive-v3@main) — clone qua deploy key V3_CHECKOUT_KEY.
+          # Repo GitHub riêng tư (vd: github:hanhk112023-jpg/kenhlive-tv@feature/cinema-apple-cache)
+          # — clone qua deploy key APP_CHECKOUT_KEY (key cua kenhlive-tv; V3_CHECKOUT_KEY
+          # cu chi mo kenhlive-v3, repo do da xoa nen clone bao "Repository not found").
           if echo "$URL" | grep -q "^github:"; then
             SPEC=$(echo "$URL" | sed 's/^github://')
             REPO=$(echo "$SPEC" | cut -d@ -f1)
             BRANCH=$(echo "$SPEC" | cut -d@ -f2)
             mkdir -p ~/.ssh
             # Ghi key + newline cuối (ssh yêu cầu file key kết thúc bằng newline).
-            printf '%s\n' "${{ secrets.V3_CHECKOUT_KEY }}" > ~/.ssh/v3_key
+            printf '%s\n' "${{ secrets.APP_CHECKOUT_KEY }}" > ~/.ssh/v3_key
             chmod 600 ~/.ssh/v3_key
             GIT_SSH_COMMAND="ssh -i ~/.ssh/v3_key -o StrictHostKeyChecking=no" git clone --depth 1 --branch "$BRANCH" "git@github.com:$REPO.git" version-src
             rm -f ~/.ssh/v3_key
