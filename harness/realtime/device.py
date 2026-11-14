@@ -46,20 +46,18 @@ KEY_MAP = {
 
 # Từ khóa fallback xác định tab khi nav-selected không có trong dump.
 TAB_KEYWORDS = [
-    (6, ["herofilmplay", "herofilmsave", "homebillboard", "heropager"]),
+    # v4 4-tab (Tim kiem 0, The thao 1, Phim 2, Truyen hinh 3).
     # "phim" chung chung bi loai: ten kenh IPTV cung chua "phim" (vd: kenh phim),
-    # lam detect nham IPTV thanh Kho Phim (tab 5) roi bo qua SWITCH_TAB dau mission.
+    # lam detect nham IPTV thanh Kho Phim (tab 2) roi bo qua SWITCH_TAB dau mission.
     # Chi giu tu khoa dac thu cua man Kho Phim.
-    (5, ["nguonc", "btnheroplay", "apple pill", "phim bộ", "phim lẻ", "tiếp tục xem", "rạp phim tại gia"]),
-    (4, ["settingslist", "cài đặt", "chất lượng video", "báo lỗi"]),
-    (3, ["searchinput", "resultlist", "tìm kiếm"]),
-    (2, ["iptv", "kênh tv", "channel", "vtv", "htv"]),
-    (1, ["schedlist", "schedcard", "lịch thi đấu", "hôm nay", "ngày mai"]),
-    (0, ["livelist", "cardroot", "socolive", "colatv", "gà vàng", "khán đài", "trực tiếp"]),
+    (2, ["nguonc", "btnheroplay", "apple pill", "phim bộ", "phim lẻ", "tiếp tục xem", "rạp phim tại gia"]),
+    (3, ["iptv", "kênh tv", "channel", "vtv", "htv"]),
+    (0, ["searchinput", "resultlist", "tìm kiếm"]),
+    (1, ["livelist", "cardroot", "socolive", "colatv", "gà vàng", "khán đài", "trực tiếp"]),
 ]
 NAV_ID_TO_TAB = {
-    "nav_home": 6, "nav_live": 0, "nav_schedule": 1, "nav_iptv": 2,
-    "nav_search": 3, "nav_settings": 4, "nav_phim": 5,
+    # v4 4-tab (Tim kiem 0, The thao 1, Phim 2, Truyen hinh 3).
+    "nav_search": 0, "nav_live": 1, "nav_phim": 2, "nav_iptv": 3,
 }
 
 

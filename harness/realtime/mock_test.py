@@ -73,7 +73,7 @@ class FakeDevice(RealtimeDevice):
         self.keys = []
         self._dump = dict(self.HOME_DUMP)
         self._activity = "com.kenhlive.tv/.MainActivity"
-        self._tab = 6
+        self._tab = 1  # v4 4-tab: mac dinh The thao (1)
 
     def screencap_bytes(self):
         self._n += 1
@@ -211,7 +211,7 @@ def main():
     # CI-T4 PLAYER_STREAMING FAIL A-B-A-B: mở thẻ [SẮP ĐÁ] ĐTQ 19:00 chưa đá
     # -> loading vô hạn -> player tự thoát -> dao động.
     dev3 = FakeDevice()
-    dev3._tab = 0  # mission player cần tab Trực tiếp (0)
+    dev3._tab = 1  # mission player cần tab Trực tiếp (1)
     drv6 = Driver(dev3, EvidenceGate(specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]),
                   specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"])
     ui_upcoming = {
@@ -300,26 +300,21 @@ def main():
             ("cardTime", "19:00")],
         "has_dialog": False, "dialog_ids": []}
     _dev8 = FakeDevice()
-    _dev8._tab = 0  # ROOM_PICKER ở tab Trực tiếp (0)
+    _dev8._tab = 1  # ROOM_PICKER ở tab Trực tiếp (1)
     drv8 = Driver(_dev8, EvidenceGate(specs["MISSION_SPORTS_ROOM_PICKER"]),
                   specs["MISSION_SPORTS_ROOM_PICKER"])
     a_5 = drv8.next_action(_ui_no_bounds, "com.kenhlive.tv/.MainActivity", None, 0.0)
     print("ROOM_PICKER thẻ [SẮP ĐÁ] (không bounds, fid lệch) ->", a_5.param, "| rule:", a_5.rule)
     assert a_5.rule == "skip_upcoming_card", \
         "fallback focused_text phải loại thẻ [SẮP ĐÁ] của ROOM_PICKER"
-    _dev9 = FakeDevice()
-    _dev9._tab = 1  # SCHEDULE_EPG ở tab Lịch thi đấu (1)
-    drv9 = Driver(_dev9, EvidenceGate(specs["MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP"]),
-                  specs["MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP"])
-    a_5b = drv9.next_action(_ui_no_bounds, "com.kenhlive.tv/.MainActivity", None, 0.0)
-    assert a_5b.rule == "skip_upcoming_card", \
-        "luật skip-upcoming phải áp cho MỌI mission, không chỉ mission mở player"
+    # (v4 4-tab: MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP đã bỏ cùng tab Lịch thi đấu;
+    # luật skip-upcoming vẫn được kiểm bởi ROOM_PICKER ở trên.)
     print("SKIP_UPCOMING_UNIVERSAL_OK")
     # Mục 6 — PLAYER_STREAMING: focus ở nav, thẻ LIVE ở dưới -> đi tới thẻ
     # LIVE (goto_live_card) thay vì bấm OK mù; đã đứng trên thẻ LIVE thì
     # bấm OK như thường; không có thẻ LIVE thì hành vi cũ (OK).
     dev_live = FakeDevice()
-    dev_live._tab = 0
+    dev_live._tab = 1  # v4: The thao la tab 1
     drv10 = Driver(dev_live, EvidenceGate(specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]),
                    specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"])
     _ui_goto = {
@@ -879,11 +874,13 @@ def main():
     # --- Test B4: cuộn lên đầu đầu mission list (CI-T5 mục 4) ---
     # CI-T4 DATA_ACCURACY/SCHEDULE/IPTV_CATEGORIES FAIL trung thực vì header
     # ('Hôm nay', 'tv360') đã cuộn mất trước observation đầu tiên.
+    # (v4 4-tab: MISSION_SPORTS_DATA_ACCURACY đã bỏ cùng tab Lịch thi đấu;
+    # dùng MISSION_IPTV_CATEGORIES_AND_FAVORITES, tab 3, cũng needs_scroll_top.)
     r4 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_scroll", serial=None,
                                    vision_budget=0, no_vision=True)
-    r4.run([specs["MISSION_SPORTS_DATA_ACCURACY"]])
-    print("DATA_ACCURACY keys đầu:", r4.device.keys[:10])
-    assert r4.device.keys[0] == "SWITCH_TAB(1)", "reset phải chuyển về tab 1 trước"
+    r4.run([specs["MISSION_IPTV_CATEGORIES_AND_FAVORITES"]])
+    print("IPTV_CATEGORIES keys đầu:", r4.device.keys[:10])
+    assert r4.device.keys[0] == "SWITCH_TAB(3)", "reset phải chuyển về tab 3 trước"
     assert r4.device.keys[1:9] == ["UP"] * 8, \
         "sau reset phải có UP x8 để header 'Hôm nay' hiện trước khi gate đọc"
     # Mission không gắn cờ thì không cuộn (không tốn thời gian).
@@ -1436,7 +1433,7 @@ def main():
         "view đích chưa thấy thì explore DOWN như trước"
     # Đi tới nút CHỌN TẬP theo text rồi mới bấm OK mở dialog.
     dev_ep = FakeDevice()
-    dev_ep._tab = 5  # EPISODE_PICKER cần tab Kho Phim (5)
+    dev_ep._tab = 2  # EPISODE_PICKER cần tab Kho Phim (2)
     drv_ep = Driver(dev_ep, EvidenceGate(specs["MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE"]),
                     specs["MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE"])
     ui_ep = {"focused_sig": "btnHeroBackHome#[45,45][155,155]",
@@ -1623,7 +1620,7 @@ def main():
         "has_dialog": True, "dialog_ids": ["panelBlvList", "blvCardRoot"],
     }
     _dev10 = FakeDevice()
-    _dev10._tab = 0  # PLAYER_STREAMING cần tab Trực tiếp (0)
+    _dev10._tab = 1  # PLAYER_STREAMING cần tab Trực tiếp (1)
     drv10b = Driver(_dev10, EvidenceGate(specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]),
                     specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"])
     a_10 = drv10b.next_action(_ui_panel_open, "com.kenhlive.tv/.MainActivity", None, 0.0)
@@ -1668,7 +1665,7 @@ def main():
     # Driver trước giờ không bao giờ phát LONG_PRESS (execute có sẵn nhưng
     # không rule nào dùng) nên favorites chưa từng kiểm tra thật.
     dev_lp = FakeDevice()
-    dev_lp._tab = 2  # IPTV_CATEGORIES cần tab IPTV (2)
+    dev_lp._tab = 3  # IPTV_CATEGORIES cần tab IPTV (3)
     drv_lp = Driver(dev_lp, EvidenceGate(specs["MISSION_IPTV_CATEGORIES_AND_FAVORITES"]),
                     specs["MISSION_IPTV_CATEGORIES_AND_FAVORITES"])
     ui_lp = {"focused_sig": "channelCard#[100,300][400,600]",
@@ -1787,12 +1784,12 @@ def main():
                                   vision_budget=0, no_vision=True)
     assert isinstance(r.device, FakeDevice)
     r.device._activity = "com.kenhlive.tv/.PlayerActivity"
-    r.device._tab = 0  # đang ở tab Sports, mission cần tab 6
+    r.device._tab = 0  # đang ở tab Tìm kiếm (0), mission COLD_START cần tab 1 (Thể thao)
     report = r.run([specs["MISSION_COLD_START"]])
     print("reset keys:", [k for k in r.device.keys if "BACK" in k or "SWITCH" in k],
           "| activity sau reset:", r.device._activity, "| tab:", r.device._tab)
     assert r.device._activity == "com.kenhlive.tv/.MainActivity", "reset không về MainActivity"
-    assert r.device._tab == 6, "reset không chuyển về tab 6"
+    assert r.device._tab == 1, "reset không chuyển về tab 1 (Thể thao)"
     assert r.mission_results[0]["outcome"] == "PASS"
     print("RESET_OK")
 
@@ -2440,28 +2437,8 @@ def main():
     assert _f24b == [], "hàng LIVE đã có tỉ số thì không tố"
     assert _ctx24b.get("schedule_live_seen") is True, \
         "hàng LIVE có tỉ số cũng phải ghi nhận đã thấy"
-    # (b)+(c): chạy mission directed trên FakeDevice (không có hàng LIVE) ->
-    # UNVERIFIED + finish ghi UNTESTED.
-    import shutil as _sh24
-    _sh24.rmtree("/tmp/qa_mock_live24", ignore_errors=True)
-    _orig_dev24 = runner_mod.RealtimeDevice
-    runner_mod.RealtimeDevice = FakeDevice
-    try:
-        _r24 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_live24", serial=None,
-                                         vision_budget=0, no_vision=True)
-        _rep24 = _r24.run([specs["MISSION_SCHEDULE_LIVE_DIRECTED"]])
-    finally:
-        runner_mod.RealtimeDevice = _orig_dev24
-    print("directed live mission -> outcome:", _r24.mission_results[0]["outcome"],
-          "| schedule_live_seen:", _rep24.get("schedule_live_seen"),
-          "| unverified:", [u.get("reason") for u in _rep24.get("unverified", [])])
-    assert _r24.mission_results[0]["outcome"] == "UNVERIFIED", \
-        "không có hàng LIVE thì mission directed phải UNVERIFIED, không FAIL"
-    assert _rep24.get("schedule_live_seen") is False
-    assert any(u.get("reason") == "schedule_live_no_score"
-               for u in _rep24.get("unverified", [])), \
-        "finish() phải ghi UNTESTED schedule_live_no_score khi run không có hàng LIVE"
-    print("SCHEDULE_LIVE_OK")
+    # (v4 4-tab: phần (b)+(c) chạy MISSION_SCHEDULE_LIVE_DIRECTED đã bỏ
+    # cùng tab Lịch thi đấu; phần (a) detector ở trên vẫn kiểm hàm detect.)
 
     # --- Test N25: định nghĩa per-step rõ ràng + observe percentiles (CI-T8 mục 9) ---
     # CI-T7: reviewer tính lại p95/mean từ timeline observe_s ra 20.01/8.91
@@ -2529,7 +2506,6 @@ def main():
     # --- CI-T9 mục 3 (hàm test_ci_t9_* ở cuối file) ---
     test_ci_t9_nav_excluded_from_live_rows()
     # --- CI-T9 mục 4 ---
-    test_ci_t9_gate_requires_scored_live_row(specs)
     # --- CI-T9 mục 5 ---
     test_ci_t9_video_coverage_action_time()
 
@@ -2561,16 +2537,14 @@ def main():
     # --- H5 (vòng sửa sau trial 5, run 43183031119) ---
     test_h5_player_entry_frame_saved()
     # --- Tour đủ màn sau trial 9 (DESIGN §15.23) ---
-    test_tour_settings_and_multiview_missions()
+    test_tour_multiview_mission()
     # --- Trial 10: WebPlayer trang lỗi tải phải bấm THỬ LẠI (run 43227207645) ---
     test_trial10_webplayer_retry_button()
     # --- F63 kiểm lại sau trial 10 (DESIGN §15.27): WebPlayer phát thật ---
     test_f63_webplayer_real_playback()
     test_f63_webplayer_probe_unavailable_is_unverified()
     # --- Blocker trial-9→10: dọn dialog tàn dư đầu mission (DESIGN §15.24) ---
-    test_reset_clears_leftover_dialog_between_missions()
     # --- Wave 6 (trial 12 run 43328505259): H13/H14/H15 ---
-    test_h13_storage_dialog_no_blind_ok()
     test_h14_webplayer_loading_wait_and_bounded_replay()
     test_h15_judge_guard_three_false_high_patterns()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
@@ -2883,7 +2857,7 @@ def test_ci_t9_keyboard_open_type_unverified():
     _spec.needs_keyboard = True
     # (a) driver, unit.
     _dev = FakeDevice()
-    _dev._tab = 3
+    _dev._tab = 0  # v4: Tim kiem la tab 0
     _dev._dump = dict(_SEARCH_DUMP_T9)
     _drv = Driver(_dev, EvidenceGate(_spec), _spec)
     _a1 = _drv.next_action(_dev._dump, "com.kenhlive.tv/.MainActivity", None, 0.0)
@@ -2906,7 +2880,7 @@ def test_ci_t9_keyboard_open_type_unverified():
         def __init__(self, *a, **k):
             super().__init__(*a, **k)
             self._dump = dict(_SEARCH_DUMP_T9)
-            self._tab = 3
+            self._tab = 0  # v4: Tim kiem la tab 0
 
     _orig_dev = _rm.RealtimeDevice
     _rm.RealtimeDevice = _NoKbDevice
@@ -2930,7 +2904,7 @@ def test_ci_t9_keyboard_open_type_unverified():
         def __init__(self, *a, **k):
             super().__init__(*a, **k)
             self._dump = dict(_SEARCH_DUMP_T9)
-            self._tab = 3
+            self._tab = 0  # v4: Tim kiem la tab 0
             self.typed = []
         def send_key(self, key_name):
             super().send_key(key_name)
@@ -2997,89 +2971,6 @@ def test_ci_t9_video_coverage_action_time():
         "không có bước/video thì coverage phải None"
     assert _rep2.get("video_coverage", {}).get("action_seconds") == 0.0
     print("CI_T9_COVERAGE_ACTION_OK")
-
-
-def test_ci_t9_gate_requires_scored_live_row(specs):
-    """CI-T9 mục 4: mission SCHEDULE_LIVE_DIRECTED chỉ giữ PASS khi đã thấy
-    hàng LIVE CÓ tỉ số (cờ schedule_live_with_score).
-    - Detector: hàng LIVE có '2 : 1' -> with_score đặt; hàng LIVE chỉ có
-      giờ kickoff -> live_seen đặt, with_score KHÔNG đặt.
-    - Runner: (a) dump có hàng LIVE có tỉ số -> mission PASS giữ + report
-      schedule_live_with_score True; (b) dump chỉ có hàng LIVE không tỉ số
-      -> mission UNVERIFIED (không PASS mềm) + with_score False.
-      Hành vi UNVERIFIED khi run KHÔNG có hàng LIVE nào giữ nguyên (N24)."""
-    import detectors as _det
-    import shutil as _sh
-    _nodes_scored = [
-        {"id": "schedHeader", "text": "Hôm nay", "bounds": "[0,150][1920,260]"},
-        {"id": "nav_schedule", "text": "TRỰC TIẾP", "bounds": "[362,0][563,112]"},
-        {"id": "schedMatch", "text": "Vietnam vs Thailand", "bounds": "[100,300][900,460]"},
-        {"id": "cardBadge", "text": "LIVE", "bounds": "[820,320][880,350]"},
-        {"id": "schedScore", "text": "2 : 1", "bounds": "[820,370][880,400]"},
-    ]
-    _nodes_noscore = [dict(n) for n in _nodes_scored]
-    _nodes_noscore[-1] = {"id": "schedScore", "text": "18:30", "bounds": "[820,370][880,400]"}
-    _ctx_s = {"reported": set()}
-    _det.detect_schedule_live_no_score(
-        {"all_visible_nodes": _nodes_scored}, "com.kenhlive.tv/.MainActivity",
-        _ctx_s, "step_001.jpg", 0.0)
-    print("LIVE + tỉ số -> live_seen:", _ctx_s.get("schedule_live_seen"),
-          "| with_score:", _ctx_s.get("schedule_live_with_score"))
-    assert _ctx_s.get("schedule_live_with_score") is True, \
-        "hàng LIVE có tỉ số phải đặt cờ schedule_live_with_score"
-    assert _ctx_s.get("schedule_live_with_score_rows", 0) == 1
-    _ctx_n = {"reported": set()}
-    _det.detect_schedule_live_no_score(
-        {"all_visible_nodes": _nodes_noscore}, "com.kenhlive.tv/.MainActivity",
-        _ctx_n, "step_001.jpg", 0.0)
-    print("LIVE + giờ kickoff -> live_seen:", _ctx_n.get("schedule_live_seen"),
-          "| with_score:", _ctx_n.get("schedule_live_with_score"))
-    assert _ctx_n.get("schedule_live_seen") is True, \
-        "hàng LIVE không tỉ số vẫn phải đặt cờ live_seen"
-    assert _ctx_n.get("schedule_live_with_score") is not True, \
-        "hàng LIVE không tỉ số không được đặt cờ with_score"
-
-    def _sched_device(nodes):
-        class _SchedDevice(FakeDevice):
-            def dump_ui_state(self):
-                _d = dict(FakeDevice.HOME_DUMP)
-                _d["all_visible_nodes"] = nodes
-                _d["all_visible_texts"] = [(n["id"], n["text"]) for n in nodes]
-                return _d
-        return _SchedDevice
-
-    def _run_directed(nodes, out_dir):
-        _sh.rmtree(out_dir, ignore_errors=True)
-        _orig = runner_mod.RealtimeDevice
-        runner_mod.RealtimeDevice = _sched_device(nodes)
-        try:
-            _r = runner_mod.RealtimeRunner(out_dir=out_dir, serial=None,
-                                           vision_budget=0, no_vision=True)
-            _rep = _r.run([specs["MISSION_SCHEDULE_LIVE_DIRECTED"]])
-        finally:
-            runner_mod.RealtimeDevice = _orig
-        return _r, _rep
-
-    # (a) hàng LIVE có tỉ số -> PASS giữ.
-    _r_a, _rep_a = _run_directed(_nodes_scored, "/tmp/qa_mock_live_scored")
-    print("directed + hàng LIVE có tỉ số -> outcome:",
-          _r_a.mission_results[0]["outcome"],
-          "| with_score:", _rep_a.get("schedule_live_with_score"))
-    assert _r_a.mission_results[0]["outcome"] == "PASS", \
-        "đã thấy hàng LIVE có tỉ số thì mission directed phải giữ PASS"
-    assert _rep_a.get("schedule_live_with_score") is True
-    assert _rep_a.get("schedule_live_seen") is True
-    # (b) hàng LIVE không tỉ số -> UNVERIFIED, không PASS mềm.
-    _r_b, _rep_b = _run_directed(_nodes_noscore, "/tmp/qa_mock_live_noscore")
-    print("directed + hàng LIVE không tỉ số -> outcome:",
-          _r_b.mission_results[0]["outcome"],
-          "| live_seen:", _rep_b.get("schedule_live_seen"),
-          "| with_score:", _rep_b.get("schedule_live_with_score"))
-    assert _r_b.mission_results[0]["outcome"] == "UNVERIFIED", \
-        "chỉ thấy hàng LIVE không tỉ số thì mission không được PASS mềm"
-    assert _rep_b.get("schedule_live_seen") is True
-    assert _rep_b.get("schedule_live_with_score") is False
-    print("CI_T9_GATE_SCORED_OK")
 
 
 def test_ci_t9_nav_excluded_from_live_rows():
@@ -3303,7 +3194,7 @@ def test_ci_t9_exoplayer_no_live_unverified():
         def __init__(self, *a, **k):
             super().__init__(*a, **k)
             self._dump = dict(_no_live_dump)
-            self._tab = 0
+            self._tab = 1  # v4: The thao la tab 1
 
     from missions import get_missions
     _specs = {s.name: s for s in get_missions()}
@@ -3467,7 +3358,7 @@ def test_h3_sports_multi_source_seek_cola():
                  "bounds": "[100,750][500,1050]"}],
             "has_dialog": False, "dialog_ids": []}
     _dev = FakeDevice()
-    _dev._tab = 0
+    _dev._tab = 1  # v4: The thao la tab 1 (nav_live trong dump)
     _gate = EvidenceGate(_sp)
     _drv = Driver(_dev, _gate, _sp)
     # Mô phỏng bẫy A-B-A-B thử 5: DOWN từ thẻ A rơi về thẻ B và ngược lại.
@@ -3569,7 +3460,7 @@ def test_h4_iptv_hold_and_no_tab_switch_in_player():
     _a = _drv(_iptv, 0).next_action(
         _ui_grid, "com.kenhlive.tv/.MainActivity", None, 0.0)
     print("IPTV ở MainActivity, tab lệch ->", _a.type, _a.param, "| rule:", _a.rule)
-    assert _a.type == "SWITCH_TAB" and _a.param == "2" and _a.rule == "goto_tab", \
+    assert _a.type == "SWITCH_TAB" and _a.param == "3" and _a.rule == "goto_tab", \
         "ngoài player thì sai tab vẫn phải SWITCH_TAB về tab đích (được %s %s)" % (_a.type, _a.rule)
     print("H4_IPTV_HOLD_NO_TAB_SWITCH_IN_PLAYER_OK")
 
@@ -4157,23 +4048,9 @@ def test_h5_player_entry_frame_saved():
     print("H5_PLAYER_ENTRY_FRAME_SAVED_OK")
 
 
-def test_tour_settings_and_multiview_missions():
-    """Tour đủ màn sau trial 9 (DESIGN §15.23, VISUAL-REVIEW trial 9 §8):
-    3 mission mới lấp 4 màn thiếu (Cài đặt, dialog 'Xóa bộ nhớ đệm',
-    màn phản hồi Telegram QR, MultiView).
-    - SETTINGS_STORAGE_DIALOG: hàng 'Dung lượng bộ nhớ đệm'
-      (settings_storage_usage — hàng mở showStorageDialog; wave 5 sửa:
-      'Xóa bộ nhớ đệm ảnh' là clearCache() xóa ngay + rebuild, KHÔNG dialog)
-      mở dialog 'Xóa toàn bộ bộ nhớ đệm' (đỏ, D6) — driver KHÔNG BAO GIỜ bấm OK khi
-      dialog đang mở nên nút xóa thật không bị bấm (kể cả khi focus đang
-      đứng trên chính nút đỏ).
-    - SETTINGS_FEEDBACK_TELEGRAM_QR: hàng 'Liên hệ & Báo lỗi' mở
-      FeedbackDialog với mã QR — wave 5 sửa gate: 'quét mã qr' là text
-      Micro bị khuất dưới fold (A27) nên harness không thấy; gate dùng
-      'nhóm telegram' (nhìn thấy được) + dialog_seen vẫn bắt buộc nên
-      danh sách Cài đặt đơn độc không PASS được; nút 'VÀO NHÓM
-      TELEGRAM' không bao giờ bị bấm (focus ở đó thì driver BACK, focus ở
-      'ĐÃ HIỂU / ĐÓNG' thì OK đóng an toàn sau khi bằng chứng đã ghi).
+def test_tour_multiview_mission():
+    """MultiView directed (v4 4-tab): 2 mission Cài đặt (Storage dialog,
+    Feedback Telegram QR) đã bỏ cùng tab Cài đặt — chỉ còn MultiView.
     - MULTIVIEW_DIRECTED: launch thẳng MultiViewActivity (không có đường
       D-pad: nav 'Đa màn hình' là string chết, LiveFragment.openMultiView
       không có caller); trạng thái trống trung thực vẫn đủ tín hiệu rẻ
@@ -4182,237 +4059,13 @@ def test_tour_settings_and_multiview_missions():
     from gate import EvidenceGate
     from missions import get_missions
     _specs = {s.name: s for s in get_missions()}
-    assert len(_specs) == 22, \
-        "18 mission cũ + 3 mission tour + 1 mission F63 (§15.27) = 22 (được %d)" % len(_specs)
+    assert len(_specs) == 15, \
+        "v4 4-tab: 15 mission (8 renumber + 7 mission Schedule/Settings/Hub đã bỏ) (được %d)" % len(_specs)
     _quick = {s.name for s in get_missions(quick=True)}
-    assert len(_quick) == 5 and not (
-        {"MISSION_SETTINGS_STORAGE_DIALOG",
-         "MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR",
-         "MISSION_MULTIVIEW_DIRECTED"} & _quick), \
-        "mission tour mới chỉ chạy full-run, không lọt vào quick (5 mission)"
+    assert len(_quick) == 4 and "MISSION_MULTIVIEW_DIRECTED" not in _quick, \
+        "MultiView chỉ chạy full-run, không lọt vào quick (4 mission)"
 
-    def _ui_settings(focus_text, focus_sig, focus_bounds):
-        # Danh sách Cài đặt thật (SettingsFragment): hàng phản hồi +
-        # hàng dung lượng (mở showStorageDialog) + hàng xóa-cache
-        # (clearCache — KHÔNG dialog, wave 5), focus đang ở 1 hàng.
-        return {
-            "focused_sig": focus_sig, "focused_text": focus_text,
-            "focused_bounds": focus_bounds,
-            "all_visible_texts": [("nav_settings", "Cài đặt"),
-                                  ("rowFeedback", "Liên hệ & Báo lỗi"),
-                                  ("rowFeedbackSub", "Nhóm Telegram: @kenhlivetv"),
-                                  ("rowStorageUsage", "Dung lượng bộ nhớ đệm"),
-                                  ("rowStorageVal", "Đệm 120 MB · APK 45 MB"),
-                                  ("rowClearCache", "Xóa bộ nhớ đệm ảnh")],
-            "all_visible_nodes": [
-                {"id": "rowFeedback", "text": "Liên hệ & Báo lỗi",
-                 "bounds": "[100,300][900,420]"},
-                {"id": "rowStorageUsage", "text": "Dung lượng bộ nhớ đệm",
-                 "bounds": "[100,450][900,570]"},
-                {"id": "rowClearCache", "text": "Xóa bộ nhớ đệm ảnh",
-                 "bounds": "[100,600][900,720]"}],
-            "has_dialog": False, "dialog_ids": [],
-            "selected_ids": ["nav_settings"]}
-
-    _ui_list_fb = _ui_settings("Liên hệ & Báo lỗi",
-                               "rowFeedback#[100,300][900,420]", "[100,300][900,420]")
-    _ui_list_st = _ui_settings("Dung lượng bộ nhớ đệm",
-                               "rowStorageUsage#[100,450][900,570]", "[100,450][900,570]")
-    _ui_list_cache = _ui_settings("Xóa bộ nhớ đệm ảnh",
-                                  "rowClearCache#[100,600][900,720]", "[100,600][900,720]")
-
-    # --- (1) Storage dialog: spec + driver đi tới hàng đích rồi OK mở dialog.
-    _st = _specs["MISSION_SETTINGS_STORAGE_DIALOG"]
-    assert _st.tab == 4 and _st.required_activity == "MainActivity"
-    assert _st.required_texts == ["xóa toàn bộ bộ nhớ đệm"]
-    assert _st.needs_dialog is True \
-        and _st.goto_texts == ["dung lượng bộ nhớ đệm"], \
-        "goto_texts phải là hàng 'Dung lượng bộ nhớ đệm' — hàng duy nhất mở " \
-        "showStorageDialog (wave 5: 'Xóa bộ nhớ đệm ảnh' là clearCache, không dialog)"
-    assert _st.max_steps >= 12 and _st.needs_scroll_top is True, \
-        "hàng đích sâu ~9 hàng + danh sách có thể còn cuộn -> cần scroll_top " \
-        "và max_steps đủ (được max_steps=%d)" % _st.max_steps
-    _dev = FakeDevice()
-    _dev._tab = 4
-    _drv = Driver(_dev, EvidenceGate(_st), _st)
-    _a1 = _drv.next_action(_ui_list_fb, "com.kenhlive.tv/.MainActivity", None, 0.0)
-    print("storage: focus ở hàng phản hồi ->", _a1.type, _a1.param, "| rule:", _a1.rule)
-    assert _a1.rule == "goto_view_text" and _a1.type == "KEY", \
-        "chưa đứng trên hàng đích thì phải đi tới nó, không bấm OK lung tung"
-    # Regression wave 1 (trial 11): focus trên hàng 'Xóa bộ nhớ đệm ảnh'
-    # (clearCache — xóa NGAY dưới nền, không dialog) thì driver KHÔNG được
-    # bấm OK; phải đi tiếp tới hàng 'Dung lượng bộ nhớ đệm'.
-    _a1c = _drv.next_action(_ui_list_cache, "com.kenhlive.tv/.MainActivity", None, 0.0)
-    print("storage: focus trên hàng XÓA-CACHE (không dialog) ->",
-          _a1c.type, _a1c.param, "| rule:", _a1c.rule)
-    assert not (_a1c.type == "KEY" and _a1c.param == "OK"), \
-        "hàng 'Xóa bộ nhớ đệm ảnh' không mở dialog — bấm OK ở đây là xóa cache " \
-        "thật (được %s %s [%s])" % (_a1c.type, _a1c.param, _a1c.rule)
-    assert _a1c.rule == "goto_view_text" and _a1c.type == "KEY", \
-        "từ hàng xóa-cache phải đi tiếp tới hàng dung lượng (được %s %s [%s])" \
-        % (_a1c.type, _a1c.param, _a1c.rule)
-    _a2 = _drv.next_action(_ui_list_st, "com.kenhlive.tv/.MainActivity", None, 0.0)
-    print("storage: focus trên hàng dung lượng ->", _a2.type, _a2.param, "| rule:", _a2.rule)
-    assert _a2.type == "KEY" and _a2.param == "OK" and _a2.rule == "open_dialog", \
-        "đã đứng trên hàng đích thì OK mở dialog (được %s %s [%s])" % (_a2.type, _a2.param, _a2.rule)
-    # Dialog mở (showStorageDialog): nút đỏ + nút Đóng. Focus ở 'Đóng'.
-    _ui_dlg = {
-        "focused_sig": "btnNegative#[100,900][400,1000]", "focused_text": "Đóng",
-        "focused_bounds": "[100,900][400,1000]",
-        "all_visible_texts": [("dlgTitle", "Dung lượng & nguồn dữ liệu"),
-                              ("dlgMsg", "Xóa bộ nhớ đệm không làm mất lịch sử xem và cài đặt."),
-                              ("btnPositive", "Xóa toàn bộ bộ nhớ đệm"),
-                              ("btnNegative", "Đóng")],
-        "all_visible_nodes": [
-            {"id": "btnPositive", "text": "Xóa toàn bộ bộ nhớ đệm",
-             "bounds": "[500,900][1100,1000]"},
-            {"id": "btnNegative", "text": "Đóng", "bounds": "[100,900][400,1000]"}],
-        "has_dialog": True, "dialog_ids": ["btnPositive", "btnNegative"],
-        "selected_ids": ["nav_settings"]}
-    _a3 = _drv.next_action(_ui_dlg, "com.kenhlive.tv/.MainActivity", None, 0.0)
-    print("storage: dialog mở, focus 'Đóng' ->", _a3.type, _a3.param, "| rule:", _a3.rule)
-    assert not (_a3.type == "KEY" and _a3.param == "OK"), \
-        "dialog đang mở thì driver KHÔNG được bấm OK (được %s %s [%s])" % (_a3.type, _a3.param, _a3.rule)
-    # Trường hợp xấu nhất: focus đang đứng TRÊN NÚT ĐỎ — vẫn không được OK.
-    _ui_dlg_red = dict(_ui_dlg,
-                       focused_sig="btnPositive#[500,900][1100,1000]",
-                       focused_text="Xóa toàn bộ bộ nhớ đệm",
-                       focused_bounds="[500,900][1100,1000]")
-    _a3b = _drv.next_action(_ui_dlg_red, "com.kenhlive.tv/.MainActivity", None, 0.0)
-    print("storage: dialog mở, focus TRÊN NÚT ĐỎ ->", _a3b.type, _a3b.param, "| rule:", _a3b.rule)
-    assert not (_a3b.type == "KEY" and _a3b.param == "OK"), \
-        "focus trên nút đỏ cũng KHÔNG được bấm OK — xóa thật là cấm tuyệt đối"
-    # Gate: danh sách đơn độc không đủ text đích; 2 quan sát list + 2 dialog -> PASS.
-    _g0 = EvidenceGate(_st)
-    for _t in (10.0, 20.0):
-        _g0.observe("com.kenhlive.tv/.MainActivity",
-                    [t for _, t in _ui_list_st["all_visible_texts"]], [], False, False, _t)
-    assert "xóa toàn bộ bộ nhớ đệm" not in _g0.texts_seen \
-        and _g0.dialog_seen is False, \
-        "hàng 'Dung lượng bộ nhớ đệm' trong danh sách không được tính là dialog đã mở"
-    _g = EvidenceGate(_st)
-    for _t in (10.0, 20.0):
-        _g.observe("com.kenhlive.tv/.MainActivity",
-                   [t for _, t in _ui_list_st["all_visible_texts"]], [], False, False, _t)
-    for _t in (30.0, 40.0):
-        _g.observe("com.kenhlive.tv/.MainActivity",
-                   [t for _, t in _ui_dlg["all_visible_texts"]], [], True, False, _t)
-    _v, _r, _ = _g.evaluate("step_004.jpg")
-    print("storage: list x2 + dialog x2 ->", _v, "|", _r)
-    assert _v == "PASS"
-
-    # --- (2) Telegram QR: gate text nhìn thấy được; nút mở nhóm không bị bấm.
-    _fb = _specs["MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR"]
-    assert _fb.tab == 4 and _fb.required_texts == ["nhóm telegram"]
-    assert _fb.needs_dialog is True and _fb.goto_texts == ["liên hệ"]
-    assert _fb.needs_scroll_top is True, \
-        "mission #20 phía trước để lại danh sách Cài đặt cuộn sâu — cần " \
-        "scroll_top để explore (chỉ DOWN/RIGHT) với tới được hàng đích"
-    _gf = EvidenceGate(_fb)
-    for _t in (10.0, 20.0):
-        _gf.observe("com.kenhlive.tv/.MainActivity",
-                    [t for _, t in _ui_list_fb["all_visible_texts"]], [], False, False, _t)
-    # 'nhóm telegram' CÓ trong danh sách (value hàng phản hồi) nên text_seen
-    # đã đủ — nhưng dialog_seen=False nên gate KHÔNG được PASS.
-    assert "nhóm telegram" in _gf.texts_seen, \
-        "danh sách Cài đặt có 'Nhóm Telegram: @kenhlivetv' — text gate mới " \
-        "đã thấy từ list"
-    _vgf, _rgf, _ = _gf.evaluate("step_004.jpg")
-    assert _vgf != "PASS" and "dialog" in _rgf, \
-        "list đơn độc (chưa mở dialog) không được PASS (được %s | %s)" % (_vgf, _rgf)
-    # FeedbackDialog mở (dialog_feedback.xml): QR + 2 nút, focus mặc định
-    # 'ĐÃ HIỂU / ĐÓNG'. LƯU Ý: 'Quét mã QR để vào nhóm' (KL3.Text.Micro cuối
-    # QR card trong ScrollView) bị khuất dưới fold khi dialog mở (A27,
-    # trial 11 step_098) nên KHÔNG nằm trong all_visible_texts — fixture
-    # này phản ánh đúng những gì harness thật sự đọc được.
-    _ui_fb = {
-        "focused_sig": "btnCloseFeedback#[100,900][500,1000]",
-        "focused_text": "ĐÃ HIỂU / ĐÓNG", "focused_bounds": "[100,900][500,1000]",
-        "all_visible_texts": [("dlgTitle", "THÔNG BÁO"),
-                              ("dlgSub", "NHÓM THẢO LUẬN & HỖ TRỢ TRỰC TUYẾN"),
-                              ("tgHandle", "Nhóm Telegram: @kenhlivetv"),
-                              ("btnOpenTelegram", "VÀO NHÓM TELEGRAM"),
-                              ("btnCloseFeedback", "ĐÃ HIỂU / ĐÓNG")],
-        "all_visible_nodes": [
-            {"id": "btnOpenTelegram", "text": "VÀO NHÓM TELEGRAM",
-             "bounds": "[600,900][1100,1000]"},
-            {"id": "btnCloseFeedback", "text": "ĐÃ HIỂU / ĐÓNG",
-             "bounds": "[100,900][500,1000]"}],
-        "has_dialog": True, "dialog_ids": ["btnOpenTelegram", "btnCloseFeedback"],
-        "selected_ids": ["nav_settings"]}
-    _devfb = FakeDevice()
-    _devfb._tab = 4
-    _drvfb = Driver(_devfb, EvidenceGate(_fb), _fb)
-    _afb = _drvfb.next_action(_ui_fb, "com.kenhlive.tv/.MainActivity", None, 0.0)
-    print("feedback: dialog mở, focus 'ĐÃ HIỂU / ĐÓNG' ->", _afb.type, _afb.param, "| rule:", _afb.rule)
-    assert _afb.type == "KEY" and _afb.param == "OK" and _afb.rule == "dismiss_dialog_ok", \
-        "dialog phản hồi được đóng bằng OK trên nút đóng an toàn (được %s %s [%s])" % (_afb.type, _afb.param, _afb.rule)
-    # Focus đang ở 'VÀO NHÓM TELEGRAM' thì driver phải BACK, không OK (OK sẽ
-    # mở intent trình duyệt ra ngoài app).
-    _ui_fb_open = dict(_ui_fb,
-                       focused_sig="btnOpenTelegram#[600,900][1100,1000]",
-                       focused_text="VÀO NHÓM TELEGRAM",
-                       focused_bounds="[600,900][1100,1000]")
-    _afb2 = _drvfb.next_action(_ui_fb_open, "com.kenhlive.tv/.MainActivity", None, 0.0)
-    print("feedback: dialog mở, focus 'VÀO NHÓM TELEGRAM' ->", _afb2.type, _afb2.param, "| rule:", _afb2.rule)
-    assert not (_afb2.type == "KEY" and _afb2.param == "OK"), \
-        "focus trên nút mở nhóm thì KHÔNG được OK (mở intent trình duyệt)"
-    _gfb = EvidenceGate(_fb)
-    for _t in (10.0, 20.0):
-        _gfb.observe("com.kenhlive.tv/.MainActivity",
-                     [t for _, t in _ui_list_fb["all_visible_texts"]], [], False, False, _t)
-    for _t in (30.0, 40.0):
-        _gfb.observe("com.kenhlive.tv/.MainActivity",
-                     [t for _, t in _ui_fb["all_visible_texts"]], [], True, False, _t)
-    _vfb, _rfb, _ = _gfb.evaluate("step_004.jpg")
-    print("feedback: list x2 + dialog x2 ->", _vfb, "|", _rfb)
-    assert _vfb == "PASS"
-
-    # Trial 10 (run 43227207645) mission #20 FAIL 8 bước: driver ĐÃ tới đúng
-    # hàng 'Liên hệ & Báo lỗi' (step_086 highlight, focus view
-    # [0,810][1920,972]) nhưng focus view KHÔNG mang text (text nằm ở
-    # TextView con) nên không bấm OK lần nào — chỉ DPAD + SWITCH_TAB lạc.
-    # Luật open_dialog phải nhận diện hàng đích qua text con trong bounds
-    # focus (_focus_on_text), không chỉ focused_view.text.
-    _ui_fb_row = {
-        "focused_sig": "settingsRow#[0,810][1920,972]",
-        "focused_text": "", "focused_bounds": "[0,810][1920,972]",
-        "all_visible_texts": [("nav_settings", "Cài đặt"),
-                              ("tvRowTitle", "Liên hệ & Báo lỗi"),
-                              ("tvRowSub", "Nhóm Telegram: @kenhlivetv")],
-        "all_visible_nodes": [
-            {"id": "tvRowTitle", "text": "Liên hệ & Báo lỗi",
-             "bounds": "[60,850][700,930]"},
-            {"id": "tvRowSub", "text": "Nhóm Telegram: @kenhlivetv",
-             "bounds": "[60,930][700,965]"}],
-        "has_dialog": False, "dialog_ids": [],
-        "selected_ids": ["nav_settings"]}
-    _devfb2 = FakeDevice()
-    _devfb2._tab = 4
-    _drvfb2 = Driver(_devfb2, EvidenceGate(_fb), _fb)
-    _afb3 = _drvfb2.next_action(_ui_fb_row, "com.kenhlive.tv/.MainActivity",
-                                None, 0.0)
-    print("feedback trial10: focus row không text, đúng hàng đích ->",
-          _afb3.type, _afb3.param, "| rule:", _afb3.rule)
-    assert _afb3.type == "KEY" and _afb3.param == "OK" \
-        and _afb3.rule == "open_dialog", \
-        "đã đứng trên hàng đích (text con trong bounds focus) thì phải OK " \
-        "mở dialog, không DPAD lòng vòng (được %s %s [%s])" \
-        % (_afb3.type, _afb3.param, _afb3.rule)
-    # Đối chứng: focus ở hàng KHÁC (bounds không chứa text đích) thì vẫn
-    # phải đi tới hàng đích, không bấm OK mù.
-    _ui_fb_other = dict(_ui_fb_row,
-                        focused_sig="settingsRow#[0,300][1920,462]",
-                        focused_bounds="[0,300][1920,462]")
-    _afb4 = _drvfb2.next_action(_ui_fb_other, "com.kenhlive.tv/.MainActivity",
-                                None, 0.0)
-    print("feedback trial10: focus hàng khác ->", _afb4.type, _afb4.param,
-          "| rule:", _afb4.rule)
-    assert _afb4.rule == "goto_view_text" and _afb4.type == "KEY", \
-        "chưa đứng trên hàng đích thì phải đi tới nó (được %s %s [%s])" \
-        % (_afb4.type, _afb4.param, _afb4.rule)
-
-    # --- (3) MultiView: directed launch thẳng activity, trạng thái trống vẫn đủ tín hiệu rẻ.
+    # --- MultiView: directed launch thẳng activity, trạng thái trống vẫn đủ tín hiệu rẻ.
     _mv = _specs["MISSION_MULTIVIEW_DIRECTED"]
     assert _mv.directed_launch == "LAUNCH_MULTIVIEW"
     assert _mv.required_activity == "MultiViewActivity"
@@ -4444,7 +4097,7 @@ def test_tour_settings_and_multiview_missions():
     print("multiview: trạng thái trống x4 ->", _vmv, "|", _rmv)
     assert _vmv == "VISION_PENDING", \
         "trạng thái trống vẫn đủ tín hiệu rẻ, chỉ chờ vision (được %s)" % _vmv
-    print("TOUR_SETTINGS_MULTIVIEW_OK")
+    print("TOUR_MULTIVIEW_OK")
 
 
 def test_trial10_webplayer_retry_button():
@@ -4684,315 +4337,6 @@ def test_f63_webplayer_probe_unavailable_is_unverified():
     print("F63_PROBE_UNAVAILABLE_UNVERIFIED_OK")
 
 
-def test_reset_clears_leftover_dialog_between_missions():
-    """Blocker trial-9→10 (reviewer độc lập, verdict NO-GO): chuỗi mission
-    MISSION_SETTINGS_STORAGE_DIALOG (#19) → MISSION_SETTINGS_FEEDBACK_
-    TELEGRAM_QR (#20), cùng tab 4. Storage mission PASS ngay khi gate thấy
-    text 'xóa toàn bộ bộ nhớ đệm' — AlertDialog VẪN MỞ sau đó — nhưng runner
-    không dọn dialog giữa các mission: `_reset_to_mission` cũ chỉ BACK khi
-    activity không phải MainActivity (dialog nằm trên MainActivity nên
-    không BACK), `_settle_blocking_dialog` chỉ đóng dialog chứa
-    `btnCloseFeedback` (storage dialog chỉ có `alertTitle` nên hàm trả
-    True ngay mà không đóng gì). Feedback mission bắt đầu với storage
-    dialog đang mở: driver tưởng đó là dialog đích (`needs_dialog` nên
-    `_dismiss_dialog_action` trả None), mọi luật mở dialog bị guard
-    `not has_dialog`, driver chỉ còn explore trong dialog rồi FAIL
-    [stuck:level2] ở bước 7 (mô phỏng `/tmp/review_sim/sim_transition.py`
-    bằng chính Driver/EvidenceGate của repo); kẹt cấp 2 gọi vision
-    stuck_assist có thể trả KEY OK đúng lúc focus ở nút đỏ 'Xóa toàn bộ
-    bộ nhớ đệm' → xóa thật.
-    Fix (hướng (a)): `_reset_to_mission` BACK tới khi dialog đóng (tối
-    đa 3 lần) ngay đầu mỗi mission — đầu mission mọi dialog đang mở đều
-    là tàn dư của mission trước (dialog đích chỉ mở GIỮA mission).
-    - (a) reset trên feedback spec khi storage dialog đang mở: đúng 1 BACK,
-      KHÔNG OK (nút đỏ không được chạm), dump sau reset hết dialog;
-    - (b) tái hiện đúng kịch bản reviewer: TRƯỚC reset driver trên dump
-      storage-dialog-mở trả explore (lỗi gốc), SAU reset driver trên danh
-      sách Cài đặt trả goto tới hàng 'Liên hệ & Báo lỗi' (không explore);
-    - (c) dialog lì không đóng được bằng BACK: đúng 3 BACK rồi dừng (giới
-      hạn cứng, không lặp vô hạn), mission vẫn được chạy tiếp;
-    - (d) mission bắt đầu sạch (không dialog, đúng tab): reset không tốn
-      phím nào."""
-    from driver import Driver
-    from gate import EvidenceGate
-    from missions import get_missions
-    _specs = {s.name: s for s in get_missions()}
-    _fb = _specs["MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR"]
-
-    # Trạng thái thật khi storage mission vừa PASS (y hệt sim reviewer):
-    # dialog AlertDialog vẫn mở, focus mặc định trên nút positive ĐỎ.
-    _STORAGE_DLG = {
-        "focused_sig": "button1#[500,900][1100,1000]",
-        "focused_text": "Xóa toàn bộ bộ nhớ đệm",
-        "focused_bounds": "[500,900][1100,1000]",
-        "all_visible_texts": [("alertTitle", "Dung lượng & nguồn dữ liệu"),
-                              ("dlgMsg", "Xóa bộ nhớ đệm không làm mất lịch sử xem và cài đặt."),
-                              ("button1", "Xóa toàn bộ bộ nhớ đệm"),
-                              ("button2", "Đóng"),
-                              ("nav_settings", "Cài đặt")],
-        "all_visible_nodes": [{"id": "button1", "text": "Xóa toàn bộ bộ nhớ đệm",
-                               "bounds": "[500,900][1100,1000]"},
-                              {"id": "button2", "text": "Đóng",
-                               "bounds": "[100,900][400,1000]"}],
-        "has_dialog": True, "dialog_ids": ["alertTitle"],
-        "selected_ids": ["nav_settings"],
-    }
-    # Danh sách Cài đặt sau khi BACK đóng dialog (focus ở hàng dung lượng).
-    _SETTINGS_LIST = {
-        "focused_sig": "rowStorageUsage#[100,450][900,570]",
-        "focused_text": "Dung lượng bộ nhớ đệm",
-        "focused_bounds": "[100,450][900,570]",
-        "all_visible_texts": [("nav_settings", "Cài đặt"),
-                              ("rowFeedback", "Liên hệ & Báo lỗi"),
-                              ("rowFeedbackSub", "Nhóm Telegram: @kenhlivetv"),
-                              ("rowStorageUsage", "Dung lượng bộ nhớ đệm"),
-                              ("rowStorageVal", "Đệm 120 MB · APK 45 MB"),
-                              ("rowClearCache", "Xóa bộ nhớ đệm ảnh")],
-        "all_visible_nodes": [
-            {"id": "rowFeedback", "text": "Liên hệ & Báo lỗi",
-             "bounds": "[100,300][900,420]"},
-            {"id": "rowStorageUsage", "text": "Dung lượng bộ nhớ đệm",
-             "bounds": "[100,450][900,570]"},
-            {"id": "rowClearCache", "text": "Xóa bộ nhớ đệm ảnh",
-             "bounds": "[100,600][900,720]"}],
-        "has_dialog": False, "dialog_ids": [],
-        "selected_ids": ["nav_settings"]}
-
-    class _LeftoverDialogDevice(FakeDevice):
-        """BACK đóng storage dialog về danh sách Cài đặt (hành vi thật của
-        AlertDialog trên MainActivity); OK không bao giờ được gửi."""
-        def __init__(self, *a, **k):
-            super().__init__(*a, **k)
-            self._tab = 4
-            self._dump = dict(_STORAGE_DLG)
-
-        def send_key(self, key_name):
-            self.keys.append(key_name)
-            self._note(key_name)
-            if key_name == "BACK" and self._dump.get("has_dialog"):
-                self._dump = dict(_SETTINGS_LIST)
-
-    class _StubbornDialogDevice(FakeDevice):
-        """Dialog lì: BACK không đóng được gì (đối chứng giới hạn 3 lần)."""
-        def __init__(self, *a, **k):
-            super().__init__(*a, **k)
-            self._tab = 4
-            self._dump = dict(_STORAGE_DLG)
-
-        def send_key(self, key_name):
-            self.keys.append(key_name)
-            self._note(key_name)
-
-    _orig_dev = runner_mod.RealtimeDevice
-    runner_mod.RealtimeDevice = _LeftoverDialogDevice
-    try:
-        # --- (a) reset dọn đúng 1 BACK, không OK, hết dialog.
-        _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_reset_dlg",
-                                       serial=None, vision_budget=0,
-                                       no_vision=True)
-        assert _r.device._dump.get("has_dialog") is True, \
-            "đầu test phải đúng trạng thái blocker: storage dialog đang mở"
-        _r._reset_to_mission(_fb)
-        print("reset khi storage dialog mở: keys", _r.device.keys,
-              "| còn dialog:", _r.device._dump.get("has_dialog"))
-        assert _r.device.keys == ["BACK"], \
-            "reset phải đóng dialog bằng đúng 1 BACK (được %s)" % _r.device.keys
-        assert "OK" not in _r.device.keys, \
-            "reset KHÔNG được bấm OK — focus đang ở nút đỏ xóa thật"
-        assert _r.device._dump.get("has_dialog") is False, \
-            "sau reset dialog tàn dư phải đóng"
-
-        # --- (b) tái hiện kịch bản reviewer: trước reset explore, sau reset goto.
-        _dev_bug = _LeftoverDialogDevice()
-        _drv_bug = Driver(_dev_bug, EvidenceGate(_fb), _fb)
-        _a_bug = _drv_bug.next_action(dict(_STORAGE_DLG),
-                                      "com.kenhlive.tv/.MainActivity", None, 0.0)
-        print("feedback TRƯỚC reset (storage dialog mở) ->", _a_bug.type,
-              _a_bug.param, "| rule:", _a_bug.rule)
-        # H13 (wave 6): driver không còn explore mù trong dialog tàn dư —
-        # dialog thiếu text đích 'nhóm telegram' -> wrong_dialog_back (BACK
-        # đóng rồi resume goto). Quan trọng nhất: KHÔNG BAO GIỜ OK (focus
-        # đang ở nút đỏ 'Xóa toàn bộ bộ nhớ đệm').
-        assert _a_bug.rule == "wrong_dialog_back" \
-            and not (_a_bug.type == "KEY" and _a_bug.param == "OK"), \
-            "driver trên dialog tàn dư phải BACK đóng nhầm dialog, không OK, " \
-            "không explore (được %s %s [%s])" \
-            % (_a_bug.type, _a_bug.param, _a_bug.rule)
-        _drv_fix = Driver(_dev_bug, EvidenceGate(_fb), _fb)
-        _a_fix = _drv_fix.next_action(dict(_SETTINGS_LIST),
-                                      "com.kenhlive.tv/.MainActivity", None, 0.0)
-        print("feedback SAU reset (danh sách Cài đặt) ->", _a_fix.type,
-              _a_fix.param, "| rule:", _a_fix.rule)
-        assert _a_fix.rule == "goto_view_text" and _a_fix.type == "KEY", \
-            "sau reset driver phải đi tới hàng đích, không explore trong dialog " \
-            "(được %s %s [%s])" % (_a_fix.type, _a_fix.param, _a_fix.rule)
-    finally:
-        runner_mod.RealtimeDevice = _orig_dev
-
-    # --- (c) dialog lì: đúng 3 BACK rồi dừng, không lặp vô hạn.
-    runner_mod.RealtimeDevice = _StubbornDialogDevice
-    try:
-        _r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_reset_stubborn",
-                                        serial=None, vision_budget=0,
-                                        no_vision=True)
-        _r2._reset_to_mission(_fb)
-        print("reset khi dialog lì: keys", _r2.device.keys,
-              "| còn dialog:", _r2.device._dump.get("has_dialog"))
-        assert _r2.device.keys == ["BACK", "BACK", "BACK"], \
-            "dialog không đóng được thì reset dừng sau đúng 3 BACK (được %s)" \
-            % _r2.device.keys
-        assert _r2.device._dump.get("has_dialog") is True, \
-            "mock lì phải giữ dialog mở để đối chứng giới hạn"
-    finally:
-        runner_mod.RealtimeDevice = _orig_dev
-
-    # --- (d) bắt đầu sạch: reset không tốn phím nào.
-    _r3 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_reset_clean",
-                                    serial=None, vision_budget=0, no_vision=True)
-    _r3.device = FakeDevice()
-    _r3.device._tab = 4
-    _r3.device._dump = dict(FakeDevice.HOME_DUMP)
-    _r3._reset_to_mission(_fb)
-    print("reset khi không có dialog: keys", _r3.device.keys)
-    assert _r3.device.keys == [], \
-        "không dialog + đúng tab thì reset không được gửi phím nào (được %s)" \
-        % _r3.device.keys
-    print("RESET_CLEARS_LEFTOVER_DIALOG_OK")
-
-
-def test_h13_storage_dialog_no_blind_ok():
-    """H13 (trial 12 run 43328505259, mission #20 FAIL lần 3): driver bấm
-    OK mù 4 lần — 3 lần trên tab nav 'CÀI ĐẶT' (focused_text='') và 1 lần
-    mở nhầm dialog 'Chất lượng hình' — rồi explore mù trong dialog sai tới
-    hết bước; dialog đích D6 ('Xóa toàn bộ bộ nhớ đệm') không bao giờ mở.
-    Luật mới:
-    (a) focus nav / focused_text rỗng -> CẤM OK, phải goto/scroll;
-    (b) focus trên hàng KHÔNG phải đích ('Chất lượng hình') -> CẤM OK;
-    (c) dialog sai đang mở -> BACK (wrong_dialog_back) rồi resume goto,
-        KHÔNG explore mù;
-    (d) hàng 'Xóa bộ nhớ đệm ảnh' (clearCache — xóa NGAY, không dialog)
-        -> KHÔNG BAO GIỜ OK;
-    (e) đã đứng đúng hàng 'Dung lượng bộ nhớ đệm' -> OK mở dialog đích
-        (an toàn: dialog chưa mở, nút đỏ nằm TRONG dialog)."""
-    from driver import Driver
-    from gate import EvidenceGate
-    from missions import get_missions
-    _spec = {s.name: s for s in get_missions()}[
-        "MISSION_SETTINGS_STORAGE_DIALOG"]
-    _act = "com.kenhlive.tv/.MainActivity"
-    _dev = FakeDevice()
-    _dev._tab = 4
-    _drv = Driver(_dev, EvidenceGate(_spec), _spec)
-
-    _NODES_VISIBLE = [
-        {"id": "rowQuality", "text": "Chất lượng hình",
-         "bounds": "[100,300][900,420]"},
-        {"id": "rowStorageUsage", "text": "Dung lượng bộ nhớ đệm",
-         "bounds": "[100,450][900,570]"},
-        {"id": "rowClearCache", "text": "Xóa bộ nhớ đệm ảnh",
-         "bounds": "[100,600][900,720]"}]
-    _TEXTS_VISIBLE = [("nav_settings", "Cài đặt"),
-                      ("rowQuality", "Chất lượng hình"),
-                      ("rowStorageUsage", "Dung lượng bộ nhớ đệm"),
-                      ("rowClearCache", "Xóa bộ nhớ đệm ảnh")]
-
-    def _ui_list(focus_sig, focus_text, focus_bounds):
-        return {
-            "focused_sig": focus_sig, "focused_text": focus_text,
-            "focused_bounds": focus_bounds,
-            "all_visible_texts": list(_TEXTS_VISIBLE),
-            "all_visible_nodes": [dict(n) for n in _NODES_VISIBLE],
-            "has_dialog": False, "dialog_ids": [],
-            "selected_ids": ["nav_settings"]}
-
-    # (a) focus trên nav, focused_text rỗng (đúng step 86-88 trial 12).
-    _ui_nav = _ui_list("nav_settings#[362,900][563,1012]", "",
-                       "[362,900][563,1012]")
-    for _i in range(3):
-        _a = _drv.next_action(_ui_nav, _act, None, float(_i))
-        print("H13 nav rỗng ->", _a.type, _a.param, "| rule:", _a.rule)
-        assert not (_a.type == "KEY" and _a.param == "OK"), \
-            "focus nav + text rỗng thì CẤM OK (được %s %s [%s])" \
-            % (_a.type, _a.param, _a.rule)
-        assert _a.rule in ("goto_view_text", "goto_target_scroll",
-                           "goto_view", "explore:down", "explore:right"), \
-            "phải điều hướng tới hàng đích, không đứng yên (được [%s])" % _a.rule
-    # (b) focus trên hàng 'Chất lượng hình' — không phải đích.
-    _ui_quality = _ui_list("rowQuality#[100,300][900,420]",
-                           "Chất lượng hình", "[100,300][900,420]")
-    _a_q = _drv.next_action(_ui_quality, _act, None, 3.0)
-    print("H13 hàng Chất lượng hình ->", _a_q.type, _a_q.param,
-          "| rule:", _a_q.rule)
-    assert not (_a_q.type == "KEY" and _a_q.param == "OK"), \
-        "hàng không phải đích thì CẤM OK (được %s %s [%s])" \
-        % (_a_q.type, _a_q.param, _a_q.rule)
-    assert _a_q.rule in ("goto_view_text", "goto_target_scroll",
-                         "goto_view"), \
-        "phải đi tiếp tới 'Dung lượng bộ nhớ đệm' (được [%s])" % _a_q.rule
-    # (d) hàng 'Xóa bộ nhớ đệm ảnh' — clearCache() xóa NGAY, tuyệt đối không OK.
-    _ui_cache = _ui_list("rowClearCache#[100,600][900,720]",
-                         "Xóa bộ nhớ đệm ảnh", "[100,600][900,720]")
-    for _i in range(3):
-        _a_c = _drv.next_action(_ui_cache, _act, None, 4.0 + _i)
-        assert not (_a_c.type == "KEY" and _a_c.param == "OK"), \
-            "hàng 'Xóa bộ nhớ đệm ảnh' KHÔNG BAO GIỜ được OK — xóa cache thật" \
-            "(được %s %s [%s])" % (_a_c.type, _a_c.param, _a_c.rule)
-    # (c) dialog SAI đang mở ('Chất lượng hình' — thiếu 'xóa toàn bộ bộ
-    # nhớ đệm') -> BACK đóng, không explore.
-    _ui_wrong_dlg = {
-        "focused_sig": "button1#[500,900][1100,1000]",
-        "focused_text": "Cao nhất (nét)", "focused_bounds": "[500,900][1100,1000]",
-        "all_visible_texts": [("alertTitle", "Chất lượng hình"),
-                              ("optAuto", "Tự động"),
-                              ("optHigh", "Cao nhất (nét)"),
-                              ("optStable", "Ổn định (mượt)")],
-        "all_visible_nodes": [
-            {"id": "optAuto", "text": "Tự động", "bounds": "[200,600][800,700]"},
-            {"id": "optHigh", "text": "Cao nhất (nét)", "bounds": "[200,720][800,820]"}],
-        "has_dialog": True, "dialog_ids": ["alertTitle"],
-        "selected_ids": ["nav_settings"]}
-    _a_d = _drv.next_action(_ui_wrong_dlg, _act, None, 7.0)
-    print("H13 dialog sai ->", _a_d.type, _a_d.param, "| rule:", _a_d.rule)
-    assert (_a_d.type, _a_d.param, _a_d.rule) == ("KEY", "BACK", "wrong_dialog_back"), \
-        "dialog thiếu text đích phải BACK đóng (được %s %s [%s])" \
-        % (_a_d.type, _a_d.param, _a_d.rule)
-    # Sau BACK: dialog đóng, driver resume goto từ focus hiện tại —
-    # vẫn KHÔNG OK, vẫn hướng về hàng đích.
-    _a_r = _drv.next_action(_ui_quality, _act, None, 8.0)
-    print("H13 sau BACK (list, focus hàng khác) ->", _a_r.type, _a_r.param,
-          "| rule:", _a_r.rule)
-    assert not (_a_r.type == "KEY" and _a_r.param == "OK") \
-        and _a_r.rule in ("goto_view_text", "goto_target_scroll", "goto_view"), \
-        "sau khi đóng dialog sai phải resume goto, không explore mù, không OK " \
-        "(được %s %s [%s])" % (_a_r.type, _a_r.param, _a_r.rule)
-    # (e) đứng đúng hàng đích -> OK mở dialog (an toàn: dialog chưa mở).
-    _ui_target = _ui_list("settingsRow#[100,450][900,570]", "",
-                          "[100,450][900,570]")
-    _a_t = _drv.next_action(_ui_target, _act, None, 9.0)
-    print("H13 đúng hàng đích ->", _a_t.type, _a_t.param, "| rule:", _a_t.rule)
-    assert (_a_t.type, _a_t.param, _a_t.rule) == ("KEY", "OK", "open_dialog"), \
-        "đã focus đúng 'Dung lượng bộ nhớ đệm' thì OK mở dialog đích " \
-        "(được %s %s [%s])" % (_a_t.type, _a_t.param, _a_t.rule)
-    # Và khi dialog đích ĐÃ mở: driver không bao giờ OK (nút đỏ an toàn).
-    _ui_dlg = {
-        "focused_sig": "button1#[500,900][1100,1000]",
-        "focused_text": "Xóa toàn bộ bộ nhớ đệm",
-        "focused_bounds": "[500,900][1100,1000]",
-        "all_visible_texts": [("alertTitle", "Dung lượng & nguồn dữ liệu"),
-                              ("dlgMsg", "Xóa bộ nhớ đệm không làm mất lịch sử xem."),
-                              ("button1", "Xóa toàn bộ bộ nhớ đệm"),
-                              ("button2", "Đóng")],
-        "all_visible_nodes": [],
-        "has_dialog": True, "dialog_ids": ["alertTitle"],
-        "selected_ids": ["nav_settings"]}
-    _a_d2 = _drv.next_action(_ui_dlg, _act, None, 10.0)
-    print("H13 dialog đích mở, focus nút đỏ ->", _a_d2.type, _a_d2.param,
-          "| rule:", _a_d2.rule)
-    assert not (_a_d2.type == "KEY" and _a_d2.param == "OK"), \
-        "dialog đích đang mở + focus trên nút đỏ -> TUYỆT ĐỐI không OK"
-    print("H13_STORAGE_NO_BLIND_OK_OK")
-
-
 def test_h14_webplayer_loading_wait_and_bounded_replay():
     """H14 (trial 12 run 43328505259, mission #14 FAIL): step 2 rule
     play_webplayer bấm OK vào WebView TRONG LÚC ĐANG TẢI — cú OK đó pause
@@ -5083,8 +4427,9 @@ def test_h14_webplayer_loading_wait_and_bounded_replay():
 def test_h15_judge_guard_three_false_high_patterns():
     """H15 (trial 10/11/12): 3 HIGH giả lặp lại, 0 cái trích đúng frame —
     judge-guard hậu kiểm trước khi chấm, KHÔNG gọi thêm vision:
-    (1) claim 'hàng LIVE chỉ hiện giờ kickoff' -> frame phải là màn Lịch;
-        frame sidebar/tab Live -> loại. Frame tab Lịch -> giữ.
+    (1) claim 'hàng LIVE chỉ hiện giờ kickoff' -> frame phải là màn Thể thao
+        (tab 1, nơi chứa hàng LIVE sau khi gộp Lịch vào Thể thao);
+        frame tab khác -> loại. Frame tab Thể thao -> giữ.
     (2) claim 'phụ đề đè seekbar' -> OCR frame trích dẫn phải có >=2 box
         chữ cắt ngang seekbar VÀ ít nhất 1 box KHÔNG phải chữ UI; toàn
         control player ('Về trực tiếp'/'TRỰC TIẾP') -> loại. Phụ đề thật
@@ -5103,26 +4448,28 @@ def test_h15_judge_guard_three_false_high_patterns():
 
     ctx = {}
     # --- (1) schedule-live-no-score ---
+    # (v4 4-tab: hàng LIVE ở tab Thể thao (1); nav_live giờ là tab 1 nên
+    # frame nav_live LÀ màn đúng -> giữ; frame tab khác (vd Truyền hình) -> loại.
     _f1 = _mk_high("Hàng LIVE chỉ hiện giờ kickoff thay vì tỉ số: '18:30'")
-    _ui_sidebar = {"selected_ids": ["nav_live"],
-                   "all_visible_texts": [("cardScore", "0 : 0"),
-                                         ("tvTitle", "Trận đấu")],
+    _ui_sidebar = {"selected_ids": ["nav_iptv"],
+                   "all_visible_texts": [("channelCard", "VTV Cần Thơ"),
+                                         ("tvTitle", "Truyền hình")],
                    "all_visible_nodes": [], "dialog_ids": []}
     _kept, _dis = det.guard_high_findings(
         [_f1], _ui_sidebar, "com.kenhlive.tv/.MainActivity", ctx,
         "step_001_test.jpg")
     print("H15 sched sidebar -> kept:", len(_kept), "| dismissed:", len(_dis))
     assert len(_dis) == 1 and not _kept, \
-        "frame tab Live/sidebar không phải màn Lịch -> phải loại claim"
-    _ui_sched = {"selected_ids": ["nav_schedule"],
-                 "all_visible_texts": [("schedCard", "Lịch thi đấu"),
+        "frame tab Truyền hình không phải màn Thể thao -> phải loại claim"
+    _ui_sched = {"selected_ids": ["nav_live"],
+                 "all_visible_texts": [("matchCard", "Đang đá"),
                                        ("hôm nay", "Hôm nay")],
                  "all_visible_nodes": [], "dialog_ids": []}
     _kept, _dis = det.guard_high_findings(
         [_f1], _ui_sched, "com.kenhlive.tv/.MainActivity", ctx,
         "step_001_test.jpg")
     assert len(_kept) == 1 and not _dis, \
-        "frame tab Lịch thì claim đứng -> phải giữ"
+        "frame tab Thể thao thì claim đứng -> phải giữ"
     # Không đọc được tab nhưng có marker màn Lịch -> giữ (không giấu).
     _ui_marker = {"selected_ids": [],
                   "all_visible_texts": [("tvTitle", "Lịch thi đấu hôm nay")],

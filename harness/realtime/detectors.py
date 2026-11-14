@@ -922,7 +922,9 @@ def _parse_bounds(bounds_str):
 
 def _guard_schedule_live_frame(f, ui_state):
     """Claim 'hàng LIVE chỉ hiện giờ kickoff' chỉ đúng khi frame trích dẫn
-    THẬT SỰ là màn Lịch (tab Lịch thi đấu). Trả lý do loại hoặc None."""
+    THẬT SỰ là màn có hàng LIVE. (v4 4-tab: tab Lịch thi đấu đã gộp vào
+    tab Thể thao = tab 1 — hàng LIVE/Đang đá/Sắp đá/Đã kết thúc đều ở đó.)
+    Trả lý do loại hoặc None."""
     sel = ui_state.get("selected_ids") or []
     try:
         from device import NAV_ID_TO_TAB
@@ -930,11 +932,11 @@ def _guard_schedule_live_frame(f, ui_state):
         NAV_ID_TO_TAB = {}
     tabs = [NAV_ID_TO_TAB[r] for r in sel if r in NAV_ID_TO_TAB]
     if tabs:
-        # Frame có tab được chọn rõ ràng: claim chỉ giữ khi đó là tab Lịch.
+        # Frame có tab được chọn rõ ràng: claim chỉ giữ khi đó là tab Thể thao (1).
         if 1 in tabs:
             return None
-        return ("frame trích dẫn ở tab %s, không phải tab Lịch — claim "
-                "'giờ kickoff thay tỉ số' chỉ áp cho hàng ở tab Lịch"
+        return ("frame trích dẫn ở tab %s, không phải tab Thể thao — claim "
+                "'giờ kickoff thay tỉ số' chỉ áp cho hàng LIVE ở tab Thể thao"
                 % tabs[0])
     # Không đọc được tab: cần marker màn Lịch trong dump của CHÍNH frame đó.
     blob = _norm_text(" ".join(
@@ -944,10 +946,10 @@ def _guard_schedule_live_frame(f, ui_state):
                      "hom nay", "ngay mai")
     if any(k in blob for k in sched_markers):
         return None  # có dấu hiệu màn Lịch -> không kết luận được -> giữ
-    return ("frame trích dẫn không phải màn Lịch (không nav_schedule, "
+    return ("frame trích dẫn không phải màn Thể thao (không nav_live, "
             "không marker 'Lịch thi đấu/Hôm nay/Ngày mai'/id sched*) — "
-            "lỗi Lịch thật phải do gate mission #5/#8 ghi nhận, không "
-            "được tố bằng frame sidebar/Live")
+            "lỗi hàng LIVE thật phải do gate mission Thể thao ghi nhận, "
+            "không được tố bằng frame tab khác")
 
 
 def _guard_subtitle_seekbar(f, ui_state, ctx, frame_ref):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """KenhLive Realtime QA — mission specs (mục tiêu bằng chứng, không kịch bản).
 
-22 mission: 18 mission cũ (17 mission gốc — VOD và WebPlayer tách riêng
+15 mission (v4 4-tab): 8 mission cũ đã renumber + 7 mission Schedule/Settings/Hub đã bỏ (17 mission gốc — VOD và WebPlayer tách riêng
 thành 2 mission nhưng tổng vẫn 17 vì Home Hub cũ đã bỏ — + 1 mission
 CI-T8 MISSION_SCHEDULE_LIVE_DIRECTED) + 3 mission tour đủ màn sau trial 9
 (DESIGN §15.23: Cài đặt storage dialog, Cài đặt Telegram QR, MultiView)
@@ -16,7 +16,6 @@ from gate import MissionSpec
 
 QUICK_KEEP = {
     "MISSION_COLD_START",
-    "MISSION_HOME_BILLBOARD_6_ROWS",
     "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
     "MISSION_PHIM_NGUONC_AND_CATEGORIES",
     "MISSION_PLAYER_SETTINGS_DIALOG",
@@ -31,7 +30,7 @@ ALL_MISSIONS = [
         required_activity="MainActivity",
         required_texts=["trang chủ"],
         target_desc="màn hình chính KenhLive đã nạp, nav TRANG CHỦ hiển thị",
-        tab=6,
+        tab=1,
     ),
     MissionSpec(
         "MISSION_SPORTS_MULTI_SOURCE",
@@ -52,7 +51,7 @@ ALL_MISSIONS = [
         required_activity="MainActivity",
         required_texts=["cola"],
         target_desc="hàng trận đấu của đài ColaTV hiển thị trên tab Trực tiếp",
-        tab=0, goto_texts=["cola"],
+        tab=1, goto_texts=["cola"],
     ),
     MissionSpec(
         "MISSION_SPORTS_ROOM_PICKER",
@@ -63,17 +62,7 @@ ALL_MISSIONS = [
         required_texts=["blv"],
         needs_dialog=True,
         target_desc="hộp thoại chọn phòng BLV đang mở với danh sách phòng",
-        tab=0,
-    ),
-    MissionSpec(
-        "MISSION_SPORTS_DATA_ACCURACY",
-        "Chuẩn Hóa Dữ Liệu Bóng Đá GMT+7",
-        "Tab Lịch đấu: tên giải, tỷ số dạng X : Y, badge KẾT THÚC, không spam.",
-        max_steps=4, min_steps=3,
-        required_activity="MainActivity",
-        required_texts=["hôm nay"],
-        target_desc="tab Lịch đấu hiển thị danh sách trận theo ngày",
-        tab=1, needs_scroll_top=True,
+        tab=1,
     ),
     MissionSpec(
         "MISSION_PLAYER_STREAMING_AND_CONTROLS",
@@ -88,51 +77,7 @@ ALL_MISSIONS = [
         required_activity="PlayerActivity",
         needs_motion=True, needs_vision=True,
         target_desc="trình phát PlayerActivity đang phát video bóng đá thật của một trận đang đá (LIVE/TRỰC TIẾP)",
-        tab=0, requires_live_row=True,
-    ),
-    MissionSpec(
-        "MISSION_HOME_BILLBOARD_6_ROWS",
-        "Trang Chủ: Billboard 60% + 6 Hàng (KL8 Task 4)",
-        "Tab 6 Trang Chủ: billboard ~60% + 6 hàng ĐANG PHÁT / TIẾP TỤC XEM / "
-        "TRẬN SẮP DIỄN RA / MỚI CẬP NHẬT / KÊNH / GIẢI ĐẤU. Không còn portal 3 card.",
-        max_steps=8, min_steps=4,
-        required_activity="MainActivity",
-        required_texts=["đang phát", "mới cập nhật"],
-        target_desc="trang chủ với billboard hero và các hàng ĐANG PHÁT, MỚI CẬP NHẬT",
-        tab=6,
-    ),
-    MissionSpec(
-        "MISSION_SCHEDULE_EPG_AND_FIXTURE_TAP",
-        "Lịch Thi Đấu EPG & Chạm Trận Đấu",
-        "Tab Lịch đấu, duyệt lịch theo ngày, bấm trận kiểm tra onFixtureTap.",
-        max_steps=6, min_steps=3,
-        required_activity="MainActivity",
-        required_texts=["hôm nay"],
-        target_desc="tab Lịch đấu, bấm vào một trận đấu mở được popup/phòng",
-        tab=1, needs_scroll_top=True,
-    ),
-    MissionSpec(
-        "MISSION_SCHEDULE_LIVE_DIRECTED",
-        "Lịch Trực Tiếp & Tỉ Số Trận Đang Đá",
-        "CI-T8 mục 7: chờ hàng LIVE thật ở tab Lịch đấu rồi kiểm tỉ số "
-        "đang diễn ra (detector (e) 'hàng LIVE chỉ hiện giờ kickoff thay "
-        "vì tỉ số'). Run không có trận nào đang đá -> UNVERIFIED (chưa "
-        "kiểm được), không FAIL, không im lặng.",
-        max_steps=8, min_steps=3,
-        required_activity="MainActivity",
-        required_texts=["live"],
-        target_desc="hàng trận đấu đang đá (badge TRỰC TIẾP/LIVE) hiển thị tỉ số",
-        tab=1, needs_scroll_top=True, requires_live_row=True,
-    ),
-    MissionSpec(
-        "MISSION_SIDEBAR_RAIL_FULL_TRAVERSAL",
-        "Thanh Điều Hướng Sidebar Rail",
-        "Mở rail bằng DPAD_LEFT, duyệt dọc các mục, đóng bằng DPAD_RIGHT.",
-        max_steps=7, min_steps=3,
-        required_activity="MainActivity",
-        required_views=["railPanel"],
-        target_desc="thanh sidebar rail đang mở với danh sách mục điều hướng",
-        tab=6,
+        tab=1, requires_live_row=True,
     ),
     MissionSpec(
         "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
@@ -147,7 +92,7 @@ ALL_MISSIONS = [
         required_activity="MainActivity",
         required_texts=["kênh"],
         target_desc="tab Truyền hình hiển thị lưới kênh IPTV với các hàng danh mục",
-        tab=2, needs_scroll_top=True, needs_long_press=True,
+        tab=3, needs_scroll_top=True, needs_long_press=True,
     ),
     MissionSpec(
         "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
@@ -172,7 +117,7 @@ ALL_MISSIONS = [
         required_texts=["kênh"],
         needs_motion=True, needs_vision=True,
         target_desc="trình phát IPTV đang phát một kênh truyền hình, màn hình hiện tên kênh đang phát",
-        tab=2,
+        tab=3,
     ),
     MissionSpec(
         "MISSION_PHIM_NGUONC_AND_CATEGORIES",
@@ -182,7 +127,7 @@ ALL_MISSIONS = [
         required_activity="MainActivity",
         required_texts=["kho phim"],
         target_desc="tab Kho Phim với hero phim và pills thể loại",
-        tab=5,
+        tab=2,
     ),
     MissionSpec(
         "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
@@ -193,7 +138,7 @@ ALL_MISSIONS = [
         required_texts=["tập"],
         needs_dialog=True,
         target_desc="hộp thoại chọn tập phim đang mở với danh sách tập",
-        tab=5, goto_texts=["CHỌN TẬP"],
+        tab=2, goto_texts=["CHỌN TẬP"],
     ),
     MissionSpec(
         "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
@@ -287,74 +232,15 @@ ALL_MISSIONS = [
     ),
     MissionSpec(
         "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
-        "Tìm Kiếm & Cài Đặt (Báo Lỗi Telegram QR)",
-        "Tab Tìm kiếm: nhập từ khóa; Tab Cài đặt: mở 'Liên hệ & Báo lỗi', QR Telegram. "
-        "CI-T9 mục 7: bắt buộc mở bàn phím ảo thật (OK trên ô tìm kiếm rồi gõ "
+        "Tìm Kiếm (bàn phím ảo + gõ từ khóa)",
+        "Tab Tìm kiếm: mở bàn phím ảo thật (OK trên ô tìm kiếm rồi gõ "
         "từ khóa qua adb input) — CI-T8 bàn phím không mở lần nào ở cả 95 bước "
-        "nên mục 6 cũ chưa từng được kiểm.",
+        "nên mục 6 cũ chưa từng được kiểm. (Phần Cài đặt/Báo lỗi đã bỏ theo v4 4-tab.)",
         max_steps=10, min_steps=4,
         required_activity="MainActivity",
         required_texts=["tìm kiếm"],
         target_desc="tab Tìm kiếm với ô nhập từ khóa đang hiển thị",
-        tab=3, needs_keyboard=True,
-    ),
-    MissionSpec(
-        "MISSION_SETTINGS_STORAGE_DIALOG",
-        "Cài Đặt: Dialog Xóa Bộ Nhớ Đệm (Destructive Đỏ, D6)",
-        "Tab Cài đặt (tab 4, tour trial 9 thiếu màn này): hàng 'Dung lượng bộ "
-        "nhớ đệm' (R.string.settings_storage_usage, value 'Đệm X · APK Y', mục "
-        "'Dung lượng & nguồn dữ liệu' — SettingsFragment.showStorageDialog) mở "
-        "dialog tiêu đề 'Dung lượng & nguồn dữ liệu', nút Positive 'Xóa toàn bộ "
-        "bộ nhớ đệm' (đỏ, destructive — D6) + nút 'Đóng'. Text đích 'xóa toàn bộ "
-        "bộ nhớ đệm' CHỈ có trên nút của dialog (danh sách Cài đặt chỉ có nhãn "
-        "hàng) nên mission không PASS được khi chưa mở dialog. "
-        "SỬA wave 5 (trial 11 run 43287392690, mission #20 FAIL 8 bước): hàng "
-        "'Xóa bộ nhớ đệm ảnh' là clearCache() — xóa cache ảnh/HTTP dưới nền + "
-        "toast + rebuild() (vì vậy focus nhảy về đầu danh sách sau OK), KHÔNG "
-        "có dialog; wave 1 đi theo docstring sai của code nên goto_texts cũ "
-        "trỏ nhầm hàng này. Hàng đích nằm sâu (~hàng 9 từ đầu) nên "
-        "needs_scroll_top=True (danh sách có thể còn cuộn từ mission trước, "
-        "explore chỉ đi DOWN/RIGHT không bao giờ UP) và max_steps 8->14 cho đủ "
-        "~9 DPAD_DOWN + OK + observe dialog. "
-        "AN TOÀN — KHÔNG xóa thật: driver không bao giờ bấm OK khi dialog đang "
-        "mở (luật open_dialog chỉ bấm khi chưa có dialog; luật dismiss để nguyên "
-        "dialog đích của mission cần dialog); mission PASS ngay khi đủ bằng chứng "
-        "rồi runner BACK về ở mission sau. Nút đỏ không bao giờ bị bấm.",
-        max_steps=14, min_steps=4,
-        required_activity="MainActivity",
-        required_texts=["xóa toàn bộ bộ nhớ đệm"],
-        needs_dialog=True, needs_scroll_top=True,
-        target_desc="hộp thoại dung lượng bộ nhớ đệm đang mở với nút xóa toàn bộ màu đỏ và nút Đóng",
-        tab=4, goto_texts=["dung lượng bộ nhớ đệm"],
-    ),
-    MissionSpec(
-        "MISSION_SETTINGS_FEEDBACK_TELEGRAM_QR",
-        "Cài Đặt: Phản Hồi Telegram QR",
-        "Tab Cài đặt (tab 4, tour trial 9 thiếu màn này): hàng 'Liên hệ & Báo "
-        "lỗi' (value 'Nhóm Telegram: @kenhlivetv') mở FeedbackDialog với mã QR "
-        "Telegram (dialog_feedback.xml). SỬA wave 5 (trial 11 run 43287392690, "
-        "mission #21 FAIL): dialog MỞ ĐƯỢC thật (step_097/098) nhưng gate cũ "
-        "đòi 'quét mã qr' — text 'Quét mã QR để vào nhóm' là KL3.Text.Micro "
-        "ở cuối QR card trong ScrollView, bị khuất dưới fold khi dialog mở "
-        "(lỗi app A27, wave app riêng sửa hiển thị) nên harness không bao giờ "
-        "thấy. Gate mới dùng 'nhóm telegram' — text NHÌN THẤY ĐƯỢC trong "
-        "dialog (body + 'Nhóm Telegram: @kenhlivetv'). Lưu ý text này cũng có "
-        "trong danh sách Cài đặt nên bản thân nó KHÔNG chứng minh dialog đã "
-        "mở — needs_dialog/dialog_seen vẫn bắt buộc như cũ, danh sách đơn "
-        "độc không PASS được. needs_scroll_top=True: mission #20 phía trước "
-        "để lại danh sách Cài đặt đang cuộn sâu (hàng dung lượng), explore "
-        "chỉ đi DOWN/RIGHT — UP x8 đầu mission đưa về đầu danh sách xác định. "
-        "AN TOÀN: dialog này mang "
-        "btnCloseFeedback nên luật dismiss có thể đóng nó bằng OK trên 'ĐÃ HIỂU "
-        "/ ĐÓNG' (nút đóng an toàn, focus mặc định) SAU khi bằng chứng đã ghi "
-        "vào gate; nút 'VÀO NHÓM TELEGRAM' không bao giờ bị bấm nên không mở "
-        "intent trình duyệt ngoài app.",
-        max_steps=8, min_steps=4,
-        required_activity="MainActivity",
-        required_texts=["nhóm telegram"],
-        needs_dialog=True, needs_scroll_top=True,
-        target_desc="hộp thoại phản hồi Telegram đang mở với mã QR và nút Vào Nhóm Telegram",
-        tab=4, goto_texts=["liên hệ"],
+        tab=0, needs_keyboard=True,
     ),
     MissionSpec(
         "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
