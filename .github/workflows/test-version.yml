@@ -1,0 +1,214 @@
+name: Test Any Version (QA)
+
+# QA chung cho MỌI phiên bản: nhận link file (Google Drive / .zip source / .apk)
+# hoặc branch/tag/commit của kenhlive-tv, rồi build + unit test + tour khám phá.
+# Không vendor source vào repo, không tạo repo mới: source chỉ sống trong
+# workspace của run này, kết quả đi vào artifact qa-<version_name>.
+# Thay thế hydrogen-tour.yml + hydrogen-unit-tests.yml (đã xóa cùng source
+# hydrogen/ mà chúng test). Tour khám phá dùng tour/run_tour.sh chung.
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_url:
+        description: 'Link file phiên bản: Google Drive (/file/d/<id>/view), link trực tiếp .zip (source) hoặc .apk'
+        required: false
+        default: ''
+      git_ref:
+        description: 'Hoặc branch/tag/commit của kenhlive-tv (vd: main, kl8-archive) — để trống nếu dùng file_url'
+        required: false
+        default: ''
+      version_name:
+        description: 'Tên phiên bản (đặt tên artifact, vd: hydrogen-v2)'
+        required: true
+        default: 'version'
+      main_activity:
+        description: 'Activity launcher (vd: .ui.SplashActivity) — để trống = tự dò từ manifest (source) hoặc .MainActivity (APK)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  test-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout QA repo
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Get version source
+        id: source
+        run: |
+          set -e
+          if [ -n "${{ inputs.file_url }}" ]; then
+            URL="${{ inputs.file_url }}"
+            if echo "$URL" | grep -q "drive.google.com.*\/d\/"; then
+              ID=$(echo "$URL" | sed -n 's|.*\/d\/\([^/]*\).*|\1|p')
+              echo "Drive file id: $ID"
+              curl -sL "https://drive.google.com/uc?export=download&id=$ID" -o version-file
+            else
+              curl -sL "$URL" -o version-file
+            fi
+            TYPE=$(file -b version-file)
+            echo "Downloaded: $TYPE ($(stat -c%s version-file) bytes)"
+            if unzip -l version-file 2>/dev/null | grep -q " AndroidManifest.xml$"; then
+              cp version-file version.apk
+              echo "kind=apk" >> $GITHUB_OUTPUT
+              echo "project=" >> $GITHUB_OUTPUT
+            elif echo "$TYPE" | grep -qi "Zip archive"; then
+              mkdir -p version-src
+              unzip -q version-file -d version-src
+              if [ -f version-src/KenhLive/settings.gradle.kts ] || [ -f version-src/KenhLive/settings.gradle ]; then
+                echo "project=version-src/KenhLive" >> $GITHUB_OUTPUT
+              elif [ -f version-src/settings.gradle.kts ] || [ -f version-src/settings.gradle ]; then
+                echo "project=version-src" >> $GITHUB_OUTPUT
+              else
+                echo "::error::ZIP khong chua Android project (khong thay settings.gradle*)"
+                find version-src -maxdepth 2 | head -20
+                exit 1
+              fi
+              echo "kind=source" >> $GITHUB_OUTPUT
+            else
+              echo "::error::File khong phai ZIP source hay APK: $TYPE"
+              exit 1
+            fi
+          elif [ -n "${{ inputs.git_ref }}" ]; then
+            echo "kind=git" >> $GITHUB_OUTPUT
+            echo "project=app" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Can file_url hoac git_ref"
+            exit 1
+          fi
+
+      - name: Checkout KenhLive TV source (git_ref)
+        if: inputs.git_ref != ''
+        uses: actions/checkout@v4
+        with:
+          repository: hanhk112023-jpg/kenhlive-tv
+          ref: ${{ inputs.git_ref }}
+          ssh-key: ${{ secrets.APP_CHECKOUT_KEY }}
+          path: app
+
+      - name: Gradle version
+        id: gradle-ver
+        if: steps.source.outputs.kind != 'apk'
+        run: |
+          P="${{ steps.source.outputs.project }}"
+          V="8.5"
+          if [ -f "$P/gradle/wrapper/gradle-wrapper.properties" ]; then
+            V=$(grep distributionUrl "$P/gradle/wrapper/gradle-wrapper.properties" | sed -n 's/.*gradle-\([0-9.]*\)-bin\.zip/\1/p')
+            V="${V:-8.5}"
+          fi
+          echo "Gradle version: $V (project: $P)"
+          echo "version=$V" >> $GITHUB_OUTPUT
+
+      - name: Setup Gradle
+        if: steps.source.outputs.kind != 'apk'
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: ${{ steps.gradle-ver.outputs.version }}
+
+      - name: Build debug APK
+        if: steps.source.outputs.kind != 'apk'
+        working-directory: ${{ steps.source.outputs.project }}
+        run: |
+          OK=0
+          for i in 1 2 3; do
+            if gradle assembleDebug --no-daemon; then OK=1; break; else echo "gradle attempt $i failed, retry in 30s"; sleep 30; fi
+          done
+          [ "$OK" = "1" ] || { echo "::error::Gradle build failed after 3 attempts"; exit 1; }
+
+      - name: Locate APK + launcher activity
+        id: apk
+        run: |
+          if [ "${{ steps.source.outputs.kind }}" = "apk" ]; then
+            APK="$PWD/version.apk"
+          else
+            P="${{ steps.source.outputs.project }}"
+            APK=$(ls $P/app/build/outputs/apk/debug/*-universal-debug.apk 2>/dev/null || ls $P/app/build/outputs/apk/debug/*-debug.apk 2>/dev/null | head -1)
+            [ -n "$APK" ] && [ -f "$APK" ] || { echo "::error::khong thay APK debug"; ls -R $P/app/build/outputs/apk/debug/ 2>/dev/null || true; exit 1; }
+            APK="$PWD/$APK"
+          fi
+          cp "$APK" version-test.apk
+          echo "apk=$APK" >> $GITHUB_OUTPUT
+          if [ -n "${{ inputs.main_activity }}" ]; then
+            ACT="${{ inputs.main_activity }}"
+          elif [ "${{ steps.source.outputs.kind }}" != "apk" ]; then
+            ACT=$(python3 - "${{ steps.source.outputs.project }}/app/src/main/AndroidManifest.xml" <<'PYEOF'
+          import sys, xml.etree.ElementTree as ET
+          t = ET.parse(sys.argv[1]); r = t.getroot()
+          for a in r.iter('activity'):
+              name = a.get('{http://schemas.android.com/apk/res/android}name', '')
+              cats = [c.get('{http://schemas.android.com/apk/res/android}name', '') for f in a.iter('intent-filter') for c in f.iter('category')]
+              if any('LAUNCHER' in (c or '') for c in cats):
+                  print(name); break
+          PYEOF
+          )
+            ACT="${ACT:-.MainActivity}"
+          else
+            ACT=".MainActivity"
+          fi
+          case "$ACT" in
+            .*) MAIN="com.kenhlive.tv$ACT" ;;
+            *) MAIN="$ACT" ;;
+          esac
+          echo "main_activity=$MAIN" >> $GITHUB_OUTPUT
+          echo "APK=$APK  MAIN=$MAIN"
+
+      - name: Unit tests
+        if: steps.source.outputs.kind != 'apk'
+        working-directory: ${{ steps.source.outputs.project }}
+        run: |
+          gradle testDebugUnitTest --no-daemon || echo "UNIT TESTS FAILED (xem test-results trong artifact)"
+          python3 - <<'PYEOF'
+          import glob, xml.etree.ElementTree as ET
+          tot=fail=0
+          for f in glob.glob('app/build/test-results/testDebugUnitTest/*.xml'):
+              try:
+                  for ts in ET.parse(f).getroot().iter('testsuite'):
+                      tot+=int(ts.get('tests',0)); fail+=int(ts.get('failures',0))+int(ts.get('errors',0))
+              except Exception:
+                  pass
+          print(f"UNIT TESTS: {tot-fail}/{tot} passed")
+          PYEOF
+
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+
+      - name: Run exploratory tour on Android TV emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86
+          target: android-tv
+          profile: tv_1080p
+          script: bash tour/run_tour.sh
+        env:
+          APK: ${{ steps.apk.outputs.apk }}
+          MAIN: ${{ steps.apk.outputs.main_activity }}
+
+      - name: Collect QA output
+        if: always()
+        run: |
+          mkdir -p qa_out && cp -r /tmp/tour/* qa_out/ 2>/dev/null || true
+          cp version-test.apk qa_out/app-debug.apk 2>/dev/null || true
+          P="${{ steps.source.outputs.project }}"
+          if [ -n "$P" ]; then cp -r "$P/app/build/test-results/testDebugUnitTest" qa_out/test-results 2>/dev/null || true; fi
+          ls -la qa_out/
+
+      - name: Upload QA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-${{ inputs.version_name }}
+          path: qa_out/

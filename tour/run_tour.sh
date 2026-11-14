@@ -19,23 +19,29 @@ adb shell wm size 1920x1080
 adb shell wm density 320
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 0
-# APK build ra tên app-universal-debug.apk (do ABI splits trong app/build.gradle),
-# không phải app-debug.apk — tìm đúng file, thiếu thì dừng rõ ràng.
-APK=$(ls app/app/build/outputs/apk/debug/*-universal-debug.apk 2>/dev/null || ls app/app/build/outputs/apk/debug/*-debug.apk 2>/dev/null | head -1)
-if [ -z "$APK" ] || [ ! -f "$APK" ]; then
+# APK: lấy từ biến môi trường APK (workflow generic truyền đường dẫn tuyệt đối)
+# hoặc tìm theo layout bản chính (app checkout ở path app).
+if [ -n "${APK:-}" ]; then
+  APK_PATH="$APK"
+else
+  APK_PATH=$(ls app/app/build/outputs/apk/debug/*-universal-debug.apk 2>/dev/null || ls app/app/build/outputs/apk/debug/*-debug.apk 2>/dev/null | head -1)
+fi
+if [ -z "$APK_PATH" ] || [ ! -f "$APK_PATH" ]; then
   echo "::error::khong thay APK debug"
   ls -R app/app/build/outputs/apk/debug/ 2>/dev/null || true
   exit 1
 fi
-echo "Cai APK: $APK"
-adb install -r "$APK"
+echo "Cai APK: $APK_PATH"
+adb install -r "$APK_PATH"
 adb shell am force-stop com.kenhlive.tv; sleep 1
 adb logcat -c
 
 TL=$OUT/timeline.txt; : > $TL
 LOG=$OUT/exploration.log; : > $LOG
 T0=$(date +%s)
-MAIN="com.kenhlive.tv/.MainActivity"
+# Activity launcher: workflow generic dò từ manifest rồi truyền qua env MAIN;
+# mặc định là bản chính.
+MAIN="${MAIN:-com.kenhlive.tv/.MainActivity}"
 STEP=0
 fg_app() { adb shell dumpsys window 2>/dev/null | grep -m1 -o 'com.kenhlive.tv/[^ ]*' || echo ''; }
 mark() { echo "$(($(date +%s)-T0))s|$1|$(fg_app)" >> $TL; }
@@ -79,11 +85,14 @@ if any("has stopped" in t or "keeps stopping" in t for t in texts): print(f"[{ta
 PYEOF
 }
 
-# Lấy text của node đang focus (kèm fallback con trực tiếp), dùng khi dò rail.
-focused_text() {
-  adb shell uiautomator dump /sdcard/window_dump.xml >/dev/null 2>&1 || { echo ""; return; }
-  adb pull /sdcard/window_dump.xml $OUT/rail_tmp.xml >/dev/null 2>&1 || { echo ""; return; }
-  python3 - "$OUT/rail_tmp.xml" 2>/dev/null <<'PYEOF' || echo ""
+# Thông tin node đang focus: "text|x_min|x_max" (bounds của chính node focus).
+# Dùng để phân biệt mục rail (x_max <= 520) với thẻ nội dung — boot có thể
+# focus ở nội dung (hero) chứ không phải trên rail, nên dò rail mà không lọc
+# bounds sẽ nhặt nhầm tiêu đề trận đấu làm nhãn tab (tour bản chính lần 1).
+focused_info() {
+  adb shell uiautomator dump /sdcard/window_dump.xml >/dev/null 2>&1 || { echo "|0|0"; return; }
+  adb pull /sdcard/window_dump.xml $OUT/rail_tmp.xml >/dev/null 2>&1 || { echo "|0|0"; return; }
+  python3 - "$OUT/rail_tmp.xml" 2>/dev/null <<'PYEOF' || echo "|0|0"
 import sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 def focus_text(n):
@@ -97,10 +106,41 @@ def focus_text(n):
     return ""
 for n in root.iter("node"):
     if n.get("focused") == "true":
-        print(focus_text(n)); break
+        b = n.get("bounds", "[0,0][0,0]")
+        try:
+            parts = [int(v) for v in b.replace("[", " ").replace("]", " ").replace(",", " ").split()]
+            x1, x2 = parts[0], parts[2]
+        except Exception:
+            x1, x2 = 0, 0
+        print(f"{focus_text(n)}|{x1}|{x2}")
+        break
 else:
-    print("")
+    print("|0|0")
 PYEOF
+}
+
+# Lấy text của node đang focus (kèm fallback con trực tiếp), dùng khi dò rail.
+focused_text() { focused_info | cut -d'|' -f1; }
+
+# Focus có nằm trong vùng rail không? Rail 240dp @ density 320 = 480px, chừa biên 520.
+in_rail_zone() {
+  local xmax="${1##*|}"
+  [ -n "$xmax" ] && [ "$xmax" -gt 0 ] && [ "$xmax" -le 520 ]
+}
+
+# Đưa focus vào rail: bấm LEFT tối đa 4 lần cho tới khi focus nằm trong vùng rail.
+# Trả 0 nếu vào được rail, 1 nếu không (vd: màn hình trống làm mất focus).
+ensure_rail_focus() {
+  local i info
+  for i in 1 2 3 4; do
+    info=$(focused_info)
+    if in_rail_zone "$info"; then return 0; fi
+    key 21; sleep 1
+  done
+  info=$(focused_info)
+  if in_rail_zone "$info"; then return 0; fi
+  echo "[rail] KHONG VAO DUOC RAIL (focus hien tai: '${info%%|*}')" >> $LOG
+  return 1
 }
 
 # Một bước khám phá: ghi timeline, chụp ảnh, dump UI, kiểm tra crash.
@@ -127,10 +167,22 @@ adb shell screenrecord --size 1280x720 --bit-rate 2500000 --time-limit 175 /sdca
 REC_PID=$!
 sleep 2
 
-# 2. Boot: mở app, xem nó tự vào đâu
-mark "BOOT"
-adb shell am start -W -n "$MAIN" > $OUT/am_start.log 2>&1
-sleep 5
+# 2. Boot: mở app, xem nó tự vào đâu. Thử MAIN trước, nếu app không lên thì
+# thử activity còn lại (.MainActivity <-> .ui.MainActivity / SplashActivity).
+try_launch() {
+  adb shell am start -W -n "$1" > $OUT/am_start.log 2>&1
+  sleep 5
+  [ -n "$(fg_app)" ]
+}
+if ! try_launch "$MAIN"; then
+  case "$MAIN" in
+    *.ui.SplashActivity) ALT="com.kenhlive.tv/.ui.MainActivity" ;;
+    *.ui.MainActivity) ALT="com.kenhlive.tv/.MainActivity" ;;
+    *) ALT="com.kenhlive.tv/.ui.MainActivity" ;;
+  esac
+  echo "MAIN $MAIN khong len, thu $ALT" >> $LOG
+  if try_launch "$ALT"; then MAIN="$ALT"; fi
+fi
 if [ -z "$(fg_app)" ]; then
   echo "FAIL: app khong foreground" >> $LOG
   cat $OUT/am_start.log >> $LOG
@@ -142,21 +194,27 @@ if [ -z "$(fg_app)" ]; then
 fi
 explore "BOOT: man hinh dau tien" boot
 
-# 3. Dò rail: DOWN liên tiếp, ghi lại nhãn từng mục focus được.
-# Dừng khi focus quay lại nhãn đầu (đi hết vòng) hoặc 8 lần.
+# 3. Dò rail: đưa focus vào rail trước (boot có thể focus ở nội dung như hero),
+# rồi DOWN liên tiếp, chỉ ghi nhãn nào có bounds trong vùng rail.
+# Dừng khi focus lặp lại, rời khỏi rail, hoặc mất focus. Ghi cả mục đầu tiên
+# (không bỏ qua như bản cũ chỉ ghi sau mỗi lần DOWN).
 echo "[rail] Bat dau do rail" >> $LOG
 RAIL_LABELS=()
 PREV_FOCUS=""
-for i in 1 2 3 4 5 6 7 8; do
-  key 20; sleep 2
-  F=$(focused_text)
-  echo "[rail] DOWN $i -> FOCUS='$F'" >> $LOG
-  if [ -n "$F" ] && [ "$F" = "$PREV_FOCUS" ]; then echo "[rail] focus lap lai, dung do" >> $LOG; break; fi
-  if [ -n "$F" ]; then
+if ensure_rail_focus; then
+  for i in 1 2 3 4 5 6 7 8; do
+    INFO=$(focused_info); F="${INFO%%|*}"
+    if [ -z "$F" ]; then echo "[rail] mat focus, dung do" >> $LOG; break; fi
+    if ! in_rail_zone "$INFO"; then echo "[rail] focus roi khoi rail ('$F'), dung do" >> $LOG; break; fi
+    if [ "$F" = "$PREV_FOCUS" ]; then echo "[rail] focus lap lai, dung do" >> $LOG; break; fi
+    echo "[rail] muc $i: '$F'" >> $LOG
     case " ${RAIL_LABELS[*]} " in *" $F "*) ;; *) RAIL_LABELS+=("$F");; esac
     PREV_FOCUS="$F"
-  fi
-done
+    key 20; sleep 2
+  done
+else
+  echo "[rail] BO QUA do rail (khong vao duoc rail)" >> $LOG
+fi
 echo "[rail] Cac muc tim thay: ${RAIL_LABELS[*]}" >> $LOG
 explore "RAIL: sau khi do het rail" rail
 
@@ -168,12 +226,15 @@ key 20; sleep 2; explore "NOI DUNG: DOWN 1" content_down1
 key 22; sleep 2; explore "NOI DUNG: RIGHT 1" content_right1
 key 20; sleep 2; explore "NOI DUNG: DOWN 2" content_down2
 
-# 5. Mở từng tab đã khám phá: về rail (LEFT), DOWN tới đúng nhãn, ENTER.
+# 5. Mở từng tab đã khám phá: vào lại rail, DOWN tới đúng nhãn, ENTER.
 for label in "${RAIL_LABELS[@]}"; do
-  for i in 1 2 3 4 5; do key 21; sleep 1; done
+  if ! ensure_rail_focus; then
+    echo "[tab] KHONG VAO DUOC RAIL de tim [$label], bo qua" >> $LOG
+    continue
+  fi
   FOUND=0
   for i in 1 2 3 4 5 6 7 8; do
-    F=$(focused_text)
+    INFO=$(focused_info); F="${INFO%%|*}"
     if [ "$F" = "$label" ]; then FOUND=1; break; fi
     key 20; sleep 1
   done
