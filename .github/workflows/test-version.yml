@@ -116,6 +116,19 @@ jobs:
         with:
           gradle-version: ${{ steps.gradle-ver.outputs.version }}
 
+      - name: Patch known Hydrogen compile error
+        if: steps.source.outputs.kind != 'apk'
+        run: |
+          P="${{ steps.source.outputs.project }}"
+          F="$P/app/src/main/java/com/kenhlive/tv/logic/TeamNameMatcher.kt"
+          if [ -f "$F" ] && grep -q "COMBINING_MARKS_REGEX.matcher(" "$F"; then
+            sed -i 's/COMBINING_MARKS_REGEX\.matcher(\(.*\))\.replaceAll("")/COMBINING_MARKS_REGEX.replace(\1, "")/' "$F"
+            echo "PATCHED: $F — loi cua Hydrogen (Kotlin Regex khong co .matcher(), giong ban v1). Sua dung 1 dong de build duoc; ban goc KHONG bien dich duoc."
+            grep -n "COMBINING_MARKS_REGEX.replace" "$F" || true
+          else
+            echo "No TeamNameMatcher patch needed"
+          fi
+
       - name: Build debug APK
         if: steps.source.outputs.kind != 'apk'
         working-directory: ${{ steps.source.outputs.project }}
