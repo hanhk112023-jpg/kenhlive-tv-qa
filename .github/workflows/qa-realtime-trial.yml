@@ -17,7 +17,7 @@ on:
         type: boolean
         default: true
       file_url:
-        description: 'Link file phiên bản khác (Google Drive /file/d/<id>/view, link trực tiếp .zip source hoặc .apk) — để trống = test kenhlive-tv@main'
+        description: 'Link file phiên bản khác (Google Drive /file/d/<id>/view, link trực tiếp .zip source hoặc .apk, hoặc github:owner/repo@branch để clone repo riêng tư qua V3_CHECKOUT_KEY) — để trống = test kenhlive-tv@main'
         required: false
         default: ''
       version_name:
@@ -54,6 +54,27 @@ jobs:
         run: |
           set -e
           URL="${{ inputs.file_url }}"
+          # Repo GitHub riêng tư (vd: github:hanhk112023-jpg/kenhlive-v3@main) — clone qua deploy key V3_CHECKOUT_KEY.
+          if echo "$URL" | grep -q "^github:"; then
+            SPEC=$(echo "$URL" | sed 's/^github://')
+            REPO=$(echo "$SPEC" | cut -d@ -f1)
+            BRANCH=$(echo "$SPEC" | cut -d@ -f2)
+            mkdir -p ~/.ssh
+            printf '%s' "${{ secrets.V3_CHECKOUT_KEY }}" > ~/.ssh/v3_key
+            chmod 600 ~/.ssh/v3_key
+            GIT_SSH_COMMAND="ssh -i ~/.ssh/v3_key -o StrictHostKeyChecking=no" git clone --depth 1 --branch "$BRANCH" "git@github.com:$REPO.git" version-src
+            rm -f ~/.ssh/v3_key
+            if [ -f version-src/settings.gradle.kts ] || [ -f version-src/settings.gradle ]; then
+              echo "project=version-src" >> $GITHUB_OUTPUT
+            elif [ -f version-src/KenhLive/settings.gradle.kts ] || [ -f version-src/KenhLive/settings.gradle ]; then
+              echo "project=version-src/KenhLive" >> $GITHUB_OUTPUT
+            else
+              echo "::error::Repo khong chua Android project (khong thay settings.gradle*)"; exit 1
+            fi
+            echo "kind=source" >> $GITHUB_OUTPUT
+            echo "Cloned $REPO@$BRANCH ($(du -sh version-src | cut -f1))"
+            exit 0
+          fi
           if echo "$URL" | grep -q "drive.google.com.*\/d\/"; then
             ID=$(echo "$URL" | sed -n 's|.*\/d\/\([^/]*\).*|\1|p')
             curl -sL "https://drive.google.com/uc?export=download&id=$ID" -o version-file
