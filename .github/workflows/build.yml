@@ -43,7 +43,7 @@ jobs:
           [ "$OK" = "1" ] || { echo "::error::Gradle build failed after 3 attempts"; exit 1; }
           APK=$(ls app/build/outputs/apk/debug/*-universal-debug.apk 2>/dev/null || ls app/build/outputs/apk/debug/*-debug.apk | head -1)
           echo "Produced APK: $APK"
-          cp "$APK" app/build/outputs/apk/debug/app-debug.apk
+          if [ "$APK" != "app/build/outputs/apk/debug/app-debug.apk" ]; then cp "$APK" app/build/outputs/apk/debug/app-debug.apk; fi
           cd app/build/outputs/apk/debug
           sha256sum app-debug.apk > app-debug.apk.sha256
           echo "SHA-256: $(cat app-debug.apk.sha256)"
@@ -86,7 +86,7 @@ jobs:
           [ "$OK" = "1" ] || { echo "::error::Gradle build failed after 3 attempts"; exit 1; }
           APK=$(ls app/build/outputs/apk/release/*-universal-release.apk 2>/dev/null || ls app/build/outputs/apk/release/*-release.apk | head -1)
           echo "Produced APK: $APK"
-          cp "$APK" app/build/outputs/apk/release/app-release.apk
+          if [ "$APK" != "app/build/outputs/apk/release/app-release.apk" ]; then cp "$APK" app/build/outputs/apk/release/app-release.apk; fi
           cd app/build/outputs/apk/release
           sha256sum app-release.apk > app-release.apk.sha256
           echo "SHA-256: $(cat app-release.apk.sha256)"
