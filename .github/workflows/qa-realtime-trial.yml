@@ -24,6 +24,13 @@ on:
         description: 'Tên phiên bản (đặt tên artifact, vd: hydrogen-v2)'
         required: false
         default: 'main'
+      device:
+        description: 'Thiết bị chạy tour: tv (Android TV 1920x1080 ngang) hoặc phone (điện thoại 1080x2400 dọc)'
+        type: choice
+        options:
+          - tv
+          - phone
+        default: tv
 
 # Tier 1: job QA chỉ đọc code và upload artifact, không cần ghi contents.
 permissions:
@@ -390,7 +397,7 @@ jobs:
               "$METEOR_API_BASE/chat/completions" | head -c 600; echo
           fi
 
-      - name: Chạy Realtime Vision QA trên Android TV emulator
+      - name: Chạy Realtime Vision QA trên emulator
         env:
           # Meteor là AI Brain DUY NHẤT: các gateway cũ để trống có chủ đích để
           # AIBrain._detect_provider chọn OPENAI (Meteor) làm engine chính.
@@ -410,13 +417,12 @@ jobs:
         with:
           api-level: 30
           arch: x86
-          target: android-tv
-          profile: tv_1080p
+          target: ${{ inputs.device == 'phone' && 'default' || 'android-tv' }}
+          profile: ${{ inputs.device == 'phone' && 'pixel_6' || 'tv_1080p' }}
           script: |
             adb root
             if [ "${{ env.HAS_PROXY }}" = "1" ]; then adb shell settings put global http_proxy 10.0.2.2:7891; fi
-            adb shell wm size 1920x1080
-            adb shell wm density 320
+            if [ "${{ inputs.device }}" = "phone" ]; then adb shell wm size 1080x2400; adb shell wm density 420; else adb shell wm size 1920x1080; adb shell wm density 320; fi
             adb shell settings put system accelerometer_rotation 0
             adb shell settings put system user_rotation 0
             adb install -r qa-apk/app-debug.apk
