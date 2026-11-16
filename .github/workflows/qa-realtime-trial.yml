@@ -417,7 +417,7 @@ jobs:
         with:
           api-level: 30
           arch: x86
-          target: ${{ inputs.device == 'phone' && 'default' || 'android-tv' }}
+          target: ${{ inputs.device == 'phone' && 'google_apis' || 'android-tv' }}
           profile: ${{ inputs.device == 'phone' && 'pixel_6' || 'tv_1080p' }}
           script: |
             adb root
