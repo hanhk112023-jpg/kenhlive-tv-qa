@@ -922,8 +922,8 @@ def _parse_bounds(bounds_str):
 
 def _guard_schedule_live_frame(f, ui_state):
     """Claim 'hàng LIVE chỉ hiện giờ kickoff' chỉ đúng khi frame trích dẫn
-    THẬT SỰ là màn có hàng LIVE. (v4 4-tab: tab Lịch thi đấu đã gộp vào
-    tab Thể thao = tab 1 — hàng LIVE/Đang đá/Sắp đá/Đã kết thúc đều ở đó.)
+    THẬT SỰ là màn có hàng LIVE. (v7.7.9 7-tab: hàng LIVE/Đang đá/Sắp đá/
+    Đã kết thúc ở cả tab Trực tiếp (0) và tab Lịch (1).)
     Trả lý do loại hoặc None."""
     sel = ui_state.get("selected_ids") or []
     try:
@@ -932,11 +932,11 @@ def _guard_schedule_live_frame(f, ui_state):
         NAV_ID_TO_TAB = {}
     tabs = [NAV_ID_TO_TAB[r] for r in sel if r in NAV_ID_TO_TAB]
     if tabs:
-        # Frame có tab được chọn rõ ràng: claim chỉ giữ khi đó là tab Thể thao (1).
-        if 1 in tabs:
+        # Frame có tab được chọn rõ ràng: claim chỉ giữ khi đó là tab Trực tiếp (0) hoặc Lịch (1).
+        if 0 in tabs or 1 in tabs:
             return None
-        return ("frame trích dẫn ở tab %s, không phải tab Thể thao — claim "
-                "'giờ kickoff thay tỉ số' chỉ áp cho hàng LIVE ở tab Thể thao"
+        return ("frame trích dẫn ở tab %s, không phải tab Trực tiếp/Lịch — claim "
+                "'giờ kickoff thay tỉ số' chỉ áp cho hàng LIVE ở tab Trực tiếp hoặc Lịch"
                 % tabs[0])
     # Không đọc được tab: cần marker màn Lịch trong dump của CHÍNH frame đó.
     blob = _norm_text(" ".join(

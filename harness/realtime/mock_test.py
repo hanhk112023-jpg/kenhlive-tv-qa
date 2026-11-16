@@ -73,7 +73,7 @@ class FakeDevice(RealtimeDevice):
         self.keys = []
         self._dump = dict(self.HOME_DUMP)
         self._activity = "com.kenhlive.tv/.MainActivity"
-        self._tab = 1  # v4 4-tab: mac dinh The thao (1)
+        self._tab = 0  # v7.7.9 7-tab: mac dinh Truc tiep (0)
 
     def screencap_bytes(self):
         self._n += 1
@@ -211,7 +211,7 @@ def main():
     # CI-T4 PLAYER_STREAMING FAIL A-B-A-B: mở thẻ [SẮP ĐÁ] ĐTQ 19:00 chưa đá
     # -> loading vô hạn -> player tự thoát -> dao động.
     dev3 = FakeDevice()
-    dev3._tab = 1  # mission player cần tab Trực tiếp (1)
+    dev3._tab = 0  # mission player cần tab Trực tiếp (0)
     drv6 = Driver(dev3, EvidenceGate(specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]),
                   specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"])
     ui_upcoming = {
@@ -300,7 +300,7 @@ def main():
             ("cardTime", "19:00")],
         "has_dialog": False, "dialog_ids": []}
     _dev8 = FakeDevice()
-    _dev8._tab = 1  # ROOM_PICKER ở tab Trực tiếp (1)
+    _dev8._tab = 0  # ROOM_PICKER ở tab Trực tiếp (0)
     drv8 = Driver(_dev8, EvidenceGate(specs["MISSION_SPORTS_ROOM_PICKER"]),
                   specs["MISSION_SPORTS_ROOM_PICKER"])
     a_5 = drv8.next_action(_ui_no_bounds, "com.kenhlive.tv/.MainActivity", None, 0.0)
@@ -314,7 +314,7 @@ def main():
     # LIVE (goto_live_card) thay vì bấm OK mù; đã đứng trên thẻ LIVE thì
     # bấm OK như thường; không có thẻ LIVE thì hành vi cũ (OK).
     dev_live = FakeDevice()
-    dev_live._tab = 1  # v4: The thao la tab 1
+    dev_live._tab = 0  # v7.7.9: Truc tiep la tab 0
     drv10 = Driver(dev_live, EvidenceGate(specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]),
                    specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"])
     _ui_goto = {
@@ -875,12 +875,12 @@ def main():
     # CI-T4 DATA_ACCURACY/SCHEDULE/IPTV_CATEGORIES FAIL trung thực vì header
     # ('Hôm nay', 'tv360') đã cuộn mất trước observation đầu tiên.
     # (v4 4-tab: MISSION_SPORTS_DATA_ACCURACY đã bỏ cùng tab Lịch thi đấu;
-    # dùng MISSION_IPTV_CATEGORIES_AND_FAVORITES, tab 3, cũng needs_scroll_top.)
+    # dùng MISSION_IPTV_CATEGORIES_AND_FAVORITES, tab 2, cũng needs_scroll_top.)
     r4 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_scroll", serial=None,
                                    vision_budget=0, no_vision=True)
     r4.run([specs["MISSION_IPTV_CATEGORIES_AND_FAVORITES"]])
     print("IPTV_CATEGORIES keys đầu:", r4.device.keys[:10])
-    assert r4.device.keys[0] == "SWITCH_TAB(3)", "reset phải chuyển về tab 3 trước"
+    assert r4.device.keys[0] == "SWITCH_TAB(2)", "reset phải chuyển về tab 2 trước"
     assert r4.device.keys[1:9] == ["UP"] * 8, \
         "sau reset phải có UP x8 để header 'Hôm nay' hiện trước khi gate đọc"
     # Mission không gắn cờ thì không cuộn (không tốn thời gian).
@@ -1433,7 +1433,7 @@ def main():
         "view đích chưa thấy thì explore DOWN như trước"
     # Đi tới nút CHỌN TẬP theo text rồi mới bấm OK mở dialog.
     dev_ep = FakeDevice()
-    dev_ep._tab = 2  # EPISODE_PICKER cần tab Kho Phim (2)
+    dev_ep._tab = 5  # EPISODE_PICKER cần tab Kho Phim (5)
     drv_ep = Driver(dev_ep, EvidenceGate(specs["MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE"]),
                     specs["MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE"])
     ui_ep = {"focused_sig": "btnHeroBackHome#[45,45][155,155]",
@@ -1620,7 +1620,7 @@ def main():
         "has_dialog": True, "dialog_ids": ["panelBlvList", "blvCardRoot"],
     }
     _dev10 = FakeDevice()
-    _dev10._tab = 1  # PLAYER_STREAMING cần tab Trực tiếp (1)
+    _dev10._tab = 0  # PLAYER_STREAMING cần tab Trực tiếp (0)
     drv10b = Driver(_dev10, EvidenceGate(specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]),
                     specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"])
     a_10 = drv10b.next_action(_ui_panel_open, "com.kenhlive.tv/.MainActivity", None, 0.0)
@@ -1665,7 +1665,7 @@ def main():
     # Driver trước giờ không bao giờ phát LONG_PRESS (execute có sẵn nhưng
     # không rule nào dùng) nên favorites chưa từng kiểm tra thật.
     dev_lp = FakeDevice()
-    dev_lp._tab = 3  # IPTV_CATEGORIES cần tab IPTV (3)
+    dev_lp._tab = 2  # IPTV_CATEGORIES cần tab IPTV (2)
     drv_lp = Driver(dev_lp, EvidenceGate(specs["MISSION_IPTV_CATEGORIES_AND_FAVORITES"]),
                     specs["MISSION_IPTV_CATEGORIES_AND_FAVORITES"])
     ui_lp = {"focused_sig": "channelCard#[100,300][400,600]",
@@ -1784,12 +1784,12 @@ def main():
                                   vision_budget=0, no_vision=True)
     assert isinstance(r.device, FakeDevice)
     r.device._activity = "com.kenhlive.tv/.PlayerActivity"
-    r.device._tab = 0  # đang ở tab Tìm kiếm (0), mission COLD_START cần tab 1 (Thể thao)
+    r.device._tab = 1  # đang ở tab Lịch (1), mission COLD_START cần tab 0 (Trực tiếp)
     report = r.run([specs["MISSION_COLD_START"]])
     print("reset keys:", [k for k in r.device.keys if "BACK" in k or "SWITCH" in k],
           "| activity sau reset:", r.device._activity, "| tab:", r.device._tab)
     assert r.device._activity == "com.kenhlive.tv/.MainActivity", "reset không về MainActivity"
-    assert r.device._tab == 1, "reset không chuyển về tab 1 (Thể thao)"
+    assert r.device._tab == 0, "reset không chuyển về tab 0 (Trực tiếp)"
     assert r.mission_results[0]["outcome"] == "PASS"
     print("RESET_OK")
 
@@ -2857,7 +2857,7 @@ def test_ci_t9_keyboard_open_type_unverified():
     _spec.needs_keyboard = True
     # (a) driver, unit.
     _dev = FakeDevice()
-    _dev._tab = 0  # v4: Tim kiem la tab 0
+    _dev._tab = 3  # v7.7.9: Tim kiem la tab 3
     _dev._dump = dict(_SEARCH_DUMP_T9)
     _drv = Driver(_dev, EvidenceGate(_spec), _spec)
     _a1 = _drv.next_action(_dev._dump, "com.kenhlive.tv/.MainActivity", None, 0.0)
@@ -2880,7 +2880,7 @@ def test_ci_t9_keyboard_open_type_unverified():
         def __init__(self, *a, **k):
             super().__init__(*a, **k)
             self._dump = dict(_SEARCH_DUMP_T9)
-            self._tab = 0  # v4: Tim kiem la tab 0
+            self._tab = 3  # v7.7.9: Tim kiem la tab 3
 
     _orig_dev = _rm.RealtimeDevice
     _rm.RealtimeDevice = _NoKbDevice
@@ -2904,7 +2904,7 @@ def test_ci_t9_keyboard_open_type_unverified():
         def __init__(self, *a, **k):
             super().__init__(*a, **k)
             self._dump = dict(_SEARCH_DUMP_T9)
-            self._tab = 0  # v4: Tim kiem la tab 0
+            self._tab = 3  # v7.7.9: Tim kiem la tab 3
             self.typed = []
         def send_key(self, key_name):
             super().send_key(key_name)
@@ -3194,7 +3194,7 @@ def test_ci_t9_exoplayer_no_live_unverified():
         def __init__(self, *a, **k):
             super().__init__(*a, **k)
             self._dump = dict(_no_live_dump)
-            self._tab = 1  # v4: The thao la tab 1
+            self._tab = 0  # v7.7.9: Truc tiep la tab 0
 
     from missions import get_missions
     _specs = {s.name: s for s in get_missions()}
@@ -3358,7 +3358,7 @@ def test_h3_sports_multi_source_seek_cola():
                  "bounds": "[100,750][500,1050]"}],
             "has_dialog": False, "dialog_ids": []}
     _dev = FakeDevice()
-    _dev._tab = 1  # v4: The thao la tab 1 (nav_live trong dump)
+    _dev._tab = 0  # v7.7.9: Truc tiep la tab 0 (nav_live trong dump)
     _gate = EvidenceGate(_sp)
     _drv = Driver(_dev, _gate, _sp)
     # Mô phỏng bẫy A-B-A-B thử 5: DOWN từ thẻ A rơi về thẻ B và ngược lại.
@@ -3460,7 +3460,7 @@ def test_h4_iptv_hold_and_no_tab_switch_in_player():
     _a = _drv(_iptv, 0).next_action(
         _ui_grid, "com.kenhlive.tv/.MainActivity", None, 0.0)
     print("IPTV ở MainActivity, tab lệch ->", _a.type, _a.param, "| rule:", _a.rule)
-    assert _a.type == "SWITCH_TAB" and _a.param == "3" and _a.rule == "goto_tab", \
+    assert _a.type == "SWITCH_TAB" and _a.param == "2" and _a.rule == "goto_tab", \
         "ngoài player thì sai tab vẫn phải SWITCH_TAB về tab đích (được %s %s)" % (_a.type, _a.rule)
     print("H4_IPTV_HOLD_NO_TAB_SWITCH_IN_PLAYER_OK")
 
@@ -4428,7 +4428,7 @@ def test_h15_judge_guard_three_false_high_patterns():
     """H15 (trial 10/11/12): 3 HIGH giả lặp lại, 0 cái trích đúng frame —
     judge-guard hậu kiểm trước khi chấm, KHÔNG gọi thêm vision:
     (1) claim 'hàng LIVE chỉ hiện giờ kickoff' -> frame phải là màn Thể thao
-        (tab 1, nơi chứa hàng LIVE sau khi gộp Lịch vào Thể thao);
+        (tab 0 Trực tiếp hoặc tab 1 Lịch — cả hai đều có hàng LIVE);
         frame tab khác -> loại. Frame tab Thể thao -> giữ.
     (2) claim 'phụ đề đè seekbar' -> OCR frame trích dẫn phải có >=2 box
         chữ cắt ngang seekbar VÀ ít nhất 1 box KHÔNG phải chữ UI; toàn
@@ -4448,7 +4448,7 @@ def test_h15_judge_guard_three_false_high_patterns():
 
     ctx = {}
     # --- (1) schedule-live-no-score ---
-    # (v4 4-tab: hàng LIVE ở tab Thể thao (1); nav_live giờ là tab 1 nên
+    # (v7.7.9 7-tab: hàng LIVE ở tab Trực tiếp (0) và tab Lịch (1); nav_live là tab 0 nên
     # frame nav_live LÀ màn đúng -> giữ; frame tab khác (vd Truyền hình) -> loại.
     _f1 = _mk_high("Hàng LIVE chỉ hiện giờ kickoff thay vì tỉ số: '18:30'")
     _ui_sidebar = {"selected_ids": ["nav_iptv"],

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """KenhLive Realtime QA — mission specs (mục tiêu bằng chứng, không kịch bản).
 
-15 mission (v4 4-tab): 8 mission cũ đã renumber + 7 mission Schedule/Settings/Hub đã bỏ (17 mission gốc — VOD và WebPlayer tách riêng
+15 mission (v7.7.9 7-tab: Truc tiep 0, Lich 1, Truyen hinh 2, Tim kiem 3, Cai dat 4, Phim 5, Hub 6): 8 mission cũ đã renumber + 7 mission Schedule/Settings/Hub đã bỏ (17 mission gốc — VOD và WebPlayer tách riêng
 thành 2 mission nhưng tổng vẫn 17 vì Home Hub cũ đã bỏ — + 1 mission
 CI-T8 MISSION_SCHEDULE_LIVE_DIRECTED) + 3 mission tour đủ màn sau trial 9
 (DESIGN §15.23: Cài đặt storage dialog, Cài đặt Telegram QR, MultiView)
@@ -30,7 +30,7 @@ ALL_MISSIONS = [
         required_activity="MainActivity",
         required_texts=["trang chủ"],
         target_desc="màn hình chính KenhLive đã nạp, nav TRANG CHỦ hiển thị",
-        tab=1,
+        tab=0,
     ),
     MissionSpec(
         "MISSION_SPORTS_MULTI_SOURCE",
@@ -51,7 +51,7 @@ ALL_MISSIONS = [
         required_activity="MainActivity",
         required_texts=["cola"],
         target_desc="hàng trận đấu của đài ColaTV hiển thị trên tab Trực tiếp",
-        tab=1, goto_texts=["cola"],
+        tab=0, goto_texts=["cola"],
     ),
     MissionSpec(
         "MISSION_SPORTS_ROOM_PICKER",
@@ -62,7 +62,7 @@ ALL_MISSIONS = [
         required_texts=["blv"],
         needs_dialog=True,
         target_desc="hộp thoại chọn phòng BLV đang mở với danh sách phòng",
-        tab=1,
+        tab=0,
     ),
     MissionSpec(
         "MISSION_PLAYER_STREAMING_AND_CONTROLS",
@@ -77,7 +77,7 @@ ALL_MISSIONS = [
         required_activity="PlayerActivity",
         needs_motion=True, needs_vision=True,
         target_desc="trình phát PlayerActivity đang phát video bóng đá thật của một trận đang đá (LIVE/TRỰC TIẾP)",
-        tab=1, requires_live_row=True,
+        tab=0, requires_live_row=True,
     ),
     MissionSpec(
         "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
@@ -92,7 +92,7 @@ ALL_MISSIONS = [
         required_activity="MainActivity",
         required_texts=["kênh"],
         target_desc="tab Truyền hình hiển thị lưới kênh IPTV với các hàng danh mục",
-        tab=3, needs_scroll_top=True, needs_long_press=True,
+        tab=2, needs_scroll_top=True, needs_long_press=True,
     ),
     MissionSpec(
         "MISSION_IPTV_EPG_AND_ZAPPING_PLAYER",
@@ -117,7 +117,7 @@ ALL_MISSIONS = [
         required_texts=["kênh"],
         needs_motion=True, needs_vision=True,
         target_desc="trình phát IPTV đang phát một kênh truyền hình, màn hình hiện tên kênh đang phát",
-        tab=3,
+        tab=2,
     ),
     MissionSpec(
         "MISSION_PHIM_NGUONC_AND_CATEGORIES",
@@ -127,7 +127,7 @@ ALL_MISSIONS = [
         required_activity="MainActivity",
         required_texts=["kho phim"],
         target_desc="tab Kho Phim với hero phim và pills thể loại",
-        tab=2,
+        tab=5,
     ),
     MissionSpec(
         "MISSION_PHIM_EPISODE_PICKER_AND_FAVORITE",
@@ -138,7 +138,7 @@ ALL_MISSIONS = [
         required_texts=["tập"],
         needs_dialog=True,
         target_desc="hộp thoại chọn tập phim đang mở với danh sách tập",
-        tab=2, goto_texts=["CHỌN TẬP"],
+        tab=5, goto_texts=["CHỌN TẬP"],
     ),
     MissionSpec(
         "MISSION_VOD_PLAYER_SEEK_AND_RESUME",
@@ -240,7 +240,7 @@ ALL_MISSIONS = [
         required_activity="MainActivity",
         required_texts=["tìm kiếm"],
         target_desc="tab Tìm kiếm với ô nhập từ khóa đang hiển thị",
-        tab=0, needs_keyboard=True,
+        tab=3, needs_keyboard=True,
     ),
     MissionSpec(
         "MISSION_DPAD_CHAOS_STRESS_AND_RECOVERY",
