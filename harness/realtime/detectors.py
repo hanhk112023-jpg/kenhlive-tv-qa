@@ -862,8 +862,8 @@ def run_all_detectors(frame_png, ui_state, activity, ctx, frame_ref, t_offset, o
     findings += detect_blank(frame_png, ui_state, activity, ctx, frame_ref, t_offset)
     if ctx.get("is_tv", True):
         findings += detect_focus_loss(ui_state, activity, ctx, frame_ref, t_offset)
+        findings += detect_focus_trap(ui_state, activity, ctx, frame_ref, t_offset, frame_png)
     findings += detect_player_focus_loss(ui_state, activity, ctx, frame_ref, t_offset)
-    findings += detect_focus_trap(ui_state, activity, ctx, frame_ref, t_offset, frame_png)
     findings += detect_offscreen_or_zero_focus(ui_state, activity, ctx, frame_ref, t_offset, frame_png)
     findings += detect_dialog_focus_leak(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_bad_text(ui_state, activity, ctx, frame_ref, t_offset)
