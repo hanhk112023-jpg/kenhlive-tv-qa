@@ -194,6 +194,17 @@ if [ -z "$(fg_app)" ]; then
 fi
 explore "BOOT: man hinh dau tien" boot
 
+# First-run feedback dialog ("THÔNG BÁO … ĐÃ HIỂU / ĐÓNG") chắn màn hình hub.
+# focus trap giữ tiêu điểm đúng vào nút ĐÓNG — bấm OK để tắt trước khi dò rail.
+FOCUS_BOOT=$(focused_text)
+case "$FOCUS_BOOT" in
+  *"ĐÃ HIỂU"*|*"ĐÓNG"*)
+    echo "[boot] DONG dialog first-run (focus: $FOCUS_BOOT)" >> $LOG
+    key 23; sleep 2
+    explore "BOOT: sau khi dong dialog" boot_dialog_closed
+    ;;
+esac
+
 # 3. Dò rail: đưa focus vào rail trước (boot có thể focus ở nội dung như hero),
 # rồi DOWN liên tiếp, chỉ ghi nhãn nào có bounds trong vùng rail.
 # Dừng khi focus lặp lại, rời khỏi rail, hoặc mất focus. Ghi cả mục đầu tiên
