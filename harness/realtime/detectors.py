@@ -297,7 +297,7 @@ def detect_focus_trap(ui_state, activity, ctx, frame_ref, t_offset, frame_png=No
                 frame_ref, t_offset, focused_sig)]
 
 
-def detect_offscreen_or_zero_focus(ui_state, activity, ctx, frame_ref, t_offset):
+def detect_offscreen_or_zero_focus(ui_state, activity, ctx, frame_ref, t_offset, frame_png=None):
     b = ui_state.get("focused_bounds")
     sig = ui_state.get("focused_sig", "NONE")
     if not b or sig == "NONE":
@@ -308,6 +308,17 @@ def detect_offscreen_or_zero_focus(ui_state, activity, ctx, frame_ref, t_offset)
     x1, y1, x2, y2 = map(int, m[:4])
     w, h = x2 - x1, y2 - y1
     vw, vh = ctx.get("viewport", (SCREEN_W, SCREEN_H))
+    # `wm size` reports the unrotated size; uiautomator bounds follow the
+    # rotated surface. Compare with the captured frame orientation and swap.
+    if frame_png:
+        try:
+            import io as _io
+            from PIL import Image as _Image
+            _iw, _ih = _Image.open(_io.BytesIO(frame_png)).size
+            if _iw and _ih and ((vw > vh) != (_iw > _ih)):
+                vw, vh = vh, vw
+        except Exception:
+            pass
     if x2 <= 0 or y2 <= 0 or x1 >= vw or y1 >= vh:
         key = "OFFSCREEN:%s" % sig
         if key in ctx.setdefault("reported", set()):
@@ -849,10 +860,11 @@ def run_all_detectors(frame_png, ui_state, activity, ctx, frame_ref, t_offset, o
     OCR full frame mỗi bước sẽ tốn ~26s/bước, phá mục tiêu <30 phút."""
     findings = []
     findings += detect_blank(frame_png, ui_state, activity, ctx, frame_ref, t_offset)
-    findings += detect_focus_loss(ui_state, activity, ctx, frame_ref, t_offset)
+    if ctx.get("is_tv", True):
+        findings += detect_focus_loss(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_player_focus_loss(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_focus_trap(ui_state, activity, ctx, frame_ref, t_offset, frame_png)
-    findings += detect_offscreen_or_zero_focus(ui_state, activity, ctx, frame_ref, t_offset)
+    findings += detect_offscreen_or_zero_focus(ui_state, activity, ctx, frame_ref, t_offset, frame_png)
     findings += detect_dialog_focus_leak(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_bad_text(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_fake_score(ui_state, activity, ctx, frame_ref, t_offset)

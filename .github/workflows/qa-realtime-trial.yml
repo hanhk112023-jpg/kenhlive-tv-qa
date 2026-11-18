@@ -413,6 +413,7 @@ jobs:
           # vì MainActivity có thể ở .ui (v4) chứ không phải .MainActivity.
           QA_LAUNCHER_ACTIVITY: ${{ steps.acts.outputs.launcher }}
           QA_MAIN_ACTIVITY: ${{ steps.acts.outputs.main }}
+          QA_DEVICE: ${{ inputs.device }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
