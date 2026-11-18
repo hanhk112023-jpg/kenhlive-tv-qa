@@ -153,7 +153,8 @@ class RealtimeRunner:
         self.start_time = 0
         self.detector_ctx = {"watcher": self.watcher, "reported": set(),
                              "focus_hist": [], "ocr_skipped": 0,
-                             "logo_check_frames": []}
+                             "logo_check_frames": [],
+                             "viewport": self.device.viewport()}
         self._global_step = 0
         self._prev_obs_png = None  # frame observation trước (CI-T5: fallback pixel_diff)
         self._prev_activity = None  # activity observation trước (H5: lưu khung khi VÀO player)

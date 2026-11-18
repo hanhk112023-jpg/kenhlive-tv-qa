@@ -121,6 +121,15 @@ class RealtimeDevice:
         self.action_history = []
         self._reported_anomaly_keys = set()
         self._last_logcat_len = 0
+        self._viewport = None
+
+    def viewport(self):
+        """Viewport thực của device (TV 1920x1080, phone 1080x2400, ...)."""
+        if self._viewport is None:
+            out = sh("%s shell wm size" % self.adb)
+            m = re.search(r"(\d+)x(\d+)", out or "")
+            self._viewport = (int(m.group(1)), int(m.group(2))) if m else (1920, 1080)
+        return self._viewport
 
     # -- app lifecycle -------------------------------------------------
     def launch_app(self):
@@ -473,7 +482,8 @@ class RealtimeDevice:
                         _m = re.findall(r"-?\d+", bounds)
                         if len(_m) >= 4:
                             _x1, _y1, _x2, _y2 = map(int, _m[:4])
-                            _in_view = _x2 > 0 and _y2 > 0 and _x1 < 1920 and _y1 < 1080
+                            _vw, _vh = self.viewport()
+                            _in_view = _x2 > 0 and _y2 > 0 and _x1 < _vw and _y1 < _vh
                     if a.get("selected") == "true" and r_id:
                         selected_ids.append(r_id)
                     if txt and _in_view:

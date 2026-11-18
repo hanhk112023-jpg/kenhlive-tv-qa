@@ -307,14 +307,15 @@ def detect_offscreen_or_zero_focus(ui_state, activity, ctx, frame_ref, t_offset)
         return []
     x1, y1, x2, y2 = map(int, m[:4])
     w, h = x2 - x1, y2 - y1
-    if x2 <= 0 or y2 <= 0 or x1 >= SCREEN_W or y1 >= SCREEN_H:
+    vw, vh = ctx.get("viewport", (SCREEN_W, SCREEN_H))
+    if x2 <= 0 or y2 <= 0 or x1 >= vw or y1 >= vh:
         key = "OFFSCREEN:%s" % sig
         if key in ctx.setdefault("reported", set()):
             return []
         ctx["reported"].add(key)
         return [_mk("HIGH", "Rò rỉ Focus ngoài màn hình",
                     "Focus lọt vào phần tử nằm ngoài khung hình TV: %s" % sig,
-                    "bounds=%s nằm ngoài viewport 1920x1080" % b,
+                    "bounds=%s nằm ngoài viewport %dx%d" % (b, vw, vh),
                     "Đặt visibility=GONE và focusability=FOCUS_BLOCK_DESCENDANTS khi ẩn panel",
                     frame_ref, t_offset, sig)]
     if w <= 2 or h <= 2:
