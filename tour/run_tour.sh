@@ -225,9 +225,29 @@ if ensure_rail_focus; then
   done
 else
   echo "[rail] BO QUA do rail (khong vao duoc rail)" >> $LOG
+  # v8: hub gồm 3 card ngang (không có rail trái). Dò bằng RIGHT, ghi nhãn card.
+  echo "[hub] Khong co rail — kham pha 3 card hub bang RIGHT" >> $LOG
+  HUB_LABELS=()
+  for i in 1 2 3; do
+    INFO=$(focused_info); F="${INFO%%|*}"
+    if [ -n "$F" ]; then
+      echo "[hub] card $i: '$F'" >> $LOG
+      case " ${HUB_LABELS[*]} " in *" $F "*) ;; *) HUB_LABELS+=("$F");; esac
+    fi
+    key 22; sleep 2
+  done
+  RAIL_LABELS=("${HUB_LABELS[@]}")
 fi
 echo "[rail] Cac muc tim thay: ${RAIL_LABELS[*]}" >> $LOG
 explore "RAIL: sau khi do het rail" rail
+
+# v8 hub: không có rail để ENTER — mở thẳng card đang focus bằng OK, vào nội dung.
+if ! in_rail_zone "$(focused_info)"; then
+  echo "[hub] Mo card hien tai bang OK de vao section" >> $LOG
+  key 23; sleep 6
+  explore "TAB: mo hub card" hub_tab
+  key 4; sleep 3
+fi
 
 # 4. Về đầu rail (UP nhiều lần), rồi RIGHT vào nội dung, duyệt thẻ.
 for i in 1 2 3 4 5 6 7 8; do key 19; sleep 1; done
