@@ -1,0 +1,138 @@
+name: iOS UI Trial
+
+# Real-time UI smoke cho KenhLive iOS trên iOS Simulator, với AI vision judge
+# dùng chung rubric với harness Android (harness/ai_judge.py).
+# Giới hạn phạm vi: build simulator, khởi chạy app, chụp màn hình cold-start/home.
+# Không có XCUITest target trong repo kenhlive-ios, nên chưa tự điều hướng tab.
+on:
+  workflow_dispatch:
+    inputs:
+      simulator:
+        description: 'Tên simulator (để trống = tự chọn iPhone đầu tiên)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  ios-ui:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout KenhLive iOS source (private)
+        uses: actions/checkout@v4
+        with:
+          repository: hanhk112023-jpg/kenhlive-ios
+          ref: main
+          ssh-key: ${{ secrets.IOS_CHECKOUT_KEY }}
+          path: app-ios
+
+      - name: Generate Xcode project
+        working-directory: app-ios
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Preflight AI (vision judge)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          METEOR_API_KEY: ${{ secrets.METEOR_API_KEY }}
+        run: |
+          set -e
+          if [ -n "$GEMINI_API_KEY" ]; then
+            echo "OPENAI_API_BASE=https://generativelanguage.googleapis.com/v1beta/openai" >> "$GITHUB_ENV"
+            echo "OPENAI_API_KEY=$GEMINI_API_KEY" >> "$GITHUB_ENV"
+            IDS=$(curl -sS -m 30 -H "Authorization: Bearer ***" \
+              https://generativelanguage.googleapis.com/v1beta/openai/models \
+              | python3 -c 'import json,sys; print(" ".join(m.get("id","") for m in json.load(sys.stdin).get("data",[])))' || true)
+            MODEL=""
+            for p in gemini-3-flash gemini-2.5-flash gemini-2.0-flash; do
+              for id in $IDS; do case "$id" in *"$p"*) MODEL="$id"; break 2;; esac; done
+            done
+            echo "OPENAI_MODEL=${MODEL:-gemini-2.5-flash}" >> "$GITHUB_ENV"
+          elif [ -n "$NVIDIA_API_KEY" ]; then
+            echo "OPENAI_API_BASE=https://integrate.api.nvidia.com/v1" >> "$GITHUB_ENV"
+            echo "OPENAI_API_KEY=$NVIDIA_API_KEY" >> "$GITHUB_ENV"
+            IDS=$(curl -sS -m 30 -H "Authorization: Bearer ***" \
+              https://integrate.api.nvidia.com/v1/models \
+              | python3 -c 'import json,sys; print(" ".join(m.get("id","") for m in json.load(sys.stdin).get("data",[])))' || true)
+            MODEL=""
+            for id in $IDS; do case "$id" in *vision*|*-vl-*) MODEL="$id"; break;; esac; done
+            echo "OPENAI_MODEL=${MODEL:-nvidia/nemotron-3.5-super-vl-120b-a12b}" >> "$GITHUB_ENV"
+          else
+            echo "OPENAI_API_BASE=http://meteor.pikamc.vn:25155/v1" >> "$GITHUB_ENV"
+            echo "OPENAI_API_KEY=$METEOR_API_KEY" >> "$GITHUB_ENV"
+            echo "OPENAI_MODEL=gpt-4o" >> "$GITHUB_ENV"
+          fi
+          echo "AI preflight done (model hidden above is intentional)."
+
+      - name: Build for iOS Simulator
+        working-directory: app-ios
+        run: |
+          set -e
+          xcodebuild -project KenhLive.xcodeproj -scheme KenhLive \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tail -40
+          APP=$(find build/Build/Products -type d -name 'KenhLive.app' | head -1)
+          [ -n "$APP" ] || { echo "::error::KenhLive.app not found"; exit 1; }
+          echo "APP_PATH=$APP" >> "$GITHUB_ENV"
+          echo "BUNDLE_ID=$(defaults read "$(pwd)/$APP/Info" CFBundleIdentifier 2>/dev/null || echo com.kenhlive.ios)" >> "$GITHUB_ENV"
+
+      - name: Boot simulator, install and launch
+        run: |
+          set -e
+          NAME="${{ inputs.simulator }}"
+          if [ -z "$NAME" ]; then
+            UDID=$(xcrun simctl list devices available | grep -E '^    iPhone' | head -1 | sed -E 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/')
+          else
+            UDID=$(xcrun simctl list devices available | grep -m1 "$NAME" | sed -E 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/')
+          fi
+          [ -n "$UDID" ] || { echo "::error::No available iPhone simulator"; exit 1; }
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP_PATH"
+          LAUNCH=$(xcrun simctl launch "$UDID" "$BUNDLE_ID")
+          echo "$LAUNCH"
+          case "$LAUNCH" in *": "*[0-9]*) echo "LAUNCHED=1" >> "$GITHUB_ENV";; *) echo "LAUNCHED=0" >> "$GITHUB_ENV";; esac
+          sleep 12
+          mkdir -p ios_shots
+          xcrun simctl io "$UDID" screenshot ios_shots/01_cold_start.png
+          sleep 10
+          xcrun simctl io "$UDID" screenshot ios_shots/02_home.png
+          # Crash logs (nếu có) để tiện đối chiếu với screenshot
+          xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'eventMessage CONTAINS[c] "crash"' > ios_shots/logcat.txt 2>/dev/null || true
+
+      - name: Judge screenshots
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 harness/ios_ui_trial.py --shots ios_shots --out ios_shots/report.json --launched "${{ env.LAUNCHED }}"
+          cat ios_shots/report.json
+
+      - name: Upload iOS UI trial report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ui-trial
+          path: ios_shots/
+          if-no-files-found: warn
+
+      - name: Kết quả
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          try:
+              r = json.load(open('ios_shots/report.json'))
+          except Exception as e:
+              print('No report:', e); raise SystemExit(0)
+          print('iOS UI trial passed:', r.get('passed'))
+          for f in r.get('findings', []): print(f.get('severity'), '-', f.get('screen'), '-', f.get('issue'))
+          PY
