@@ -112,7 +112,7 @@ jobs:
 
       - name: Judge screenshots
         run: |
-          python3 -m pip install --quiet pillow
+          python3 -m pip install --quiet --break-system-packages pillow
           python3 harness/ios_ui_trial.py --shots ios_shots --out ios_shots/report.json --launched "${{ env.LAUNCHED }}"
           cat ios_shots/report.json
 
