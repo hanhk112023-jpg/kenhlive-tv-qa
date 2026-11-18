@@ -82,7 +82,7 @@ jobs:
             build | tail -40
           APP=$(find build/Build/Products -type d -name 'KenhLive.app' | head -1)
           [ -n "$APP" ] || { echo "::error::KenhLive.app not found"; exit 1; }
-          echo "APP_PATH=$APP" >> "$GITHUB_ENV"
+          echo "APP_PATH=$(pwd)/$APP" >> "$GITHUB_ENV"
           echo "BUNDLE_ID=$(defaults read "$(pwd)/$APP/Info" CFBundleIdentifier 2>/dev/null || echo com.kenhlive.ios)" >> "$GITHUB_ENV"
 
       - name: Boot simulator, install and launch
