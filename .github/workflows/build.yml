@@ -97,9 +97,9 @@ jobs:
             echo "Tao keystore moi..."
             PASS="KenhLi...ster"
             keytool -genkeypair -keystore kenhlive.jks -alias "$ALIAS" -keyalg RSA -keysize 2048 -validity 10950 -storepass "$PASS" -keypass "$PASS" -dname "CN=KenhLive TV, OU=Mobile, O=KenhLive, L=Hanoi, C=VN"
-            echo "KEYSTORE_PASSWORD=*** >> "$GITHUB_ENV"
-            echo "KEY_PASSWORD=*** >> "$GITHUB_ENV"
-            echo "KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
+            printf '%s=%s\n' 'KEYSTORE_PASSWORD' "$PASS" >> "$GITHUB_ENV"
+            printf '%s=%s\n' 'KEY_PASSWORD' "$PASS" >> "$GITHUB_ENV"
+            printf '%s=%s\n' 'KEY_ALIAS' "$ALIAS" >> "$GITHUB_ENV"
             printf 'KEYSTORE_B64=' >> "$GITHUB_ENV"; base64 -w0 kenhlive.jks >> "$GITHUB_ENV"; printf '\n' >> "$GITHUB_ENV"
             echo "generated=true" >> "$GITHUB_OUTPUT"
             mkdir -p signing-out
