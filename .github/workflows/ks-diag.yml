@@ -1,0 +1,13 @@
+name: KS diag
+on: workflow_dispatch
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - shell: bash
+        env:
+          P: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          echo "LEN=${#P}"
+          echo "FIRSTCHAR=${P:0:1}"
