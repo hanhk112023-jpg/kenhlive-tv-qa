@@ -7,7 +7,13 @@ jobs:
     steps:
       - shell: bash
         env:
-          P: ${{ secrets.KEYSTORE_PASSWORD }}
+          KS_B64: ${{ secrets.KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KS_KEYPASS: ${{ secrets.KEY_PASSWORD }}
         run: |
-          echo "LEN=${#P}"
-          echo "FIRSTCHAR=${P:0:1}"
+          PASS="***"
+          echo "PASSLEN=${#PASS}"
+          echo "KSPASSLEN=${#KS_PASS}"
+          echo "B64LEN=${#KS_B64}"
+          echo "ALIASLEN=${#KS_ALIAS}"
