@@ -236,7 +236,7 @@ class RealtimeDevice:
         intent-filter nên không đi qua deep-link MainActivity). Mission
         MISSION_MULTIVIEW_DIRECTED: MultiView tự nạp trận live thật, không
         cần extra (không trận live -> trạng thái trống trung thực)."""
-        sh("%s shell am start -n %s/.MultiViewActivity" % (self.adb, self.pkg))
+        sh("%s shell am start -n %s/%s --es open multiview" % (self.adb, self.pkg, MAIN_ACTIVITY))
         self._note("LAUNCH_MULTIVIEW")
 
     # -- perception inputs ---------------------------------------------
