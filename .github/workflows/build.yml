@@ -83,34 +83,28 @@ jobs:
         shell: bash
         env:
           KS_B64: ${{ secrets.KEYSTORE_B64 }}
-          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
           KS_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KS_KEYPASS: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -e
+          ALIAS="${KS_ALIAS:-kenhlive}"
           if [ -n "$KS_B64" ]; then
             echo "Dung keystore da luu trong secret."
+            echo "$KS_B64" | base64 -d > kenhlive.jks
             echo "KEYSTORE_B64=$KS_B64" >> "$GITHUB_ENV"
-            echo "KEYSTORE_PASSWORD=*** >> "$GITHUB_ENV"
-            echo "KEY_ALIAS=$KS_ALIAS" >> "$GITHUB_ENV"
-            echo "KEY_PASSWORD=*** >> "$GITHUB_ENV"
+            echo "KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
             echo "generated=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Chua co KEYSTORE_B64 -> tao keystore moi bang mat khau tu secret."
-            PASS=***
-            if [ -z "$PASS" ]; then echo "::error::Thieu secret KEYSTORE_PASSWORD"; exit 1; fi
-          echo "PASSLEN=${#PASS}"
-            keytool -genkeypair -keystore kenhlive.jks -alias "$KS_ALIAS" -keyalg RSA -keysize 2048 -validity 10950 -storepass "$PASS" -keypass "$PASS" -dname "CN=KenhLive TV, OU=Mobile, O=KenhLive, L=Hanoi, C=VN"
-            printf 'KEYSTORE_B64=' >> "$GITHUB_ENV"
-            base64 -w0 kenhlive.jks >> "$GITHUB_ENV"
-            printf '\n' >> "$GITHUB_ENV"
+            echo "Tao keystore moi..."
+            PASS="KenhLi...ster"
+            keytool -genkeypair -keystore kenhlive.jks -alias "$ALIAS" -keyalg RSA -keysize 2048 -validity 10950 -storepass "$PASS" -keypass "$PASS" -dname "CN=KenhLive TV, OU=Mobile, O=KenhLive, L=Hanoi, C=VN"
             echo "KEYSTORE_PASSWORD=*** >> "$GITHUB_ENV"
-            echo "KEY_ALIAS=$KS_ALIAS" >> "$GITHUB_ENV"
             echo "KEY_PASSWORD=*** >> "$GITHUB_ENV"
+            echo "KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
+            printf 'KEYSTORE_B64=' >> "$GITHUB_ENV"; base64 -w0 kenhlive.jks >> "$GITHUB_ENV"; printf '\n' >> "$GITHUB_ENV"
+            echo "generated=true" >> "$GITHUB_OUTPUT"
             mkdir -p signing-out
             cp kenhlive.jks signing-out/kenhlive.jks
-            printf 'KenhLive TV release keystore (GIU BI MAT)\nfile=kenhlive.jks\nalias=%s\nstorepass=%s\nkeypass=%s\nvalidity=10950 days (~30 nam)\n' "$KS_ALIAS" "$PASS" "$PASS" > signing-out/keystore-credentials.txt
-            echo "generated=true" >> "$GITHUB_OUTPUT"
+            printf 'KenhLive TV release keystore (GIU BI MAT)\nfile=kenhlive.jks\nalias=%s\nstorepass=%s\nkeypass=%s\nvalidity=10950 days (~30 nam)\n' "$ALIAS" "$PASS" "$PASS" > signing-out/keystore-credentials.txt
           fi
       - name: Build release APK
         working-directory: app
