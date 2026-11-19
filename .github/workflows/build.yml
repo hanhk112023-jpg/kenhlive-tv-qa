@@ -87,10 +87,10 @@ jobs:
           KS_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
           set -e
-          PASSFILE="app/keystore/pass.txt"
-          ALIASFILE="app/keystore/alias.txt"
+          PASSFILE="app/app/keystore/pass.txt"
+          ALIASFILE="app/app/keystore/alias.txt"
           COMMITTED=""
-          for f in app/keystore/*.jks; do if [ -f "$f" ]; then COMMITTED="$f"; fi; done
+          for f in app/app/keystore/*.jks; do if [ -f "$f" ]; then COMMITTED="$f"; fi; done
           if [ -f "$ALIASFILE" ]; then IFS= read -r ALIAS < "$ALIASFILE" || true; else ALIAS="${KS_ALIAS:-release}"; fi
           if [ -n "$KS_B64" ]; then
             echo "Dung keystore trong secret."
