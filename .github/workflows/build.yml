@@ -99,6 +99,7 @@ jobs:
             echo "Chua co KEYSTORE_B64 -> tao keystore moi bang mat khau tu secret."
             PASS=***
             if [ -z "$PASS" ]; then echo "::error::Thieu secret KEYSTORE_PASSWORD"; exit 1; fi
+          echo "PASSLEN=${#PASS}"
             keytool -genkeypair -keystore kenhlive.jks -alias "$KS_ALIAS" -keyalg RSA -keysize 2048 -validity 10950 -storepass "$PASS" -keypass "$PASS" -dname "CN=KenhLive TV, OU=Mobile, O=KenhLive, L=Hanoi, C=VN"
             printf 'KEYSTORE_B64=' >> "$GITHUB_ENV"
             base64 -w0 kenhlive.jks >> "$GITHUB_ENV"
