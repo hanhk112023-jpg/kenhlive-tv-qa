@@ -78,6 +78,49 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Prepare release signing (generate keystore if no secret)
+        id: signing
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KS_KEYPASS: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -e
+          if [ -n "$KS_B64" ]; then
+            echo "Dung keystore da luu trong secret."
+            {
+              echo "KEYSTORE_B64=$KS_B64"
+              echo "KEYSTORE_PASSWORD=***"
+              echo "KEY_ALIAS=$KS_ALIAS"
+              echo "KEY_PASSWORD=***"
+            } >> "$GITHUB_ENV"
+            echo "generated=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Chua co secret KEYSTORE_B64 -> tao keystore moi."
+            PASS=*** rand -hex 20)"
+            keytool -genkeypair -v -keystore kenhlive.jks -alias kenhlive \
+              -keyalg RSA -keysize 2048 -validity 10950 \
+              -storepass "$PASS" -keypass "$PASS" \
+              -dname "CN=KenhLive TV, OU=Mobile, O=KenhLive, L=Hanoi, C=VN"
+            {
+              echo "KEYSTORE_B64=$(base64 -w0 kenhlive.jks)"
+              echo "KEYSTORE_PASSWORD=***"
+              echo "KEY_ALIAS=kenhlive"
+              echo "KEY_PASSWORD=***"
+            } >> "$GITHUB_ENV"
+            mkdir -p signing-out
+            cp kenhlive.jks signing-out/kenhlive.jks
+            {
+              echo "KenhLive TV release keystore (GIU BI MAT — day la key chinh thuc)"
+              echo "file=kenhlive.jks"
+              echo "alias=kenhlive"
+              echo "storepass=$PASS"
+              echo "keypass=$PASS"
+              echo "validity=10950 days (~30 nam)"
+            } > signing-out/keystore-credentials.txt
+            echo "generated=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build release APK
         working-directory: app
         run: |
@@ -102,6 +145,13 @@ jobs:
           path: |
             app/app/build/outputs/apk/release/app-release.apk
             app/app/build/outputs/apk/release/app-release.apk.sha256
+          if-no-files-found: error
+      - name: Upload generated keystore (chi khi moi tao — giu bi mat)
+        if: ${{ steps.signing.outputs.generated == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kenhlive-keystore
+          path: signing-out/
           if-no-files-found: error
 
   build-ipa:
