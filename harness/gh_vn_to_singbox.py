@@ -1,25 +1,35 @@
 #!/usr/bin/env python3
-"""Lay danh sach node proxy VN moi nhat tu file GitHub cong khai Au1rxx
-(free-vpn-subscriptions/output/country/VN/singbox-0001.json) va build config
-sing-box cho CI: mixed inbound 127.0.0.1:7891 + route final = nhom urltest
-("auto") cua file goc, tu chon node VN con song.
+"""Lay danh sach node proxy VN tu subscription YunaGRP (hoac URL ghi de)
+va build config sing-box cho CI: mixed inbound 127.0.0.1:7891 + route final = nhom
+urltest tu chon node VN con song.
 
-Thay the co che YUNA cu (secret YUNA_PROXY_YAML / YUNA_SUB_URL + mihomo):
-khong can secret nao nua. Neu khong tai duoc file, file khong co node VLESS,
-hoac khong co nhom urltest -> exit nonzero (workflow FAIL ON AO, tuyet doi
-khong chay khong proxy).
+Doc URL tu bien moi truong YUNA_SUB_URL (hoac tham so thu 2). Neu thieu URL,
+khong tai duoc file, hoac khong co node proxy VN nao -> exit nonzero
+(workflow FAIL ON AO, tuyet doi khong chay khong proxy).
 
 Dung: python3 harness/gh_vn_to_singbox.py /tmp/singbox_ci.json [URL_GHI_DE]
-Chi dung thu vien chuan (khong can PyYAML nhu ci_sub_to_yaml.py cu).
+Chi dung thu vien chuan.
 """
 import json
+import os
 import sys
 import time
+import urllib.parse
 import urllib.request
 
-DEFAULT_URL = ("https://raw.githubusercontent.com/Au1rxx/free-vpn-subscriptions"
-               "/main/output/country/VN/singbox-0001.json")
-UA = {"User-Agent": "kenhlive-tv-qa/1.0 (CI proxy setup)"}
+UA = {"User-Agent": "sing-box/1.14.4"}
+PROXY_TYPES = {"vmess", "vless", "trojan", "shadowsocks", "hysteria", "hysteria2", "tuic", "socks", "http"}
+
+
+def ensure_singbox_flag(url):
+    url = (url or "").strip()
+    if not url:
+        return ""
+    parts = urllib.parse.urlsplit(url)
+    q = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+    if not any(k.lower() == "flag" for k, _ in q):
+        q.append(("flag", "singbox"))
+    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(q), parts.fragment))
 
 
 def fetch(url, tries=4, timeout=40):
@@ -36,48 +46,64 @@ def fetch(url, tries=4, timeout=40):
             last = e
             print(f"fetch attempt {i}/{tries} failed: {e}", file=sys.stderr)
             if i < tries:
-                time.sleep(20)
-    raise SystemExit(f"Khong tai duoc file proxy VN tu {url}: {last}")
+                time.sleep(15)
+    raise SystemExit(f"Khong tai duoc subscription proxy VN: {last}")
+
+
+def is_vn_node(outbound):
+    if not isinstance(outbound, dict):
+        return False
+    if outbound.get("type") not in PROXY_TYPES:
+        return False
+    tag = str(outbound.get("tag") or "")
+    upper = tag.upper()
+    return ("🇻🇳" in tag) or ("VIETNAM" in upper) or ("VIET NAM" in upper) or ("HANOI" in upper) or ("HCM" in upper)
 
 
 def build(raw):
     try:
         cfg = json.loads(raw)
     except Exception as e:
-        raise SystemExit(f"File proxy VN khong phai JSON hop le: {e}")
+        raise SystemExit(f"Subscription proxy VN khong phai JSON sing-box hop le: {e}")
     outbounds = cfg.get("outbounds") or []
-    vless = [o for o in outbounds if o.get("type") == "vless"]
-    if not vless:
-        raise SystemExit("File proxy VN khong co node VLESS nao")
-    urltest = [o for o in outbounds if o.get("type") == "urltest"]
-    if not urltest:
-        raise SystemExit("File proxy VN khong co nhom urltest")
-    group = urltest[0]
-    tag = group.get("tag") or "auto"
-    # Chi giu node VLESS trong nhom urltest; bo endpoint WireGuard (khong dung
-    # trong CI) va moi tag khong phai outbound VLESS de config check khong loi.
-    vless_tags = [o["tag"] for o in vless if o.get("tag")]
-    group["outbounds"] = [t for t in vless_tags]
+    vn_nodes = [o for o in outbounds if is_vn_node(o)]
+    if not vn_nodes:
+        raise SystemExit("Subscription khong co node proxy Viet Nam nao")
+    vn_tags = [o["tag"] for o in vn_nodes if o.get("tag")]
+    if not vn_tags:
+        raise SystemExit("Cac node proxy Viet Nam khong co tag hop le")
+    tag = "auto-vn"
+    group = {
+        "type": "urltest",
+        "tag": tag,
+        "outbounds": vn_tags,
+        "url": "https://www.gstatic.com/generate_204",
+        "interval": "30s",
+        "tolerance": 100,
+    }
     new_cfg = {
         "log": {"level": "info", "timestamp": True},
         "inbounds": [
             {"type": "mixed", "tag": "mixed-in",
              "listen": "127.0.0.1", "listen_port": 7891},
         ],
-        "outbounds": vless + [group],
+        "outbounds": vn_nodes + [group, {"type": "direct", "tag": "direct"}],
         "route": {"final": tag},
     }
-    return new_cfg, tag, vless
+    return new_cfg, tag, vn_nodes
 
 
 def main():
     out_path = sys.argv[1] if len(sys.argv) > 1 else "/tmp/singbox_ci.json"
-    url = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_URL
-    cfg, tag, vless = build(fetch(url))
+    raw_url = sys.argv[2] if len(sys.argv) > 2 else os.environ.get("YUNA_SUB_URL", "")
+    url = ensure_singbox_flag(raw_url)
+    if not url:
+        raise SystemExit("Thieu YUNA_SUB_URL (secret subscription YunaGRP)")
+    cfg, tag, nodes = build(fetch(url))
     with open(out_path, "w") as f:
-        json.dump(cfg, f, indent=2)
-    servers = sorted({(o.get("server"), o.get("server_port")) for o in vless})
-    print(f"GH-VN proxy OK: {len(vless)} node VLESS, urltest={tag}, "
+        json.dump(cfg, f, indent=2, ensure_ascii=False)
+    servers = sorted({(o.get("type"), o.get("server"), o.get("server_port")) for o in nodes})
+    print(f"YUNA-VN proxy OK: {len(nodes)} node VN, urltest={tag}, "
           f"servers={servers} -> {out_path}")
 
 

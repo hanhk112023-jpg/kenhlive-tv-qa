@@ -201,20 +201,16 @@ jobs:
           fi
           ls -la qa-apk/
 
-      # proxy VN — lay node VLESS VN moi nhat tu file GitHub cong khai Au1rxx
-      # (free-vpn-subscriptions/output/country/VN/singbox-0001.json), chay bang
-      # sing-box v1.14.4 (ban da kiem tren may ao Astra 2026-11-12).
-      # Tai sing-box: chinh = APT deb.sagernet.org (da cai thanh cong ngay lan 1
-      # tren runner, run 43164647966); fallback = gh release download (qua
-      # api.github.com; that bai x3 tren runner cung run do, 'no assets match
-      # the file pattern' — chua ro nguyen nhan, xem DESIGN.md 15.16).
-      # BO YUNA (Evelyn 2026-11-12): khong can secret nao nua.
-      # FAIL ON AO neu khong lay duoc file / khong co node song / exit IP
-      # khong phai VN — tuyet doi khong chay lang le khong proxy (loi cu).
-      - name: Set up proxy VN (file GitHub Au1rxx)
+      # proxy VN — lay node VN tu subscription YunaGRP (secret YUNA_SUB_URL),
+      # chay bang sing-box v1.14.4.
+      # FAIL ON AO neu thieu secret / khong lay duoc subscription / khong co
+      # node song / exit IP khong phai VN — tuyet doi khong chay lang le khong proxy.
+      - name: Set up proxy VN (YunaGRP)
+        env:
+          YUNA_SUB_URL: ${{ secrets.YUNA_SUB_URL }}
         run: |
           set -euo pipefail
-          python3 harness/gh_vn_to_singbox.py /tmp/singbox_ci.json || { echo "::error::Khong lay duoc file proxy VN tu GitHub"; exit 1; }
+          python3 harness/gh_vn_to_singbox.py /tmp/singbox_ci.json || { echo "::error::Khong lay duoc subscription proxy VN tu YunaGRP"; exit 1; }
           SB_VER=v1.14.4
           SB_TGZ="sing-box-${SB_VER}-linux-amd64-glibc.tar.gz"
           SB=""
