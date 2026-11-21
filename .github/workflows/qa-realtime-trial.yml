@@ -5,10 +5,9 @@ name: QA-Realtime-Trial
 # harness chạy từ ./harness (bản sao qa/kenhlive_qa/).
 # `gh workflow run qa-realtime-trial.yml --ref main -f quick=false` cho full 17 mission.
 # Cần secret ở repo này: APP_CHECKOUT_KEY (đã có) + GEMINI_API_KEY /
-# NVIDIA_API_KEY / METEOR_API_KEY (AI brain).
-# Proxy VN lay tu file GitHub cong khai Au1rxx — KHONG can secret YUNA nua
-# (Evelyn 2026-11-12); khong co proxy thi trial FAIL ON AO, khong chay
-# lang le khong proxy.
+# NVIDIA_API_KEY / METEOR_API_KEY (AI brain) + YUNA_SUB_URL (proxy VN).
+# Proxy VN lay tu subscription YunaGRP (secret YUNA_SUB_URL); khong co
+# proxy thi trial FAIL ON AO, khong chay lang le khong proxy.
 on:
   workflow_dispatch:
     inputs:
