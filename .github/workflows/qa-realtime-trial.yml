@@ -277,6 +277,16 @@ jobs:
           sudo apt-get install -y -qq --no-install-recommends ffmpeg tesseract-ocr tesseract-ocr-vie
           pip install --quiet pillow pytesseract
 
+      # Nâng cấp 2026-11-22: preflight API ẢNH cho cả 3 tab. Chạy trên runner
+      # (có mạng) TRƯỚC emulator; ghi qa_out/image_audit.json để runner đính
+      # kèm vào qa_report.json và upload chung artifact. Không làm fail run vì
+      # 1 ảnh chết — báo cáo để phân biệt lỗi API với lỗi consumer app.
+      - name: Preflight API ảnh (Phim / Thể thao / IPTV)
+        run: |
+          mkdir -p qa_out
+          python3 harness/realtime/image_audit.py --app-dir app \
+            --limit 5 --out qa_out/image_audit.json
+
       # AI Brain: Ưu tiên Google AI Studio (Gemini free tier) → NVIDIA NIM (free tier,
       # OpenAI-compatible, có vision) → fallback Meteor gateway.
       # Preflight chạy trên runner (mạng mở): chọn model vision tốt nhất và bắn thử 1 chat completion

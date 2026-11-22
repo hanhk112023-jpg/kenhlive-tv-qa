@@ -162,6 +162,11 @@ class RealtimeRunner:
         self._saved_shot_hashes = {}  # CI-T7 mục 6: sha256 PNG -> rel path shot đã lưu (dedup)
         self._hero_frame = None  # frame hero Home để vision check cuối run (CI-T5 mục 7)
         self._player_title_frame = None  # frame title player để vision check (CI-T5 mục 7)
+        # Nâng cấp 2026-11-22: frame tab Phim (card dọc) + tab Thể thao (hero)
+        # để vision kiểm chất lượng ảnh — thay cho `MISSION_HOME_BILLBOARD`
+        # đã bị bỏ khi harness chuyển 4-tab v4.
+        self._phim_card_frame = None
+        self._sports_hero_frame = None
         self.vision_check_log = []  # CI-T6 mục 2: mỗi call check_visual đã soi
         # frame nào (frame path + timestamp + crop) — debug cú bỏ sót CI-T5
         self._kb_seen_by_mission = {}  # CI-T9 mục 7: mission -> bàn phím đã mở thật chưa
@@ -570,6 +575,25 @@ class RealtimeRunner:
             self._hero_frame = {"png": obs["png"], "frame": last_frame_ref,
                                 "t": obs["t_offset"]}
         act = obs.get("activity") or ""
+        # Nâng cấp 2026-11-22: lưu frame CUỐI của tab Phim (5) và Thể thao (0)
+        # cho 2 vision check chất lượng ảnh. Dùng tab thật từ nav-selected thay
+        # vì tên mission Home (đã bỏ) — aktif diễn ra đúng lúc driver đang ở tab.
+        _tab = None
+        try:
+            from device import NAV_ID_TO_TAB
+            for _rid in ((obs.get("ui_state") or {}).get("selected_ids") or []):
+                if _rid in NAV_ID_TO_TAB:
+                    _tab = NAV_ID_TO_TAB[_rid]
+                    break
+        except Exception:
+            pass
+        if _tab == 5:
+            self._phim_card_frame = {"png": obs["png"], "frame": last_frame_ref,
+                                     "t": obs["t_offset"]}
+        elif _tab == 0 and "PlayerActivity" not in act:
+            self._sports_hero_frame = {"png": obs["png"], "frame": last_frame_ref,
+                                       "t": obs["t_offset"]}
+        act = obs.get("activity") or ""
         if "WebPlayerActivity" in act:
             _rank = self._player_title_rank(obs)
             _cur = self._player_title_frame or {}
@@ -619,6 +643,22 @@ class RealtimeRunner:
                            "NHAU (CHỒNG LÊN NHAU, chữ chen nhau không đọc được), (b) 2 dòng "
                            "nằm riêng trên 2 hàng vẫn tính là trùng lặp. Đọc nguyên văn cả 2 "
                            "dòng + vị trí (dòng trên/dưới, trái/phải) nếu có."))
+        if self._phim_card_frame:
+            checks.append(('phim_card', self._phim_card_frame, (0, 480, 1920, 1080),
+                'Kiem tra CARD PHIM (anh doc) o nua duoi man hinh. Co card nao DUNG ANH '
+                'NGANG 16:9 cat vao khung DOC khien MAT DIEN VIEN bi cat xen/daumat '
+                'mot phan KHONG? Co card tieu de xuong 2 DONG ma dong metadata '
+                'nam/phu de (VD 2015 • Vietsub) BI MAT/CAT KHONG? Badge FHD/Full co '
+                'kho doc tren nen sang KHONG? Chi tra found=true khi thay ro it nhat '
+                '1 loi, ghi ro ten phim va loai loi vao detail.'))
+        if self._sports_hero_frame:
+            checks.append(('sports_hero', self._sports_hero_frame, (0, 120, 1920, 700),
+                'Kiem tra BANNER HERO the thao. Co dau hieu ANH FALLBACK sai (chu '
+                'KENHLIVE CINEMA in san tren anh nen) KHONG? Co logo doi hoac avatar '
+                'BLV la VONG TRON XAM TRONG/KHONG CO ANH KHONG? Tran dang truc tiep '
+                'co hien chu VS thay vi TI SO KHONG? Anh nen co HAI DAI DEN/TRONG '
+                'hai ben (fitCenter) KHONG? Chi tra found=true khi thay ro it nhat '
+                '1 loi, trich nguyen van chu nhin thay vao quote.'))
         for kind, fr, crop, question in checks:
             if self.vision.remaining() <= 0:
                 break
@@ -646,15 +686,23 @@ class RealtimeRunner:
                 sev = str(res.get("severity", "HIGH")).upper()
                 if sev not in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
                     sev = "HIGH"
-                if kind == "hero":
-                    area, issue = "Hero billboard", "Giờ đè lên phụ đề hero"
-                    sugg = "Chừa top inset/scrim cho hero; tách dòng giờ khỏi phụ đề"
+                if kind == 'hero':
+                    area, issue = 'Hero billboard', 'Giờ đè lên phụ đề hero'
+                    sugg = 'Chừa top inset/scrim cho hero; tách dòng giờ khỏi phụ đề'
+                elif kind == 'phim_card':
+                    area = 'Kho Phim · Card/Hero'
+                    issue = 'Ảnh phim sai hướng hoặc metadata card bị cắt'
+                    sugg = 'Card dọc bind poster_url (dọc), hero bind thumb_url (ngang); chiều cao card đủ cho title 2 dòng + metadata'
+                elif kind == 'sports_hero':
+                    area = 'Thể thao · Hero/Logo'
+                    issue = 'Hero sai ảnh/placeholder hoặc trận LIVE thiếu tỉ số'
+                    sugg = 'Đúng nguồn ảnh nền + logo đội/avatar BLV; TV dùng centerCrop; LIVE dùng tỉ số thật'
                 else:
-                    area, issue = "Player tiêu đề", "Tiêu đề player đè đôi"
-                    sugg = "Chỉ hiện 1 dòng tiêu đề trong player, bỏ dòng trùng"
+                    area, issue = 'Player tiêu đề', 'Tiêu đề player đè đôi'
+                    sugg = 'Chỉ hiện 1 dòng tiêu đề trong player, bỏ dòng trùng'
                 self.findings.append({
                     "severity": sev, "area": area, "issue": issue,
-                    "detail": "Vision xác nhận chữ chồng trong vùng %s: %s"
+                    "detail": "Vision xác nhận trong vùng %s: %s"
                               % (kind, res.get("detail", "")),
                     "suggestion": sugg,
                     "evidence": {"frame": fr["frame"], "video_t": fr["t"],
@@ -1382,6 +1430,20 @@ class RealtimeRunner:
         report["guard_dismissed"] = list(
             self.detector_ctx.get("guard_dismissed", []))
         report["video_speed_factor"] = video_speed_factor
+        # Nâng cấp 2026-11-22: đính kèm kết quả preflight API ảnh vào report
+        # (file do image_audit.py ghi trước khi emulator chạy). Chỉ lấy tóm
+        # tắt + các check fail để report không phình; file đầy ở artifact.
+        try:
+            _audit_path = os.path.join(self.out_dir, "image_audit.json")
+            if os.path.exists(_audit_path):
+                _audit = json.load(open(_audit_path, encoding="utf-8"))
+                report["image_audit"] = {
+                    "summary": _audit.get("summary", {}),
+                    "failed_checks": _audit.get("failed_checks", []),
+                    "api": _audit.get("api", {}),
+                }
+        except Exception as _e:
+            report["image_audit"] = {"error": str(_e)[:120]}
         report["video_recorded_seconds"] = video_recorded_seconds
         # CI-T9 mục 5: độ phủ video báo theo THỜI GIAN HÀNH ĐỘNG (t của
         # bước cuối cùng trong timeline, time_offset_sec), KHÔNG theo

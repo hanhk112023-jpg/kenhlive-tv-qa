@@ -446,13 +446,20 @@ def main():
     assert _kb_img(_png_kb) is True, "ảnh lưới phím QWERTY phải nhận là bàn phím mở"
     # (b) frame THẬT CI-T6: 066/067/071 có bàn phím -> True; 011/026/051/055 không -> False.
     _shots11 = os.path.expanduser("~/workspace/kenhlive-plan/qa-run-43027661716/qa-report-realtime/shots")
-    for _f, _want in (("step_066_search_a.jpg", True), ("step_067_search_a.jpg", True),
-                      ("step_071_dpad_cha.jpg", True), ("step_011_sports_r.jpg", False),
-                      ("step_026_home_bil.jpg", False), ("step_051_phim_epi.jpg", False),
-                      ("step_055_vod_play.jpg", False)):
-        _got = _kb_img(open(os.path.join(_shots11, _f), "rb").read())
-        print("keyboard ảnh %s -> %s (muốn %s)" % (_f, _got, _want))
-        assert _got is _want, "frame thật %s: keyboard=%s, muốn %s" % (_f, _got, _want)
+    if os.path.isdir(_shots11):
+        for _f, _want in (("step_066_search_a.jpg", True), ("step_067_search_a.jpg", True),
+                          ("step_071_dpad_cha.jpg", True), ("step_011_sports_r.jpg", False),
+                          ("step_026_home_bil.jpg", False), ("step_051_phim_epi.jpg", False),
+                          ("step_055_vod_play.jpg", False)):
+            _p11 = os.path.join(_shots11, _f)
+            if not os.path.exists(_p11):
+                print("SKIP keyboard frame thật thiếu:", _p11)
+                continue
+            _got = _kb_img(open(_p11, "rb").read())
+            print("keyboard ảnh %s -> %s (muốn %s)" % (_f, _got, _want))
+            assert _got is _want, "frame thật %s: keyboard=%s, muốn %s" % (_f, _got, _want)
+    else:
+        print("SKIP keyboard frame thật (thư mục artifact cũ không tồn tại):", _shots11)
     # (c) tích hợp focus-trap: dump KHÔNG có node phím (keyboard_open False),
     # 3 quan sát khác nhau cùng sig + DPAD_DOWN, ảnh là bàn phím -> KHÔNG tố.
     _ctx11 = {"last_key": "DPAD_DOWN"}
@@ -1018,9 +1025,12 @@ def main():
             return {"found": True, "severity": "HIGH",
                     "detail": "Tiêu đề đè đôi", "quote": "Dòng 1 | Dòng 2"}, None
 
-    png63 = open(os.path.join(
-        os.path.expanduser("~/workspace/kenhlive-plan/qa-run-43010818257/qa-report-realtime/shots"),
-        "step_063_vod_play.jpg"), "rb").read()
+    _shots_n2 = os.path.expanduser(
+        "~/workspace/kenhlive-plan/qa-run-43010818257/qa-report-realtime/shots")
+    _p63 = os.path.join(_shots_n2, "step_063_vod_play.jpg")
+    # Không có artifact cũ trên máy thì dùng ảnh giả deterministic: test này
+    # kiểm prompt/crop/log, không kiểm nội dung ảnh (chỉ so đúng bytes đã soi).
+    png63 = open(_p63, "rb").read() if os.path.exists(_p63) else _fake_png(63)
     r_n2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_vision_n2", serial=None,
                                      vision_budget=40, no_vision=False)
     r_n2.start_time = time.time()
@@ -1799,22 +1809,25 @@ def main():
     import detectors as det
     import ocr as ocr_mod
     shots = os.path.expanduser("~/workspace/kenhlive-plan/qa-run-42979726992/shots")
-    png91 = open(os.path.join(shots, "step_091_mission_.jpg"), "rb").read()
-    png94 = open(os.path.join(shots, "step_094_mission_.jpg"), "rb").read()
-    ui_hidden = {"focused_sig": "NONE", "osd_visible": False}
-    ui_shown = {"focused_sig": "NONE", "osd_visible": True}
-    act_w = "com.kenhlive.tv/.phim.WebPlayerActivity"
-    ctx = {"reported": set(), "steps_since_ocr": 99}
-    f91 = (det.detect_text_overlap(png91, ui_hidden, act_w, dict(ctx), "step_091.jpg", 0, ocr_mod)
-           + det.detect_clipped_text(png91, ui_hidden, act_w, dict(ctx), "step_091.jpg", 0, ocr_mod)
-           + det.detect_subtitle_seekbar_overlap(png91, ui_hidden, act_w, dict(ctx), "step_091.jpg", 0, ocr_mod))
-    print("step_091 (OSD ẩn) findings:", len(f91), [f["issue"] for f in f91])
-    assert f91 == [], "OSD ẩn mà detector vẫn báo lỗi (false positive CI-T2 #7-10)"
-    ctx2 = {"reported": set(), "steps_since_ocr": 99}
-    f94 = det.detect_subtitle_seekbar_overlap(png94, ui_shown, act_w, dict(ctx2), "step_094.jpg", 0, ocr_mod)
-    print("step_094 (OSD hiện) subtitle findings:", len(f94), [f["issue"] for f in f94])
-    assert len(f94) == 1 and "seekbar" in f94[0]["issue"], "finding 11 thật bị mất sau khi thêm guard"
-    print("OSD_GATE_OK")
+    if os.path.isdir(shots):
+        png91 = open(os.path.join(shots, "step_091_mission_.jpg"), "rb").read()
+        png94 = open(os.path.join(shots, "step_094_mission_.jpg"), "rb").read()
+        ui_hidden = {"focused_sig": "NONE", "osd_visible": False}
+        ui_shown = {"focused_sig": "NONE", "osd_visible": True}
+        act_w = "com.kenhlive.tv/.phim.WebPlayerActivity"
+        ctx = {"reported": set(), "steps_since_ocr": 99}
+        f91 = (det.detect_text_overlap(png91, ui_hidden, act_w, dict(ctx), "step_091.jpg", 0, ocr_mod)
+               + det.detect_clipped_text(png91, ui_hidden, act_w, dict(ctx), "step_091.jpg", 0, ocr_mod)
+               + det.detect_subtitle_seekbar_overlap(png91, ui_hidden, act_w, dict(ctx), "step_091.jpg", 0, ocr_mod))
+        print("step_091 (OSD ẩn) findings:", len(f91), [f["issue"] for f in f91])
+        assert f91 == [], "OSD ẩn mà detector vẫn báo lỗi (false positive CI-T2 #7-10)"
+        ctx2 = {"reported": set(), "steps_since_ocr": 99}
+        f94 = det.detect_subtitle_seekbar_overlap(png94, ui_shown, act_w, dict(ctx2), "step_094.jpg", 0, ocr_mod)
+        print("step_094 (OSD hiện) subtitle findings:", len(f94), [f["issue"] for f in f94])
+        assert len(f94) == 1 and "seekbar" in f94[0]["issue"], "finding 11 thật bị mất sau khi thêm guard"
+        print("OSD_GATE_OK")
+    else:
+        print("SKIP OSD_GATE (khong co artifact cu local)")
 
     # --- Test G: defect reel CHIA video_t cho speed_factor (CI-T4) ---
     # Tour 12s thật -> tăng tốc 4x còn 3s. Reel phải cắt video_t/4.
@@ -2006,17 +2019,20 @@ def main():
     # Regression trên frame THẬT step_010 CI-T5 (cần tesseract như Test E):
     # detector text_overlap trên toàn frame phải trả 0 finding chứa "Xem".
     shots10 = os.path.expanduser("~/workspace/kenhlive-plan/qa-run-43010818257/qa-report-realtime/shots")
-    png10 = open(os.path.join(shots10, "step_010_sports_m.jpg"), "rb").read()
-    ui10 = {"focused_sig": "cardRoot#[109,653][787,1035]", "osd_visible": False,
-            "all_visible_texts": []}
-    ctx10 = {"reported": set(), "steps_since_ocr": 99}
-    f10 = det2.detect_text_overlap(png10, ui10, "com.kenhlive.tv/.MainActivity",
-                                   dict(ctx10), "step_010_sports_m.jpg", 73.1, ocr_n1)
-    print("step_010 (pill 'Xem ngay' sạch) text_overlap findings:",
-          len(f10), [f["issue"] for f in f10])
-    assert not any("Xem" in (f.get("issue") or "") for f in f10), \
-        "pill 'Xem ngay' sạch trên step_010 không được tố (FP HIGH CI-T5)"
-    print("OVERLAP_XEM_NGAY_OK")
+    if os.path.isdir(shots10):
+        png10 = open(os.path.join(shots10, "step_010_sports_m.jpg"), "rb").read()
+        ui10 = {"focused_sig": "cardRoot#[109,653][787,1035]", "osd_visible": False,
+                "all_visible_texts": []}
+        ctx10 = {"reported": set(), "steps_since_ocr": 99}
+        f10 = det2.detect_text_overlap(png10, ui10, "com.kenhlive.tv/.MainActivity",
+                                       dict(ctx10), "step_010_sports_m.jpg", 73.1, ocr_n1)
+        print("step_010 (pill 'Xem ngay' sạch) text_overlap findings:",
+              len(f10), [f["issue"] for f in f10])
+        assert not any("Xem" in (f.get("issue") or "") for f in f10), \
+            "pill 'Xem ngay' sạch trên step_010 không được tố (FP HIGH CI-T5)"
+        print("OVERLAP_XEM_NGAY_OK")
+    else:
+        print("SKIP OVERLAP_XEM_NGAY (khong co artifact cu local)")
 
     # --- Test M: wait_backoff không đếm request ---
     from ratelimit import RateLimiter
@@ -2547,6 +2563,8 @@ def main():
     # --- Wave 6 (trial 12 run 43328505259): H13/H14/H15 ---
     test_h14_webplayer_loading_wait_and_bounded_replay()
     test_h15_judge_guard_three_false_high_patterns()
+    # --- Nâng cấp 2026-11-22: detector chất lượng ảnh 3 tab + preflight audit ---
+    test_image_quality_detectors()
     # --- Test F: chạy thật 1 mission (mock runner đầy đủ) ---
     r2 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_out", serial=None,
                                    vision_budget=0, no_vision=True)
@@ -2688,6 +2706,9 @@ def test_ci_t9_playback_trial_frames():
     from missions import get_missions
     import runner as _rm
     _base = _os.path.expanduser("~/workspace/kenhlive-plan")
+    if not _os.path.isdir(_base):
+        print("CI_T9_PLAYBACK_TRIAL_FRAMES_SKIP (khong co artifact cu local)")
+        return
     _frames = [
         ("qa-run-43168594823", "step_056_vod_play.jpg", 20),   # 00:20
         ("qa-run-43168594823", "step_061_vod_play.jpg", 60),   # 01:00
@@ -4768,6 +4789,118 @@ def test_mission_fails_fast_on_stuck_tab():
         runner_mod.RealtimeDevice = _orig_dev
 
     print("MISSION_FAILS_FAST_ON_STUCK_TAB_OK")
+
+
+def test_image_quality_detectors():
+    """Nâng cấp 2026-11-22: 3 detector chất lượng ảnh (LIVE-VS, placeholder,
+    letterbox) + image_audit report. Chạy offline, không cần emulator."""
+    import io as _io15
+    from PIL import Image as _Im15, ImageDraw as _Dr15, ImageStat as _St15
+    import detectors as _dq
+
+    # (a) Trận LIVE chỉ hiện VS: cần 2 quan sát, và CÓ tỉ số thì không tố.
+    ui_live = {"selected_ids": ["nav_live"], "focused_sig": "cardRoot#[0,0][100,100]",
+               "all_visible_texts": [("badge", "Đang trực tiếp"), ("card", "Team A VS Team B")]}
+    ctx_live = {"reported": set()}
+    assert _dq.detect_live_vs_no_score(ui_live, "com.kenhlive.tv/.MainActivity",
+                                       ctx_live, "s1.jpg", 1.0) == []
+    f_live = _dq.detect_live_vs_no_score(ui_live, "com.kenhlive.tv/.MainActivity",
+                                         ctx_live, "s2.jpg", 2.0)
+    assert len(f_live) == 1 and f_live[0]["severity"] == "HIGH", "LIVE VS phải bị tố sau 2 observation"
+    ui_score = dict(ui_live, all_visible_texts=[("badge", "Đang trực tiếp"),
+                                                ("card", "Team A 2 : 1 Team B"),
+                                                ("card", "VS")])
+    assert _dq.detect_live_vs_no_score(ui_score, "com.kenhlive.tv/.MainActivity",
+                                       {"reported": set()}, "s3.jpg", 3.0) == [], \
+        "có tỉ số thật thì không được tố VS"
+    print("LIVE_VS_NO_SCORE_OK")
+
+    # (b) Logo/avatar placeholder: nền xám đồng nhất, 2 observation, đúng tab.
+    im = _Im15.new("RGB", (1920, 1080), (20, 22, 28))
+    _Dr15.Draw(im).rectangle([100, 100, 220, 220], fill=(100, 100, 100))
+    buf = _io15.BytesIO(); im.save(buf, format="PNG"); png15 = buf.getvalue()
+    ui_av = {"selected_ids": ["nav_live"], "focused_sig": "NONE",
+             "ui_summary": "avatarBLV ('') [100,100][220,220]"}
+    ctx_av = {"reported": set()}
+    assert _dq.detect_placeholder_avatar(png15, ui_av, ctx_av, "s1.jpg", 1.0) == []
+    f_av = _dq.detect_placeholder_avatar(png15, ui_av, ctx_av, "s2.jpg", 2.0)
+    assert len(f_av) == 1 and f_av[0]["severity"] == "MEDIUM", \
+        "avatar xám đồng nhất 2 lần phải bị tố placeholder"
+    print("PLACEHOLDER_AVATAR_OK")
+
+    # (c) Hero fitCenter: 2 dải đen hai bên + giữa có ảnh thật.
+    im2 = _Im15.new("RGB", (1920, 1080), (8, 8, 8))
+    d2 = _Dr15.Draw(im2)
+    for i in range(12):
+        d2.rectangle([300 + i * 100, 180, 390 + i * 100, 470],
+                     fill=(40 + i * 15, 80 + i * 8, 160 - i * 5))
+    buf2 = _io15.BytesIO(); im2.save(buf2, format="PNG"); png_lb = buf2.getvalue()
+    ui_lb = {"selected_ids": ["nav_live"], "focused_sig": "NONE"}
+    ctx_lb = {"reported": set()}
+    assert _dq.detect_hero_letterbox(png_lb, ui_lb, ctx_lb, "s1.jpg", 1.0) == []
+    f_lb = _dq.detect_hero_letterbox(png_lb, ui_lb, ctx_lb, "s2.jpg", 2.0)
+    assert len(f_lb) == 1 and "fitCenter" in f_lb[0]["issue"], \
+        "hero có 2 dải đen phải bị tố fitCenter sau 2 observation"
+    print("HERO_LETTERBOX_OK")
+
+    # (c2) 2 vision check mới (card Phim / hero Thể thao) sinh finding có frame.
+    class _VisionIQA(object):
+        def __init__(self):
+            self.calls = []
+        def available(self):
+            return True
+        def remaining(self):
+            return 40
+        def check_visual(self, image_bytes, question, timeout=60, crop=None, max_side=None):
+            self.calls.append((crop, question, image_bytes))
+            return {"found": True, "severity": "HIGH", "detail": "ảnh sai",
+                    "quote": "x"}, None
+    _r16 = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_iqa_vision", serial=None,
+                                     vision_budget=40, no_vision=False)
+    _r16.vision = _VisionIQA()
+    # Frame phải được nhận diện từ ui_state.selected_ids (không phải top-level obs).
+    _r16._phim_card_frame = None
+    _r16._sports_hero_frame = None
+    _spec_dummy16 = type('S16', (), {'name': 'TEST_IQA'})()
+    _r16._note_vision_frames(_spec_dummy16,
+        {"png": png15, "ui_state": {"selected_ids": ["nav_phim"]},
+         "activity": "com.kenhlive.tv/.MainActivity", "t_offset": 9.0},
+        "step_009_phim_ngu.jpg")
+    assert _r16._phim_card_frame and _r16._phim_card_frame["frame"] == "step_009_phim_ngu.jpg", \
+        "tab Phim (nav_phim) phải lưu frame card cho vision check"
+    _r16._note_vision_frames(_spec_dummy16,
+        {"png": png_lb, "ui_state": {"selected_ids": ["nav_live"]},
+         "activity": "com.kenhlive.tv/.MainActivity", "t_offset": 10.0},
+        "step_010_sports_m.jpg")
+    assert _r16._sports_hero_frame and _r16._sports_hero_frame["frame"] == "step_010_sports_m.jpg", \
+        "tab Trực tiếp (nav_live) phải lưu frame hero cho vision check"
+    _r16._phim_card_frame = {"png": png15, "frame": "step_031_phim_ngu.jpg", "t": 31.0}
+    _r16._sports_hero_frame = {"png": png_lb, "frame": "step_006_sports_m.jpg", "t": 6.0}
+    _r16._vision_overlap_checks()
+    _kinds16 = [e["kind"] for e in _r16.vision_check_log]
+    assert "phim_card" in _kinds16 and "sports_hero" in _kinds16, \
+        "phải gọi vision check cho cả card Phim và hero Thể thao (được %s)" % _kinds16
+    _issues16 = [f["issue"] for f in _r16.findings]
+    assert any("phim" in i.lower() for i in _issues16) and \
+           any("hero" in i.lower() for i in _issues16), \
+        "vision found=true phải sinh finding cho cả 2 vùng ảnh"
+    print("VISION_IMAGE_QUALITY_CHECKS_OK")
+
+    # (d) Preflight image_audit.json đính kèm vào report khi có mặt.
+    import json as _j15, os as _o15, tempfile as _tf15
+    _d15 = _tf15.mkdtemp(prefix="qa_audit_")
+    _j15.dump({"summary": {"total": 3, "ok": 3, "failed": 0},
+               "failed_checks": [], "api": {"phim": "x"}},
+              open(_o15.path.join(_d15, "image_audit.json"), "w"))
+    from missions import get_missions
+    _r15 = runner_mod.RealtimeRunner(out_dir=_d15, serial=None,
+                                     vision_budget=0, no_vision=True)
+    _spec15 = get_missions()[0]
+    _rep15 = _r15.run([_spec15])
+    _audit_in_report = (_rep15.get("image_audit") or {}).get("summary") or {}
+    assert _audit_in_report.get("total") == 3, \
+        "qa_report.json phải đính kèm summary image_audit (được %s)" % _audit_in_report
+    print("IMAGE_AUDIT_REPORT_OK")
 
 
 if __name__ == "__main__":

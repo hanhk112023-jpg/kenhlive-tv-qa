@@ -2591,3 +2591,22 @@ không kết luận -> giữ claim.
 **Switchover CHƯA:** QA 32m54s > 30 phút + 4 FAIL.
 
 **Wave 7 chờ duyệt:** harness — H13-fix (#20 max_steps 14→22 + goto nhảy tới node đích khi vào dump; #21 scroll-to-top xác minh focus hàng 1, cho phép UP khi đích ở trên; H16 directed-live chỉ chọn trận đã kickoff; H17 phát hiện foreground rời package → relaunch + resume), app — A23-hero, A26, A28, A31-toast-path, A22-feed-check.
+
+### 15.32. Nâng cấp QA test — kiểm chất lượng ẢNH 3 tab (2026-11-22, wave image-quality)
+
+Yêu cầu: harness phải kiểm **thực chất** card Phim, banner Thể thao, hướng/tỉ lệ ảnh và độ tải ảnh ở cả 3 tab trên TV + Phone — không chỉ pass/fail mission. Nguyên nhân gốc đã xác nhận ngày 22/11: KKPhim `poster_url`=dọc, `thumb_url`=ngang (ngược NguonC), consumer app vẫn bind theo quy ước cũ; card 266dp cắt metadata; hero fallback `KENHLIVE CINEMA`; logo/avatar placeholder; trận LIVE hiện `VS`.
+
+**Harness thay đổi (chỉ `kenhlive-tv-qa`, không đụng app):**
+1. `harness/realtime/image_audit.py` (MỚI) — preflight chạy trên runner trước emulator: tải API thật, đo kích thước ảnh bằng **ffprobe** (không dùng PIL — C extension hỏng trên máy này), kiểm Phim `poster`=portrait / `thumb`=landscape, Socolive `all_live_rooms` icon, IPTV `fallback_vn.m3u` tvg-logo. Ghi `qa_out/image_audit.json`, runner đính tóm tắt + failed checks vào `qa_report.json`. Không fail workflow vì 1 ảnh lỗi.
+2. `detectors.py` — 3 detector rẻ, chạy trên dump+pixel có sẵn: `detect_live_vs_no_score` (tab 0/1, 2 quan sát, có tỉ số thì bỏ qua), `detect_placeholder_avatar` (ui_summary bounds + stddev xám, 2 quan sát), `detect_hero_letterbox` (2 dải tối mép hero, 2 quan sát). Đều có `ctx['reported']` chống spam.
+3. `runner.py` — lưu frame cuối tab Phim(5)/Thể thao(0) từ `ui_state.selected_ids`; `_vision_overlap_checks()` thêm 2 call (`phim_card`, `sports_hero`) hỏi đúng lỗi đã thấy bằng mắt (ảnh ngang cắt vào card dọc, mất metadata 2 dòng, badge FHD/Full; fallback/placeholder/VS/letterbox). Tổng vision/run tăng tối đa 2 call.
+4. `.github/workflows/qa-realtime-trial.yml` — bước "Preflight API ảnh" sau Install deps.
+5. `mock_test.py` — 5 test mới (LIVE-VS, placeholder, letterbox, vision checks, image_audit trong report) + bỏ qua graceful các test phụ thuộc artifact `~/workspace/kenhlive-plan/*` khi thư mục cũ không tồn tại (VM restart mất).
+
+**Kiểm chứng (chạy thật):**
+- `image_audit.py --limit 5` trên API thật: **20 checks / 20 OK / 0 fail** — chứng minh API đang trả đúng hướng; lỗi nằm ở consumer app, không phải API.
+- `mock_test.py`: **EXIT=0**, 83 dòng `*_OK`, gồm `LIVE_VS_NO_SCORE_OK`, `PLACEHOLDER_AVATAR_OK`, `HERO_LETTERBOX_OK`, `VISION_IMAGE_QUALITY_CHECKS_OK`, `IMAGE_AUDIT_REPORT_OK`, `MOCK_RUNNER_OK`.
+- `replay.py --no-vision` trên artifact qa-v11/tv: EXIT=0, 0 false pass, không crash (artifact này không phải baseline P0 42950738729 nên recall 1/8 ở đây **không** so sánh được với R1–R8; chỉ dùng làm smoke test).
+- **Chưa có trial live** cho wave này — cần dispatch `qa-realtime-trial.yml` `quick=false` trên TV + Phone, rồi soi framevideo/ảnh theo đúng quy trình.
+
+**Giới hạn đã biết:** detector placeholder/letterbox cần đúng id `avatar|crest|logo|blv|icon` trong dump và ≥2 observation ở tab 0/1; vision check có thể trả `found=false` khi frame đang loading (sẽ ghi `vision_checks` để debug, không tự động biến thành PASS giả). Bản vá API ảnh phía app chưa áp dụng — trial tới dự kiến vẫn thấy lỗi; mục đích là harness phải **tố đúng frame**.

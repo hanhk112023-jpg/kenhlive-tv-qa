@@ -853,6 +853,165 @@ def detect_wrong_logo(ui_state, activity, ctx, frame_ref, t_offset):
     return []
 
 
+# ---------------------------------------------------------------------------
+# Image-quality audit (nâng cấp 2026-11-22) — kiểm tra chất lượng ẢNH thực tế
+# trên 3 tab bằng dữ liệu đã có (UI dump + pixel frame), KHÔNG gọi thêm API.
+# Bổ sung cho preflight image_audit.py (đó kiểm API trả ảnh đúng hướng, còn
+# ở đây kiểm consumer app CÓ DÙNG đúng ảnh đó không).
+#
+# Ba lỗi đã thấy bằng mắt ở kkphim_tv/shots/step_033_phim_ngu.jpg và
+# kkphim_phone/shots/step_006_cold_sta.jpg:
+#   - card phim dọc dùng thumb ngang -> cắt mặt diễn viên (vision check ở runner)
+#   - logo đội / avatar BLV là vòng tròn xám placeholder
+#   - trận LIVE hiện 'VS' thay vì tỉ số (đã có detector cho tab Lịch, thêm tab Live)
+# ---------------------------------------------------------------------------
+
+def _tab_of(ui_state):
+    """Tab hiện tại từ nav được selected, hoặc None khi dump không rõ."""
+    sel = ui_state.get("selected_ids") or []
+    try:
+        from device import NAV_ID_TO_TAB
+    except Exception:
+        NAV_ID_TO_TAB = {}
+    tabs = [NAV_ID_TO_TAB[r] for r in sel if r in NAV_ID_TO_TAB]
+    return tabs[0] if tabs else None
+
+
+def detect_live_vs_no_score(ui_state, activity, ctx, frame_ref, t_offset):
+    """Trận ĐANG LIVE mà card/hero chỉ hiện 'VS' — thiếu tỉ số thật.
+
+    Chỉ chạy trên tab Trực tiếp (0) hoặc Lịch (1), KHÔNG chạy trong player
+    (trong player 'VS' có thể là tiêu đề cặp đấu chuẩn). Yêu cầu 2 observation
+    khác nhau có cùng dấu hiệu để tránh tố lúc dữ liệu đang tải.
+    """
+    tab = _tab_of(ui_state)
+    if tab not in (0, 1):
+        return []
+    if "PlayerActivity" in (activity or "") or "WebPlayerActivity" in (activity or ""):
+        return []
+    blob = " ".join(t for _, t in (ui_state.get("all_visible_texts") or []))
+    low = blob.lower()
+    live_marker = any(k in low for k in ("đang trực tiếp", "dang truc tiep",
+                                        "trực tiếp", "truc tiep", " live"))
+    if not live_marker or not re.search(r"\bvs\b", low, re.I):
+        return []
+    if re.search(r"\b\d{1,2}\s*:\s*\d{1,2}\b", blob):
+        return []  # có tỉ số thật trên màn -> không phải lỗi
+    key = "LIVE_VS_NO_SCORE"
+    hits = ctx.setdefault("live_vs_hits", 0)
+    if key in ctx.setdefault("reported", set()):
+        return []
+    ctx["live_vs_hits"] = hits + 1
+    if hits < 1:
+        return []
+    ctx["reported"].add(key)
+    return [_mk("HIGH", "Thể thao · Trận LIVE",
+                "Trận đang LIVE chỉ hiện 'VS', thiếu tỉ số thật",
+                "Tab %s có badge LIVE/Đang trực tiếp nhưng thẻ trận chỉ hiện 'VS' "
+                "sau 2 quan sát liên tiếp (không có token tỉ số 'X : Y')" % tab,
+                "Dùng chung nguồn tỉ số đã enrich ở tab Thể thao; không thay thế "
+                "bằng tỉ số giả hay ẩn dấu 'VS' khi lookup trượt",
+                frame_ref, t_offset, ui_state.get("focused_sig", ""))]
+
+
+def detect_placeholder_avatar(frame_png, ui_state, ctx, frame_ref, t_offset):
+    """Logo đội / avatar BLV là vòng tròn xám placeholder (pixel, không vision).
+
+    Đọc bounds từ ui_summary (focusable nodes có id chứa crest/logo/avatar/
+    blv/icon), crop trên frame thật, đo độ lệch pixel. Nền placeholder
+    `bg_team_crest_placeholder` là vòng tròn xám đồng nhất (stddev rất thấp)
+    nên phân biệt được với logo thật có nét/màu. Chỉ tố khi đã thấy cùng 1 id
+    placeholder ở 2 observation liên tiếp — tránh tố lúc ảnh chưa tải xong.
+    """
+    if not frame_png or _tab_of(ui_state) not in (0, 1):
+        return []
+    try:
+        from PIL import Image, ImageStat
+        im = Image.open(__import__("io").BytesIO(frame_png)).convert("L")
+    except Exception:
+        return []
+    W, H = im.size
+    candidates = []
+    for line in (ui_state.get("ui_summary") or "").splitlines():
+        low = line.lower()
+        if not any(k in low for k in ("crest", "logo", "avatar", "blv", "icon")):
+            continue
+        m = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", line)
+        if not m:
+            continue
+        x1, y1, x2, y2 = map(int, m.groups())
+        x1 = int(x1 * W / 1920.0); x2 = int(x2 * W / 1920.0)
+        y1 = int(y1 * H / 1080.0); y2 = int(y2 * H / 1080.0)
+        if x2 - x1 < 16 or y2 - y1 < 16 or x1 < 0 or y1 < 0 or x2 > W or y2 > H:
+            continue
+        try:
+            st = ImageStat.Stat(im.crop((x1, y1, x2, y2)))
+            mean, sd = st.mean[0], st.stddev[0]
+        except Exception:
+            continue
+        rid = line.strip().split("('")[0].replace("[FOCUSED]", "").strip() or "avatar"
+        if sd < 7.0 and 45 <= mean <= 165:  # xám đồng nhất = placeholder
+            candidates.append((rid, mean, sd, (x1, y1, x2, y2)))
+
+    hist = ctx.setdefault("placeholder_hist", {})
+    out = []
+    for rid, mean, sd, box in candidates[:4]:
+        n = hist.get(rid, 0) + 1
+        hist[rid] = n
+        if n < 2:
+            continue
+        key = "PLACEHOLDER:%s" % rid
+        if key in ctx.setdefault("reported", set()):
+            continue
+        ctx["reported"].add(key)
+        out.append(_mk("MEDIUM", "Thể thao · Ảnh đội/BLV",
+                       "Logo đội hoặc avatar BLV là placeholder trống",
+                       "Vùng '%s' %s là nền xám đồng nhất (mean=%.0f stddev=%.1f) "
+                       "sau 2 quan sát — ảnh thật không tải về" % (rid, box, mean, sd),
+                       "Kiểm tra URL logo/avatar trả về từ API và fallback "
+                       "TeamLogoRegistry; đừng để khung xám đặc thay ảnh",
+                       frame_ref, t_offset, rid))
+    return out
+
+
+def detect_hero_letterbox(frame_png, ui_state, ctx, frame_ref, t_offset):
+    """Banner hero dùng scaleType fitCenter trên TV: 2 dải đen/trống 2 bên.
+
+    Ở TV 1920x1080 hero chiếm phần trên màn (dưới nav). Ảnh 16:9 fitCenter
+    trên khung hero ratio khác để lại dải nền đồng nhất ở trái/phải. So sánh
+    luminance 2 dải mép với luminance vùng giữa; cần 2 observation liên tiếp.
+    """
+    if not frame_png or _tab_of(ui_state) not in (0, 1, 6):
+        return []
+    try:
+        from PIL import Image, ImageStat
+        im = Image.open(__import__("io").BytesIO(frame_png)).convert("L")
+    except Exception:
+        return []
+    W, H = im.size
+    band = im.crop((0, int(0.16 * H), W, int(0.45 * H)))
+    edge = int(0.07 * W)
+    left = ImageStat.Stat(band.crop((0, 0, edge, band.height))).mean[0]
+    right = ImageStat.Stat(band.crop((W - edge, 0, W, band.height))).mean[0]
+    mid = ImageStat.Stat(band.crop((int(0.3 * W), 0, int(0.7 * W), band.height)))
+    if not (left < 22 and right < 22 and mid.stddev[0] > 18 and mid.mean[0] > 45):
+        return []
+    if not ctx.get("letterbox_hits"):
+        ctx["letterbox_hits"] = 1
+        return []
+    if "HERO_LETTERBOX" in ctx.setdefault("reported", set()):
+        return []
+    ctx["reported"].add("HERO_LETTERBOX")
+    return [_mk("MEDIUM", "Hero banner",
+                "Banner hero bị thừa dải đen hai bên (ảnh fitCenter)",
+                "Vùng hero 16%%-45%% có 2 dải tối ở mép trái/phải (mean %.0f/%.0f) "
+                "trong khi giữa có ảnh thật (stddev %.1f)" %
+                (left, right, mid.stddev[0]),
+                "Trên TV dùng centerCrop cho ảnh hero, không fitCenter; "
+                "chấp nhận cắt bớt ảnh thay vì để dải trống",
+                frame_ref, t_offset, ui_state.get("focused_sig", ""))]
+
+
 def run_all_detectors(frame_png, ui_state, activity, ctx, frame_ref, t_offset, ocr):
     """Chạy toàn bộ detector cục bộ trên một stable frame. Trả (findings, vision_queue).
     Detector OCR (text_overlap / clipped / subtitle-seekbar) chỉ chạy khi
@@ -870,6 +1029,11 @@ def run_all_detectors(frame_png, ui_state, activity, ctx, frame_ref, t_offset, o
     findings += detect_fake_score(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_schedule_live_no_score(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_row_overflow(ui_state, activity, ctx, frame_ref, t_offset)
+    # Image-quality audit (2026-11-22): chạy rẻ trên UI dump + pixel, có
+    # cache reported/2-quan-sát để không spamFinding cùng 1 lỗi mỗi bước.
+    findings += detect_live_vs_no_score(ui_state, activity, ctx, frame_ref, t_offset)
+    findings += detect_placeholder_avatar(frame_png, ui_state, ctx, frame_ref, t_offset)
+    findings += detect_hero_letterbox(frame_png, ui_state, ctx, frame_ref, t_offset)
     if _ocr_due(ctx):
         # CI-T5 mục 6: hero band là band OCR đắt nhất — đo local trên frame
         # thật CI-T4 (960x540): hero 1.1–2.0s trong tổng 2.5–3.4s cho 3 band
