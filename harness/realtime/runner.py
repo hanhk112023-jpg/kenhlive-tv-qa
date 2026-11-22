@@ -587,6 +587,13 @@ class RealtimeRunner:
                     break
         except Exception:
             pass
+        if _tab is None:
+            try:
+                # TV trial ef60699: dump không có nav selected -> fallback từ
+                # TAB_KEYWORDS (cùng bộ device.detect_tab_index dùng ở driver).
+                _tab = self.device.detect_tab_index(obs.get("ui_state") or {})
+            except Exception:
+                pass
         if _tab == 5:
             self._phim_card_frame = {"png": obs["png"], "frame": last_frame_ref,
                                      "t": obs["t_offset"]}
@@ -653,12 +660,13 @@ class RealtimeRunner:
                 '1 loi, ghi ro ten phim va loai loi vao detail.'))
         if self._sports_hero_frame:
             checks.append(('sports_hero', self._sports_hero_frame, (0, 120, 1920, 700),
-                'Kiem tra BANNER HERO the thao. Co dau hieu ANH FALLBACK sai (chu '
-                'KENHLIVE CINEMA in san tren anh nen) KHONG? Co logo doi hoac avatar '
-                'BLV la VONG TRON XAM TRONG/KHONG CO ANH KHONG? Tran dang truc tiep '
-                'co hien chu VS thay vi TI SO KHONG? Anh nen co HAI DAI DEN/TRONG '
-                'hai ben (fitCenter) KHONG? Chi tra found=true khi thay ro it nhat '
-                '1 loi, trich nguyen van chu nhin thay vao quote.'))
+                'Cau HOI CHINH: Co dong chu in hoa KENHLIVE CINEMA nam TRONG ANH NEN '
+                'cua banner the thao khong? Neu CO thi chon found=true va trich dong '
+                'do vao quote, du cac loi khac khong ro. Ngoai ra: co logo doi hoac '
+                'avatar BLV la VONG TRON XAM TRONG/KHONG CO ANH KHONG? Tran dang '
+                'truc tiep co hien chu VS thay vi TI SO KHONG? Anh nen co HAI DAI '
+                'DEN/TRONG hai ben (fitCenter) KHONG? Chi tra found=true khi thay '
+                'ro it nhat 1 loi, trich nguyen van chu nhin thay vao quote.'))
         for kind, fr, crop, question in checks:
             if self.vision.remaining() <= 0:
                 break

@@ -2610,3 +2610,18 @@ Yêu cầu: harness phải kiểm **thực chất** card Phim, banner Thể thao
 - **Chưa có trial live** cho wave này — cần dispatch `qa-realtime-trial.yml` `quick=false` trên TV + Phone, rồi soi framevideo/ảnh theo đúng quy trình.
 
 **Giới hạn đã biết:** detector placeholder/letterbox cần đúng id `avatar|crest|logo|blv|icon` trong dump và ≥2 observation ở tab 0/1; vision check có thể trả `found=false` khi frame đang loading (sẽ ghi `vision_checks` để debug, không tự động biến thành PASS giả). Bản vá API ảnh phía app chưa áp dụng — trial tới dự kiến vẫn thấy lỗi; mục đích là harness phải **tố đúng frame**.
+
+**Trial đầu (run 45028061596 TV / 45028067844 Phone, commit ef60699) — cả 2 `completed/success`, QA 1202s/1169s, score 31/24 (mission 8/15 TV, 6/15 Phone).** Preflight API ảnh chạy success cả 2. Đính kèm `image_audit.json`: Phim 10/10 đúng hướng, IPTV 5/5 tải được; **Sports bị HTTP 403 trên runner** (local 200) nên wave đầu không kiểm được ảnh đội bóng — đã sửa ở wave sau bằng fallback ESPN CDN + 1 check FAIL rõ ràng. `vision_checks`: Phone có `phim_card`/`sports_hero` (đều `not_found`), TV chỉ có `player_title` — TV dump không có nav-selected nên không lưu được frame 2 tab mới.
+
+**Eye-review frame (vision_analyze từng ảnh đơn, không tin điểm):**
+- **Thật:** Phone `step_003_cold_sta.jpg` — hero + 2 thẻ LIVE hiện `VS` thay tỉ số (detector `LIVE_VS_NO_SCORE` tố đúng frame); ảnh nền hero in chữ **`KENHLIVE CINEMA`** (fallback sai, vision `sports_hero` lại trả `not_found`). TV `step_036_phim_ngu.jpg` — metadata mất ở mọi tiêu đề 2 dòng còn tiêu đề 1 dòng có `2024/2026 · Vietsub`; phần trên hero bị category bar cắt.
+- **Giả phải sửa harness (4 HIGH/MEDIUM):** Phone `step_028_phim_ngu.jpg` OCR đọc chữ trong tranh poster (`hưết 4`/`Kiến`) tố chồng 70%; TV `step_004_cold_sta.jpg` nhầm icon tròn thành `Ø` rồi tố đè `[ColaTV] BLV 7UP`; TV `step_010_sports_m.jpg` cùng mẫu; Phone `step_003` detector letterbox tố dải đen dù ảnh nền phủ toàn hero.
+
+**Wave image-quality fix (sau trial ef60699, cùng ngày):**
+1. `detectors.detect_hero_letterbox` — yêu cầu 2 dải mép **đồng nhất** (stddev <8) và inner 8–12%/88–92% sáng rõ (>35); loại FP nền tối gradient. Mock dùng ảnh tổng hợp có dải đen thật vẫn bắt.
+2. `detectors._ocr_text_supported_by_ui` — text_overlap HIGH chỉ giữ khi **cả 2 box OCR** đều khớp token thật trong `all_visible_texts`; box bắt đầu bằng icon `Ø/○/●/•` hoặc chữ chỉ có trong tranh poster bị loại, ghi `guard_dismissed`. Mock thêm 5 assert (VTV4 HD/[ColaTV] giữ; Ø/hưết 4/Kiến loại).
+3. `runner._note_vision_frames` — fallback `self.device.detect_tab_index(ui_state)` khi dump TV không có nav-selected, để `phim_card`/`sports_hero` chạy trên TV.
+4. `runner._vision_overlap_checks` — prompt sports_hero hỏi TRƯỚC câu hỏi chín `"có chữ KENHLIVE CINEMA trong ảnh nền không"`, bắt `found=true` ngay cả khi các vế khác chưa rõ.
+5. `image_audit.audit_sports` — 403/timeout ghi 1 check FAIL rõ ràng + fallback 6 logo ESPN từ `TeamLogoRegistry` để tab Thể thao vẫn được audit. Kiểm thử fallback bằng cách đổi `SPORTS_API` thành URL 404: 5 check sports (4 OK + 1 FAIL), không crash.
+
+**Kiểm chứng sau fix:** mock `EXIT=0` với `HERO_LETTERBOX_OK`, `OCR_POSTER_ART_GUARD_OK`, `VISION_IMAGE_QUALITY_CHECKS_OK`, `IMAGE_AUDIT_REPORT_OK`; `image_audit.py` API thật **20/20 OK**. Cần trial lại (`quick=false`, TV+Phone) để xác nhận 4 FP biến mất, TV có 2 vision check mới và Sports có check ảnh — **chưa switch-over**.

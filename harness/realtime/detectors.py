@@ -673,6 +673,31 @@ def _ocr_boxes_pairwise_overlap(boxes, band=None):
     return hits
 
 
+def _ocr_text_supported_by_ui(text, ui_texts):
+    """OCR box có khớp 1 đoạn text THẬT trong UI dump không.
+
+    Wave image-quality (2026-11-22): 2/2 HIGH text_overlap trong trial
+    image-quality là OCR đọc chữ trong ẢNH POSTER ('hưết 4'/'Kiến') hoặc
+    nhầm icon tròn thành 'Ø Đang trực tiếp'. Cả 2 đều KHÔNG có trong dump.
+    Text UI thật (VTV4 HD, TRỰC TIẾP, [ColaTV] BLV 7UP) thì có. Yêu cầu
+    token >=3 ký tự, bỏ qua box bắt đầu bằng ký tự lạ (icon).
+    """
+    t = (text or "").strip()
+    # Icon tròn bị OCR thành 'Ø/○/●' ở đầu dòng là nhiễu; bracket [ColaTV]
+    # thì không — bỏ qua dấu mở ngoặc rồi xét token.
+    if not t or t[0] in "Øø○●•":
+        return False
+    t = re.sub(r"^[\[\(\{]+", "", t).strip()
+    toks = [w for w in re.split(r"\W+", _norm_text(t)) if len(w) >= 3]
+    if not toks:
+        return False
+    for _, u in (ui_texts or []):
+        un = _norm_text(u)
+        if any(w in un for w in toks):
+            return True
+    return False
+
+
 def detect_text_overlap(frame_png, ui_state, activity, ctx, frame_ref, t_offset, ocr):
     """Chữ đè chữ (P0-3 hero đè nav) qua OCR boxes từng BAND (không OCR full
     frame — đắt). OCR không có -> ghi skipped, không kết luận.
@@ -729,6 +754,19 @@ def detect_text_overlap(frame_png, ui_state, activity, ctx, frame_ref, t_offset,
             if ha <= 0 or hb <= 0 or max(ha, hb) / min(ha, hb) > 2.0:
                 continue
             if not _plausible_text(a["text"]) or not _plausible_text(b["text"]):
+                continue
+            # Wave image-quality: CHỈ tố khi CẢ 2 box đều khớp text thật
+            # trong UI dump. OCR chữ trong ảnh poster / nhầm icon thành chữ
+            # thì loại — đã kiểm bằng mắt 2 finding giả ở step_004 TV và
+            # step_028 Phone (trial ef60699).
+            _ui_txt = ui_state.get("all_visible_texts") or []
+            if not (_ocr_text_supported_by_ui(a["text"], _ui_txt)
+                    and _ocr_text_supported_by_ui(b["text"], _ui_txt)):
+                ctx.setdefault("guard_dismissed", []).append({
+                    "issue": "Chữ đè chữ OCR ngoài UI dump",
+                    "reason": "box '%s' / '%s' không khớp text UI thật (ảnh poster/icon)" %
+                              (a["text"][:30], b["text"][:30]),
+                    "frame": frame_ref, "activity": activity})
                 continue
             key = "OVERLAP:%s:%s:%s" % (name, a["text"], b["text"])
             if key in ctx.setdefault("reported", set()):
@@ -991,10 +1029,19 @@ def detect_hero_letterbox(frame_png, ui_state, ctx, frame_ref, t_offset):
     W, H = im.size
     band = im.crop((0, int(0.16 * H), W, int(0.45 * H)))
     edge = int(0.07 * W)
-    left = ImageStat.Stat(band.crop((0, 0, edge, band.height))).mean[0]
-    right = ImageStat.Stat(band.crop((W - edge, 0, W, band.height))).mean[0]
+    sl = ImageStat.Stat(band.crop((0, 0, edge, band.height)))
+    sr = ImageStat.Stat(band.crop((W - edge, 0, W, band.height)))
+    left, right = sl.mean[0], sr.mean[0]
     mid = ImageStat.Stat(band.crop((int(0.3 * W), 0, int(0.7 * W), band.height)))
-    if not (left < 22 and right < 22 and mid.stddev[0] > 18 and mid.mean[0] > 45):
+    # fitCenter thật để lại DẢI ĐEN ĐỒNG NHẤT (stddev thấp) ở 2 mép rồi NHẢY
+    # đột ngột sang ảnh: inner 8-12% phải sáng hơn rõ. Nền hero tối thông
+    # thường (ảnh stadium/gradient) có mép tối nhưng KHÔNG đồng nhất hoặc
+    # chuyển tiếp dần — không được tố (giả step_003 qa-iqa-phone).
+    inner_l = ImageStat.Stat(band.crop((int(0.08 * W), 0, int(0.12 * W), band.height))).mean[0]
+    inner_r = ImageStat.Stat(band.crop((int(0.88 * W), 0, int(0.92 * W), band.height))).mean[0]
+    if not (left < 18 and right < 18 and sl.stddev[0] < 8 and sr.stddev[0] < 8
+            and inner_l > 35 and inner_r > 35 and mid.stddev[0] > 18
+            and mid.mean[0] > 45):
         return []
     if not ctx.get("letterbox_hits"):
         ctx["letterbox_hits"] = 1

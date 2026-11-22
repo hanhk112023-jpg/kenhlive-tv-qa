@@ -122,9 +122,23 @@ def audit_phim(checks, limit):
 
 
 def audit_sports(checks, limit):
-    txt = fetch(SPORTS_API).decode("utf-8", "replace")
-    m = re.search(r"\{.*\}", txt, re.DOTALL)
-    data = json.loads(m.group(0)) if m else {}
+    # Trial ef60699: Socolive API trả 403 cho IP GitHub runner (local 200).
+    # Không được im lặng bỏ qua tab Thể thao — ghi 1 check FAIL rõ ràng và
+    # fallback tới ESPN CDN (cùng nguồn TeamLogoRegistry app dùng) để vẫn
+    # kiểm được ảnh logo đội thật trên CI.
+    fallback_ids = ("132", "124", "110", "103", "160", "20232")
+    espn = ["https://a.espncdn.com/i/teamlogos/soccer/500/%s.png" % i
+            for i in fallback_ids]
+    try:
+        txt = fetch(SPORTS_API).decode("utf-8", "replace")
+        m = re.search(r"\{.*\}", txt, re.DOTALL)
+        data = json.loads(m.group(0)) if m else {}
+        note = "Socolive live rooms"
+    except Exception as e:
+        checks.append({"source": "sports", "kind": "api", "url": SPORTS_API,
+                       "ok": False, "expect": None,
+                       "error": "%s: %s — fallback ESPN CDN" % (type(e).__name__, str(e)[:100])})
+        data, note = {}, "ESPN fallback (Socolive API bị chặn trên runner)"
     urls = []
 
     def walk(node):
@@ -139,10 +153,14 @@ def audit_sports(checks, limit):
                 walk(v)
 
     walk(data.get("data") or data)
+    if not urls:
+        urls = list(espn)
+        checks.append({"source": "sports", "kind": "api_fallback", "url": SPORTS_API,
+                       "ok": True, "expect": None,
+                       "note": "dùng %d logo ESPN từ TeamLogoRegistry" % len(espn)})
     for url in urls[:limit]:
-        # icon BLV thường là ảnh vuông; chỉ bắt buộc decode được, không ép hướng.
-        check_image(checks, "sports", url, "anchor_icon", expect=None,
-                    note="Socolive live rooms")
+        # icon BLV / logo đội thường là ảnh vuông; chỉ bắt buộc decode được.
+        check_image(checks, "sports", url, "anchor_icon", expect=None, note=note)
     return len(urls), urls[:limit]
 
 

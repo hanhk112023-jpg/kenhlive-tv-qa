@@ -4831,8 +4831,9 @@ def test_image_quality_detectors():
     # (c) Hero fitCenter: 2 dải đen hai bên + giữa có ảnh thật.
     im2 = _Im15.new("RGB", (1920, 1080), (8, 8, 8))
     d2 = _Dr15.Draw(im2)
+    d2.rectangle([170, 180, 1750, 470], fill=(100, 120, 160))
     for i in range(12):
-        d2.rectangle([300 + i * 100, 180, 390 + i * 100, 470],
+        d2.rectangle([250 + i * 115, 180, 330 + i * 115, 470],
                      fill=(40 + i * 15, 80 + i * 8, 160 - i * 5))
     buf2 = _io15.BytesIO(); im2.save(buf2, format="PNG"); png_lb = buf2.getvalue()
     ui_lb = {"selected_ids": ["nav_live"], "focused_sig": "NONE"}
@@ -4842,6 +4843,16 @@ def test_image_quality_detectors():
     assert len(f_lb) == 1 and "fitCenter" in f_lb[0]["issue"], \
         "hero có 2 dải đen phải bị tố fitCenter sau 2 observation"
     print("HERO_LETTERBOX_OK")
+
+    # (c1b) OCR poster-art/icon guard: 2 HIGH giả ở trial ef60699 phải bị loại.
+    _ui_txt16 = [("x", "Đang trực tiếp • BLV"), ("y", "[ColaTV] BLV 7UP"),
+                 ("nav", "TRANG CHỦ"), ("logo", "VTV4 HD")]
+    assert _dq._ocr_text_supported_by_ui("VTV4 HD", _ui_txt16) is True
+    assert _dq._ocr_text_supported_by_ui("[ColaTV] BLV 7UP", _ui_txt16) is True
+    assert _dq._ocr_text_supported_by_ui("Ø Đang trực tiếp", _ui_txt16) is False
+    assert _dq._ocr_text_supported_by_ui("hưết 4", _ui_txt16) is False
+    assert _dq._ocr_text_supported_by_ui("Kiến", _ui_txt16) is False
+    print("OCR_POSTER_ART_GUARD_OK")
 
     # (c2) 2 vision check mới (card Phim / hero Thể thao) sinh finding có frame.
     class _VisionIQA(object):
