@@ -1241,6 +1241,14 @@ def _guard_dialog_focus_leak(f, ui_state):
     fb = _parse_bounds(ui_state.get("focused_bounds"))
     db = _parse_bounds(ui_state.get("dialog_bounds"))
     if not fb or not db:
+        # Chi loai khi id "dialog" toan la panel cua match-detail (khong phai
+        # dialog that) — trial 43645bd step_010 la man lich thuong. Dialog
+        # khac ma thieu bounds van GIU claim (khong giau loi that).
+        _ids = [str(i) for i in (ui_state.get("dialog_ids") or [])]
+        if _ids and all(i.startswith("panel") or i == "blvCardRoot" for i in _ids):
+            return ("dialog_ids chi co match-detail panel (%s), khong co "
+                    "dialog_bounds — day la man lich thuong, khong the to "
+                    "focus lot nen when dialog open" % ",".join(_ids[:4]))
         return None
     fx = (fb[0] + fb[2]) / 2.0
     fy = (fb[1] + fb[3]) / 2.0

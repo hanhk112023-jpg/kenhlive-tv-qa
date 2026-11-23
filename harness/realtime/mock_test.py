@@ -4854,6 +4854,15 @@ def test_image_quality_detectors():
     assert _dq._ocr_text_supported_by_ui("Kiến", _ui_txt16) is False
     print("OCR_POSTER_ART_GUARD_OK")
 
+    # (c1c) Focus-leak HIGH phải bị loại khi dump không có dialog_bounds
+    # (trial 43645bd step_010: màn lịch thường không dialog nhưng bị tố).
+    _fb16 = {"focused_bounds": "[863,158][1528,510]", "dialog_ids": ["panelScore"]}
+    _reason16 = _dq._guard_dialog_focus_leak(
+        {"issue": "Focus lọt xuống màn hình nền khi Dialog đang mở", "severity": "HIGH"}, _fb16)
+    assert _reason16 and "dialog_bounds" in _reason16, \
+        "không có dialog_bounds thì không được giữ claim focus-leak"
+    print("FOCUS_LEAK_NO_DIALOG_BOUNDS_GUARD_OK")
+
     # (c2) 2 vision check mới (card Phim / hero Thể thao) sinh finding có frame.
     class _VisionIQA(object):
         def __init__(self):

@@ -594,12 +594,23 @@ class RealtimeRunner:
                 _tab = self.device.detect_tab_index(obs.get("ui_state") or {})
             except Exception:
                 pass
-        if _tab == 5:
+        # Chi luu frame khi DUNG la man tab thuong: khong dialog (episode
+        # picker) va khong player/MultiView. Trial 43645bd: phim_card soi
+        # nhầm dialog chon tap, sports_hero soi nhầm man MultiView.
+        _ui16 = obs.get("ui_state") or {}
+        _frame_ok = (not _ui16.get("has_dialog")
+                     and "MainActivity" in act
+                     and not any(k in act for k in ("PlayerActivity",
+                                                    "WebPlayerActivity",
+                                                    "MultiViewActivity")))
+        if _frame_ok and _tab == 5:
             self._phim_card_frame = {"png": obs["png"], "frame": last_frame_ref,
-                                     "t": obs["t_offset"]}
-        elif _tab == 0 and "PlayerActivity" not in act:
+                                     "t": obs["t_offset"],
+                                     "frame_file": obs.get("frame_file")}
+        elif _frame_ok and _tab == 0:
             self._sports_hero_frame = {"png": obs["png"], "frame": last_frame_ref,
-                                       "t": obs["t_offset"]}
+                                       "t": obs["t_offset"],
+                                       "frame_file": obs.get("frame_file")}
         act = obs.get("activity") or ""
         if "WebPlayerActivity" in act:
             _rank = self._player_title_rank(obs)
@@ -657,7 +668,9 @@ class RealtimeRunner:
                 'mot phan KHONG? Co card tieu de xuong 2 DONG ma dong metadata '
                 'nam/phu de (VD 2015 • Vietsub) BI MAT/CAT KHONG? Badge FHD/Full co '
                 'kho doc tren nen sang KHONG? Chi tra found=true khi thay ro it nhat '
-                '1 loi, ghi ro ten phim va loai loi vao detail.'))
+                'Neu anh KHONG phai hang card phim dang luoi (VD dialog chon tap) '
+                'thi tra found=false ngay. Chi tra found=true khi thay ro it '
+                'nhat 1 loi, ghi ro ten phim va loai loi vao detail.'))
         if self._sports_hero_frame:
             checks.append(('sports_hero', self._sports_hero_frame, (0, 120, 1920, 700),
                 'Cau HOI CHINH: Co dong chu in hoa KENHLIVE CINEMA nam TRONG ANH NEN '
@@ -666,15 +679,25 @@ class RealtimeRunner:
                 'avatar BLV la VONG TRON XAM TRONG/KHONG CO ANH KHONG? Tran dang '
                 'truc tiep co hien chu VS thay vi TI SO KHONG? Anh nen co HAI DAI '
                 'DEN/TRONG hai ben (fitCenter) KHONG? Chi tra found=true khi thay '
-                'ro it nhat 1 loi, trich nguyen van chu nhin thay vao quote.'))
+                'Neu anh KHONG phai banner hero the thao (VD man Da man hinh / '
+                'player / dialog) thi tra found=false ngay. Chi tra found=true '
+                'khi thay ro it nhat 1 loi, trich nguyen van chu nhin thay vao quote.'))
         for kind, fr, crop, question in checks:
             if self.vision.remaining() <= 0:
                 break
             # CI-T6 mục 2: log rõ mỗi call đã soi frame nào (path + timestamp
             # + crop) — CI-T5 không ghi được 2 call check_visual đã soi frame
             # nào nên không debug được cú bỏ sót tiêu đề đè đôi.
-            entry = {"kind": kind, "frame": fr["frame"], "t": fr["t"],
-                     "crop": list(crop), "question": question}
+            _ev_frame = fr.get("frame_file") or fr["frame"]
+            if not fr.get("frame_file"):
+                try:
+                    _saved = self._save_frame(fr["png"], fr["frame"].replace(".jpg", ""))
+                    if _saved:
+                        _ev_frame = os.path.basename(_saved)
+                except Exception:
+                    pass
+            entry = {"kind": kind, "frame": _ev_frame, "claimed_frame": fr["frame"],
+                     "t": fr["t"], "crop": list(crop), "question": question}
             print("      🔎 [VISION-CHECK %s] frame=%s t=%.1fs crop=%s"
                   % (kind, fr["frame"], fr["t"], crop), flush=True)
             res, err = self.vision.check_visual(fr["png"], question, crop=crop)
@@ -713,7 +736,7 @@ class RealtimeRunner:
                     "detail": "Vision xác nhận trong vùng %s: %s"
                               % (kind, res.get("detail", "")),
                     "suggestion": sugg,
-                    "evidence": {"frame": fr["frame"], "video_t": fr["t"],
+                    "evidence": {"frame": _ev_frame, "video_t": fr["t"],
                                  "ui_state": ""},
                 })
                 print("      🔎 [VISION-OVERLAP %s] %s — %s"
