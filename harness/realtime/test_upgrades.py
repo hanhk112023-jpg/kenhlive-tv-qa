@@ -545,6 +545,122 @@ class UpgradeTests(unittest.TestCase):
         self.assertEqual(rank({"motion": False, "ui_state": {"all_visible_texts": []}}), 1)
         self.assertEqual(rank({"motion": True, "ui_state": {"all_visible_texts": [("e", "video_error")]}}), 0)
 
+    def test_v6_skip_upcoming_flips_direction_at_bottom_edge(self):
+        specs = {s.name: s for s in get_missions()}
+        self.assertTrue(specs["MISSION_SPORTS_ROOM_PICKER"].needs_scroll_top)
+        self.assertTrue(specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"].needs_scroll_top)
+        self.assertEqual(specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"].max_steps, 10)
+
+        class Dev(device_mod.RealtimeDevice):
+            def detect_tab_index(self, ui):
+                return 0
+        from gate import EvidenceGate
+        drv = driver_mod.Driver(Dev(), EvidenceGate(specs["MISSION_SPORTS_ROOM_PICKER"]), specs["MISSION_SPORTS_ROOM_PICKER"])
+        ui_up = {
+            "focused_sig": "cardRoot#[100,820][500,1040]",
+            "focused_text": "Qatar SC vs Al Nasr",
+            "focused_bounds": "[100,820][500,1040]",
+            "all_visible_texts": [("cardRoot", "Qatar SC"), ("cardBadge", "SẮP ĐÁ")],
+            "all_visible_nodes": [
+                {"id": "cardRoot", "text": "Qatar SC", "bounds": "[100,820][500,1040]"},
+                {"id": "cardBadge", "text": "SẮP ĐÁ", "bounds": "[120,830][220,860]"},
+            ],
+            "has_dialog": False, "dialog_ids": [],
+        }
+        a1 = drv.next_action(ui_up, "com.kenhlive.tv/.MainActivity", None, 0.0)
+        self.assertEqual((a1.rule, a1.param), ("skip_upcoming_card", "DPAD_DOWN"))
+        # Repeating the exact same focused_sig means bottom edge hit -> flip to DPAD_UP
+        a2 = drv.next_action(ui_up, "com.kenhlive.tv/.MainActivity", None, 1.0)
+        self.assertEqual((a2.rule, a2.param), ("skip_upcoming_card", "DPAD_UP"))
+        # Moving onto a LIVE card clears the upcoming streak
+        ui_live = dict(
+            ui_up,
+            focused_sig="cardRoot#[100,400][500,620]",
+            focused_bounds="[100,400][500,620]",
+            all_visible_texts=[("cardRoot", "Millonarios"), ("cardBadge", "LIVE")],
+            all_visible_nodes=[
+                {"id": "cardRoot", "text": "Millonarios", "bounds": "[100,400][500,620]"},
+                {"id": "cardBadge", "text": "LIVE", "bounds": "[120,410][220,440]"},
+            ],
+        )
+        a3 = drv.next_action(ui_live, "com.kenhlive.tv/.MainActivity", None, 2.0)
+        self.assertEqual(a3.rule, "open_dialog")
+        self.assertIsNone(drv._skip_upcoming_last_sig)
+
+    def test_v6_local_unstick_avoids_repeating_dpad_down(self):
+        specs = {s.name: s for s in get_missions()}
+        from gate import EvidenceGate
+        class Dev(device_mod.RealtimeDevice):
+            def __init__(self):
+                super().__init__()
+                self.action_history = ["KEY DPAD_DOWN"]
+        drv = driver_mod.Driver(Dev(), EvidenceGate(specs["MISSION_COLD_START"]), specs["MISSION_COLD_START"])
+        drv._last_action = "KEY DPAD_DOWN"
+        drv._no_change_streak = 3
+        a = drv.next_action(
+            {"focused_sig": "cardRoot#[100,820][500,1040]", "focused_text": "X", "all_visible_texts": []},
+            "com.kenhlive.tv/.MainActivity", None, 0.0
+        )
+        self.assertEqual((a.rule, a.param), ("stuck:local_unstick", "DPAD_UP"))
+
+    def test_v6_player_retries_next_live_match_after_3_loading_waits(self):
+        specs = {s.name: s for s in get_missions()}
+        spec = specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]
+        from gate import EvidenceGate
+        class Dev(device_mod.RealtimeDevice):
+            def detect_tab_index(self, ui):
+                return 0
+        gate = EvidenceGate(spec)
+        drv = driver_mod.Driver(Dev(), gate, spec)
+
+        ui_hero = {
+            "focused_sig": "heroPlayBtn#[60,360][280,430]",
+            "focused_text": "Xem ngay",
+            "focused_bounds": "[60,360][280,430]",
+            "all_visible_texts": [("heroBadge", "TRỰC TIẾP"), ("heroScore", "54 : 71")],
+            "all_visible_nodes": [
+                {"id": "heroRoot", "text": "", "bounds": "[40,160][1200,460]"},
+                {"id": "heroBadge", "text": "TRỰC TIẾP", "bounds": "[60,180][200,220]"},
+                {"id": "heroPlayBtn", "text": "Xem ngay", "bounds": "[60,360][280,430]"},
+            ],
+            "has_dialog": False, "dialog_ids": [],
+        }
+        a_open = drv.next_action(ui_hero, "com.kenhlive.tv/.MainActivity", None, 0.0)
+        self.assertEqual((a_open.rule, a_open.param), ("open_player", "OK"))
+
+        ui_loading = {
+            "focused_sig": "NONE", "focused_text": "",
+            "loading_screen": True, "all_visible_texts": [], "all_visible_nodes": [],
+            "has_dialog": False, "dialog_ids": [],
+        }
+        w1 = drv.next_action(ui_loading, "com.kenhlive.tv/.PlayerActivity", None, 1.0)
+        w2 = drv.next_action(ui_loading, "com.kenhlive.tv/.PlayerActivity", None, 3.0)
+        b3 = drv.next_action(ui_loading, "com.kenhlive.tv/.PlayerActivity", None, 5.0)
+        self.assertEqual(w1.rule, "wait_stream")
+        self.assertEqual(w2.rule, "wait_stream")
+        self.assertEqual((b3.rule, b3.param), ("retry_next_live_match", "BACK"))
+
+        # Back on MainActivity -> steps off Hero with DPAD_DOWN, then opens Row 1 LIVE card cleanly
+        a_next = drv.next_action(ui_hero, "com.kenhlive.tv/.MainActivity", None, 6.0)
+        self.assertEqual((a_next.rule, a_next.param), ("select_next_live_match", "DPAD_DOWN"))
+
+        ui_row1 = {
+            "focused_sig": "cardRoot#[60,540][420,760]",
+            "focused_text": "Chapecoense SC",
+            "focused_bounds": "[60,540][420,760]",
+            "all_visible_texts": [("heroBadge", "TRỰC TIẾP"), ("cardBadge", "LIVE")],
+            "all_visible_nodes": [
+                {"id": "heroRoot", "text": "", "bounds": "[40,160][1200,460]"},
+                {"id": "heroBadge", "text": "TRỰC TIẾP", "bounds": "[60,180][200,220]"},
+                {"id": "heroPlayBtn", "text": "Xem ngay", "bounds": "[60,360][280,430]"},
+                {"id": "cardRoot", "text": "Chapecoense SC", "bounds": "[60,540][420,760]"},
+                {"id": "cardBadge", "text": "LIVE", "bounds": "[80,550][160,580]"},
+            ],
+            "has_dialog": False, "dialog_ids": [],
+        }
+        a_open2 = drv.next_action(ui_row1, "com.kenhlive.tv/.MainActivity", None, 7.0)
+        self.assertEqual((a_open2.rule, a_open2.param), ("open_player", "OK"))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -94,6 +94,14 @@ class Driver:
         self._switch_tab_target = None
         self._switch_tab_from_tab = None
         self._switch_tab_attempts = 0
+        # v6: đảo chiều thoát mép dưới khi bỏ qua thẻ SẮP ĐÁ + đổi trận LIVE
+        # khác khi PlayerActivity treo loading >= 3 bước liên tiếp.
+        self._skip_upcoming_dir = "DPAD_DOWN"
+        self._skip_upcoming_last_sig = None
+        self._player_loading_wait_streak = 0
+        self._player_retry_other = 0
+        self._pending_next_live_step = False
+        self._last_opened_live_sig = ""
 
     def _state_sig(self, ui_state, activity):
         return (ui_state.get("focused_sig", "NONE"),
@@ -227,8 +235,6 @@ class Driver:
             return "upcoming"
         if any(re.search(r"\blive\b", t) or "trực tiếp" in t for t in cands):
             return "live"
-        if any(re.search(r"\b\d{1,2}:\d{2}\b", t) for t in cands):
-            return "upcoming"
         return None
 
     def _now_gmt7(self):
@@ -408,6 +414,8 @@ class Driver:
         phòng đang focus. Khi panel đã mở, caller phải bấm OK (open_player)
         trên phòng đang focus, không được đi tìm thẻ khác."""
         if ui_state.get("has_dialog"):
+            return None
+        if self._is_confirmed_live_target(ui_state):
             return None
         nodes = ui_state.get("all_visible_nodes") or []
         if not nodes:
@@ -665,8 +673,10 @@ class Driver:
                 self._local_unstick_tried = True
                 self._no_change_streak = 0
                 self._revisit_streak = 0
-                return Action("KEY", "DPAD_DOWN", rule="stuck:local_unstick",
-                              thought="Kẹt lần 1: thử DPAD_DOWN cục bộ trước khi tốn vision")
+                _hist_last = str(self.device.action_history[-1]) if getattr(self.device, "action_history", None) else ""
+                _unstick_key = "DPAD_UP" if (self._last_action == "KEY DPAD_DOWN" or "DPAD_DOWN" in _hist_last) else "DPAD_DOWN"
+                return Action("KEY", _unstick_key, rule="stuck:local_unstick",
+                              thought="Kẹt lần 1: thử %s cục bộ trước khi tốn vision" % _unstick_key)
             if not self._vision_assist_used and self.vision is not None and self.vision.available() \
                     and self.vision.remaining() > 0 and frame_png:
                 self._vision_assist_used = True
@@ -797,9 +807,30 @@ class Driver:
                                               "không gặp thẻ LIVE nào — run không có "
                                               "trận đang đá để mở, chưa kiểm được "
                                               "(UNVERIFIED)" % _LIVE_SCAN_MAX)
-                return Action("KEY", "DPAD_DOWN", rule="skip_upcoming_card",
+                if (self._skip_upcoming_last_sig is not None
+                        and self._skip_upcoming_last_sig == focused_sig):
+                    self._skip_upcoming_dir = (
+                        "DPAD_UP" if self._skip_upcoming_dir == "DPAD_DOWN"
+                        else "DPAD_DOWN"
+                    )
+                self._skip_upcoming_last_sig = focused_sig
+                return Action("KEY", self._skip_upcoming_dir, rule="skip_upcoming_card",
                               thought="Thẻ đang focus là trận [SẮP ĐÁ] (chưa đá) — "
-                                      "bỏ qua, tìm thẻ LIVE để mở")
+                                      "bỏ qua (%s), tìm thẻ LIVE để mở"
+                                      % self._skip_upcoming_dir)
+            self._skip_upcoming_last_sig = None
+
+        # -- 0c1. Sau khi BACK khỏi một luồng thể thao treo tải, chuyển sang
+        # thẻ LIVE kế tiếp thay vì mở lại chính trận/hero vừa treo.
+        if self._pending_next_live_step \
+                and "PlayerActivity" not in act \
+                and "WebPlayerActivity" not in act \
+                and not ui_state.get("has_dialog"):
+            self._pending_next_live_step = False
+            _ref_sig = focused_sig if (focused_sig and focused_sig != "NONE") else self._last_opened_live_sig
+            _next_key = "DPAD_DOWN" if ("hero" in _ref_sig.lower() or focused_sig == "NONE") else "DPAD_RIGHT"
+            return Action("KEY", _next_key, rule="select_next_live_match",
+                          thought="Chuyển sang trận LIVE khác sau khi luồng trước treo tải")
 
         # -- 0c2. Mission cần player mà đang ở list: đi tới thẻ LIVE rồi mới
         # bấm OK (CI-T6 mục 6; như goto-view-by-id của EPISODE_PICKER).
@@ -852,6 +883,7 @@ class Driver:
                 and not m.directed_launch \
                 and "PlayerActivity" not in act and "WebPlayerActivity" not in act:
             if focused_sig != "NONE":
+                self._last_opened_live_sig = focused_sig
                 return Action("KEY", "OK", rule="open_player",
                               thought="Mở player từ '%s'" % focused_text[:30])
 
@@ -992,6 +1024,19 @@ class Driver:
                             return goto_play
                     return Action("WAIT", "2.0", rule="wait_stream",
                                   thought="Chờ video tải và chuyển động")
+                if m.name == "MISSION_PLAYER_STREAMING_AND_CONTROLS" \
+                        and ui_state.get("loading_screen"):
+                    self._player_loading_wait_streak += 1
+                    if self._player_loading_wait_streak >= 3 \
+                            and self._player_retry_other < 1:
+                        self._player_retry_other += 1
+                        self._player_loading_wait_streak = 0
+                        self._pending_next_live_step = True
+                        return Action("KEY", "BACK", rule="retry_next_live_match",
+                                      thought="Luồng trận đang tải quá lâu (3 bước) — "
+                                              "BACK chọn trận LIVE khác")
+                else:
+                    self._player_loading_wait_streak = 0
                 return Action("WAIT", "2.0", rule="wait_stream",
                               thought="Chờ video tải và chuyển động")
             # H4: IPTV_EPG — kênh ĐÃ phát (motion_seen) thì GIỮ NGUYÊN, không

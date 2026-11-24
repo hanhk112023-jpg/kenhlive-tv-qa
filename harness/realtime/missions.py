@@ -62,7 +62,7 @@ ALL_MISSIONS = [
         required_texts=["blv"],
         needs_dialog=True,
         target_desc="hộp thoại chọn phòng BLV đang mở với danh sách phòng",
-        tab=0,
+        tab=0, needs_scroll_top=True,
     ),
     MissionSpec(
         "MISSION_PLAYER_STREAMING_AND_CONTROLS",
@@ -73,11 +73,11 @@ ALL_MISSIONS = [
         "tương lai (Thử 3: mở nhầm KUW–SYR đá ngày mai 21:00 nên player "
         "'Đang tải luồng...' vô hạn). Run không có trận đang đá nào để chọn "
         "thì UNVERIFIED (chưa kiểm được), không FAIL oan.",
-        max_steps=8, min_steps=4,
+        max_steps=10, min_steps=4,
         required_activity="PlayerActivity",
         needs_motion=True, needs_vision=True,
         target_desc="trình phát PlayerActivity đang phát video bóng đá thật của một trận đang đá (LIVE/TRỰC TIẾP)",
-        tab=0, requires_live_row=True,
+        tab=0, needs_scroll_top=True, requires_live_row=True,
     ),
     MissionSpec(
         "MISSION_IPTV_CATEGORIES_AND_FAVORITES",
