@@ -21,6 +21,7 @@ from device import RealtimeDevice
 from perception import ScreenWatcher, MOTION_PLAYING_PCT
 from detectors import run_all_detectors, detect_keyboard_from_image
 from vision import VisionClient
+from history import SessionHistory
 from gate import EvidenceGate
 from driver import Driver
 from judge import HonestJudge
@@ -140,7 +141,9 @@ class RealtimeRunner:
         os.makedirs(self.shots_dir, exist_ok=True)
         self.device = RealtimeDevice(serial=serial)
         self.watcher = ScreenWatcher(self.device)
-        self.vision = VisionClient(budget=0 if no_vision else vision_budget)
+        self.history = SessionHistory(session_id="RT-%d" % int(time.time()))
+        self.vision = VisionClient(budget=0 if no_vision else vision_budget,
+                                   history=self.history)
         self.no_vision = no_vision
         self.judge = HonestJudge(out_dir)
         self.recorder = None
@@ -230,7 +233,7 @@ class RealtimeRunner:
         activity = self.device.current_activity()
         t_dump = round(time.time() - t1, 2)
         t2 = time.time()
-        png, waited, timed_out = self.watcher.wait_stable(timeout_s=6.0)
+        png, waited, timed_out = self.watcher.wait_stable(timeout_s=4.5)
         t_wait = round(time.time() - t2, 2)
         t3 = time.time()
         ui_state2 = self.device.dump_ui_state()
@@ -247,7 +250,7 @@ class RealtimeRunner:
                   % (_sync_sig(ui_state, activity), _sync_sig(ui_state2, activity2)),
                   flush=True)
             t4 = time.time()
-            png2, waited2, timed_out2 = self.watcher.wait_stable(timeout_s=3.0)
+            png2, waited2, timed_out2 = self.watcher.wait_stable(timeout_s=2.2)
             t_wait = round(t_wait + (time.time() - t4), 2)
             if png2:
                 png, waited, timed_out = png2, waited2, timed_out2
@@ -700,7 +703,13 @@ class RealtimeRunner:
                      "t": fr["t"], "crop": list(crop), "question": question}
             print("      🔎 [VISION-CHECK %s] frame=%s t=%.1fs crop=%s"
                   % (kind, fr["frame"], fr["t"], crop), flush=True)
-            res, err = self.vision.check_visual(fr["png"], question, crop=crop)
+            _vctx = {
+                "mission": "vision_overlap_%s" % kind,
+                "frame_ref": _ev_frame,
+                "t_offset": fr["t"],
+                "activity": fr.get("activity", ""),
+            }
+            res, err = self.vision.check_visual(fr["png"], question, crop=crop, context=_vctx)
             entry["result"] = ("found" if res and res.get("found")
                                else ("error:%s" % err if res is None else "not_found"))
             if res is not None:
@@ -731,14 +740,16 @@ class RealtimeRunner:
                 else:
                     area, issue = 'Player tiêu đề', 'Tiêu đề player đè đôi'
                     sugg = 'Chỉ hiện 1 dòng tiêu đề trong player, bỏ dòng trùng'
-                self.findings.append({
+                _vf = {
                     "severity": sev, "area": area, "issue": issue,
                     "detail": "Vision xác nhận trong vùng %s: %s"
                               % (kind, res.get("detail", "")),
                     "suggestion": sugg,
                     "evidence": {"frame": _ev_frame, "video_t": fr["t"],
                                  "ui_state": ""},
-                })
+                }
+                self.findings.append(_vf)
+                self.history.record_finding(_vf, "vision_overlap_%s" % kind)
                 print("      🔎 [VISION-OVERLAP %s] %s — %s"
                       % (sev, issue, res.get("detail", "")), flush=True)
 
@@ -797,7 +808,24 @@ class RealtimeRunner:
                 "frame": obs["frame_ref"]})
             return False
         t0 = time.time()
-        res, err = self.vision.confirm_target(obs["png"], spec.target_desc)
+        _ui_c = obs.get("ui_state") or {}
+        _cctx = {
+            "mission": spec.name,
+            "step_id": self._global_step,
+            "frame_ref": obs.get("frame_ref"),
+            "t_offset": obs.get("t_offset"),
+            "activity": obs.get("activity"),
+            "focused_sig": _ui_c.get("focused_sig"),
+            "focused_text": _ui_c.get("focused_text"),
+            "has_dialog": bool(_ui_c.get("has_dialog")),
+            "dialog_ids": _ui_c.get("dialog_ids") or [],
+            "osd_visible": bool(_ui_c.get("osd_visible")),
+            "loading_screen": bool(obs.get("loading_screen")),
+            "motion": obs.get("motion"),
+            "motion_delta": round(obs["motion_delta"], 2) if isinstance(obs.get("motion_delta"), (int, float)) and obs["motion_delta"] >= 0 else None,
+            "visible_texts": [t for _, t in (_ui_c.get("all_visible_texts") or [])[:15]],
+        }
+        res, err = self.vision.confirm_target(obs["png"], spec.target_desc, context=_cctx)
         self.timings["vision_s"] += round(time.time() - t0, 1)
         if res is None:
             self.unverified.append({
@@ -845,49 +873,42 @@ class RealtimeRunner:
             if "MainActivity" in self.device.current_activity():
                 break
             self.device.send_key("BACK")
-            time.sleep(1.0)
+            time.sleep(0.6)
         if "MainActivity" not in self.device.current_activity():
             self.device.launch_app()
-            time.sleep(2.0)
-        # Dọn dialog tàn dư của mission trước (xem docstring): BACK tới khi
-        # hết dialog, tối đa 3 lần. Mỗi vòng dump lại để kiểm tra — chỉ BACK
-        # khi has_dialog nên mission bắt đầu sạch sẽ cũng không tốn phím nào.
+            time.sleep(1.5)
+        # Dọn dialog tàn dư của mission trước: BACK tới khi hết dialog, giữ lại ui_state cuối.
+        ui_state = None
         for _ in range(3):
             try:
                 ui_state = self.device.dump_ui_state()
             except Exception:
+                ui_state = None
                 break
             if not ui_state.get("has_dialog"):
                 break
             self.device.send_key("BACK")
-            time.sleep(0.8)
+            time.sleep(0.5)
+            ui_state = None
         if spec.tab is not None:
             try:
-                cur = self.device.detect_tab_index(self.device.dump_ui_state())
+                if ui_state is None:
+                    ui_state = self.device.dump_ui_state()
+                cur = self.device.detect_tab_index(ui_state)
             except Exception:
                 cur = None
-            # Chuyen ca khi khong xac dinh duoc tab hien tai (cur=None): neu
-            # khong biet dang o tab nao thi phai ve tab dich cho chac. Truoc day
-            # chi chuyen khi cur != tab va cur khac None, nen khi detect tra
-            # None (khong co tu khoa) hoac tra sai (vd: "phim" trong ten kenh
-            # IPTV lam nham sang tab 5) thi mission bat dau sai tab, agent
-            # cuon mai trong tab cu (mission Phim ket o IPTV 2 lan chay lien).
             if cur != spec.tab:
                 self.device.switch_tab(spec.tab)
-                time.sleep(1.0)
+                time.sleep(0.6)
 
     def _scroll_to_top(self, spec):
         """Đầu mission list (CI-T5 mục 4): gửi UP ×N để header ('Hôm nay',
-        'tv360') hiện trong viewport trước khi gate đọc text. Chạy SAU khi
-        settle dialog (phím UP trong lúc dialog mở sẽ bị dialog nuốt) và
-        chỉ cho mission gắn cờ needs_scroll_top. UP ở mép trên là vô hại
-        (focus đã ở hàng đầu thì đứng yên). Nhịp 0.3s/phím — đủ cho focus
-        di chuyển, rẻ hơn nhiều so với 1 observation FAIL oan."""
+        'tv360') hiện trong viewport trước khi gate đọc text."""
         if spec.directed_launch or not spec.needs_scroll_top:
             return
         for _ in range(8):
             self.device.send_key("UP")
-            time.sleep(0.3)
+            time.sleep(0.18)
 
     def _settle_blocking_dialog(self, spec):
         """Đầu mỗi mission: đóng dialog chào mừng lần đầu nếu đang mở, TRƯỚC
@@ -915,6 +936,7 @@ class RealtimeRunner:
 
     def run_mission(self, spec):
         print("\n🎯 [Realtime] %s — %s" % (spec.name, spec.title), flush=True)
+        self.history.start_mission(spec, round(time.time() - self.start_time, 1) if self.start_time else 0.0)
         gate = EvidenceGate(spec)
         driver = Driver(self.device, gate, spec,
                         vision=None if self.no_vision else self.vision)
@@ -1055,6 +1077,10 @@ class RealtimeRunner:
             for f in obs["findings"]:
                 print("      🔎 [%s] %s" % (f.get("severity"), f.get("issue")), flush=True)
                 self.findings.append(f)
+                self.history.record_finding(f, spec.name)
+
+            _cur_tab = self.device.detect_tab_index(ui_state)
+            self.history.record_step(self._global_step, spec.name, obs, tab=_cur_tab)
 
             self.timeline.append({
                 "step_id": self._global_step,
@@ -1062,7 +1088,7 @@ class RealtimeRunner:
                 "time_offset_sec": obs["t_offset"],
                 "mission": {"id": spec.name, "title": spec.title},
                 "activity": obs["activity"],
-                "active_tab": {"index": self.device.detect_tab_index(ui_state)},
+                "active_tab": {"index": _cur_tab},
                 "ui_state": {"focused_view": ui_state.get("focused_sig"),
                              "focused_text": ui_state.get("focused_text"),
                              "focused_bounds": ui_state.get("focused_bounds"),
@@ -1151,10 +1177,12 @@ class RealtimeRunner:
                         break
                     act = driver.next_action(ui_state, obs["activity"], obs["png"], obs["t_offset"])
                     self._log_action(act)
+                    self.history.record_action(self._global_step, act)
                     if act.type == "FAIL":
                         gate.force_fail(act.thought, last_frame_ref)
                         break
                     driver.execute(act)
+                    self.watcher.mark_action()
                     self._note_seek_if_needed(gate, act, obs["activity"])
                     last_action_rule = act.rule
                     last_action_focused_sig = ui_state.get("focused_sig")
@@ -1170,12 +1198,14 @@ class RealtimeRunner:
 
             action = driver.next_action(ui_state, obs["activity"], obs["png"], obs["t_offset"])
             self._log_action(action)
+            self.history.record_action(self._global_step, action)
             print("      -> %s %s [%s]" % (action.type, action.param, action.rule), flush=True)
             if action.type == "FAIL":
                 gate.force_fail(action.thought, last_frame_ref)
                 print("   ❌ [Mission FAIL] %s" % action.thought, flush=True)
                 break
             driver.execute(action)
+            self.watcher.mark_action()
             self._note_seek_if_needed(gate, action, obs["activity"])
             last_action_rule = action.rule
             last_action_focused_sig = ui_state.get("focused_sig")
@@ -1333,6 +1363,8 @@ class RealtimeRunner:
                 print("   ❌ [Evidence] frame bằng chứng %s THIẾU trên đĩa — FAIL ồn ào"
                       % _ev_frame, flush=True)
         self.mission_results.append(res)
+        self.history.end_mission(
+            res, round(time.time() - self.start_time, 1) if self.start_time else 0.0)
         return res
 
     def run(self, missions):
@@ -1541,6 +1573,12 @@ class RealtimeRunner:
         # NIM — xem DESIGN §8.1).
         report["vision_provider"] = self.vision.provider
         report["vision_endpoint_host"] = self.vision.endpoint_host
+        report["reasoning_effort"] = getattr(self.vision, "reasoning_effort", "high")
+        report["session_history"] = self.history.stats()
+        try:
+            self.history.save(self.out_dir)
+        except Exception:
+            pass
         # CI-T8 mục 7: run có thấy hàng LIVE nào ở tab Lịch không — nếu
         # không thì detector (e) chưa được kiểm: ghi UNTESTED vào unverified,
         # không im lặng như CI-T7.

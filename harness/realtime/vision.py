@@ -1,26 +1,19 @@
 #!/usr/bin/env python3
-"""KenhLive Realtime QA — vision client (dùng ít, dùng đúng chỗ).
+"""KenhLive Realtime QA — vision client (reasoning_effort=high + 1M Session History).
 
 Provider chain GIỐNG harness cũ, đọc từ biến môi trường mà preflight của
-qa-suite.yml đã set (OPENAI_API_BASE/KEY/MODEL = Gemini / NVIDIA NIM /
-Meteor). Không hardcode key, không thêm provider mới.
+qa-suite.yml / qa-realtime-trial.yml đã set (OPENAI_API_BASE/KEY/MODEL =
+Gemini / NVIDIA NIM / Meteor). Không hardcode key, không thêm provider mới.
 
-Chỉ dùng cho 3 việc (DESIGN.md §8):
-  1. confirm_target — xác nhận mục tiêu mission trên frame ổn định gần nhất.
-  2. check_visual   — xác minh một defect nghi vấn (crop vùng nghi).
-  3. stuck_assist    — gợi ý hành động khi driver kẹt.
-Timeout 60s, retry 1. Không parse được / timeout -> None (UNVERIFIED),
-KHÔNG bao giờ trả điểm mặc định.
-CI-T8 mục 4: timeout cũ 30s quá ngắn cho nemotron 120B + max_tokens 5000
-(khoảng 45-55s mới sinh xong) — call thành công vẫn bị cắt ở 30s rồi thử
-lại (30s + 2s + ~26s ≈ 58s/call trung bình). Timeout 60s cho call hoàn
-thành ngay lần đầu, đỡ lãng phí 1 lần retry.
-
-Rate limit (luật cứng Evelyn 2026-11-11 13:42): NIM giới hạn 40 req/phút.
-Mọi call tới integrate.api.nvidia.com đều qua ratelimit.LIMITER (tối đa
-30 req/phút, không burst). Gặp HTTP 429: ghi nhận, chờ hết cửa sổ, thử lại
-đúng 1 lần ở tốc độ giảm một nửa; 429 lần 2 -> RateLimitedError, caller
-phải biến thành UNVERIFIED (lỗi hạ tầng, KHÔNG phải lỗi app, không trừ điểm).
+Nâng cấp:
+  - Mặc định bật `reasoning_effort = "high"` (tùy chỉnh qua `QA_REASONING_EFFORT`),
+    nâng `max_tokens >= 8192` để thinking token không cắt mất JSON kết quả, và tự
+    động fallback cache theo host nếu gateway từ chối tham số `reasoning_effort` (HTTP 400/422).
+  - Gắn kết `SessionHistory` (không gian lịch sử phiên 1M context): mọi lượt gọi
+    vision đều nhận ngữ cảnh lịch sử toàn phiên + lịch sử hội thoại đa lượt (chỉ ảnh
+    lượt hiện tại được gửi dưới dạng base64 để gọn nhẹ và không chạm giới hạn ảnh).
+  - Trích xuất JSON cân bằng dấu ngoặc từ cuối chuỗi trước, tránh vỡ khi reasoning
+    chứa dấu `{...}`.
 """
 import base64
 import io
@@ -31,8 +24,18 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 
-UA = "KenhLive-RealtimeQA/1.0"
+try:
+    from history import SessionHistory
+except Exception:
+    SessionHistory = None
+
+UA = "KenhLive-RealtimeQA/2.0"
+
+REASONING_EFFORT = os.environ.get("QA_REASONING_EFFORT", "high").strip().lower()
+_DISABLED_REASONING_VALUES = ("", "off", "none", "false", "0")
+_NO_REASONING_EFFORT_HOSTS = set()
 
 
 class RateLimitedError(Exception):
@@ -40,14 +43,9 @@ class RateLimitedError(Exception):
 
 
 def _is_nim_url(url):
-    from urllib.parse import urlparse
     return urlparse(url or "").netloc.lower() == "integrate.api.nvidia.com"
 
 
-# Backoff giữa các lần thử lại khi gặp lỗi HẠ TẦNG transport (NIM đóng kết
-# nối giữa chừng): retry đúng 1 lần, chờ 2s (CI-T8 mục 5: "retry 1 lần khi
-# 503/timeout rồi mới ghi UNVERIFIED" — thử 3 lần cũ tốn tới 102s/call lỗi).
-# Hằng số module để mock test có thể rút ngắn khi kiểm chứng offline.
 _TRANSPORT_BACKOFF_S = (2,)
 
 
@@ -65,6 +63,7 @@ def _is_transport_error(e):
     return any(k in msg for k in ("remote end closed", "closed connection",
                                   "timed out", "connection reset",
                                   "broken pipe", "connection aborted"))
+
 
 DEEPSEEK_BASE = os.environ.get("DEEPSEEK_API_BASE", os.environ.get("FREEDEEPSEEK_API_BASE", ""))
 DEEPSEEK_KEY = os.environ.get("DEEPSEEK_API_KEY", "free")
@@ -85,14 +84,25 @@ OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "")
 NVIDIA_NIM_BASE = "https://integrate.api.nvidia.com/v1/chat/completions"
 NVIDIA_NIM_MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b"
 
-REASONING_MODELS = ("nemotron-3.5-super-vl", "step-5", "nemotron-nano")
+REASONING_MODELS = (
+    "nemotron", "step-5", "gemini-2.5", "gemini-3",
+    "deepseek-r1", "o1", "o3", "o4", "qwq", "claude",
+)
 
 
-def _max_tokens_for(model, default):
+def _is_reasoning_enabled(effort=None):
+    eff = (REASONING_EFFORT if effort is None else str(effort)).strip().lower()
+    return eff not in _DISABLED_REASONING_VALUES
+
+
+def _max_tokens_for(model, default, reasoning_effort=None):
+    eff = (REASONING_EFFORT if reasoning_effort is None else str(reasoning_effort)).strip().lower()
     m = (model or "").lower()
-    if any(k in m for k in REASONING_MODELS):
-        return max(default, 5000)
-    return default
+    if eff == "high" or any(k in m for k in REASONING_MODELS):
+        return max(int(default), 8192)
+    if eff not in _DISABLED_REASONING_VALUES:
+        return max(int(default), 4096)
+    return int(default)
 
 
 def _normalize_url(url):
@@ -116,33 +126,59 @@ def _compress_b64(png_bytes, max_side=960, quality=75):
         return base64.b64encode(png_bytes).decode() if png_bytes else ""
 
 
-def _post(url, key, payload, timeout, user=None, surrogate=None,
-          surrogate_host=None):
-    is_nim = _is_nim_url(url)
+def _build_request(url, key, payload, user=None, surrogate=None, surrogate_host=None):
     headers = {"Content-Type": "application/json", "User-Agent": UA}
-    if surrogate is None:
+    if surrogate is None and key:
         headers["Authorization"] = "Bearer " + key
     if user:
         headers["x-agent-session"] = user
         payload["user"] = user
-    req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers=headers)
+    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
     if surrogate is not None:
         sys_path = "/opt/muse/skills/custom-connector-setup/bin"
         if sys_path not in sys.path:
             sys.path.insert(0, sys_path)
         from dynamic_credentials import add_surrogate_to_request
         add_surrogate_to_request(req, surrogate, allowed_hosts=[surrogate_host])
-    # CI-T8 mục 5: TỔNG CỘNG 2 lần gửi (1 lần gốc + retry 1 lần) cho mọi
-    # lỗi hạ tầng (503, timeout, đóng kết nối) — rồi mới ghi UNVERIFIED.
+    return req
+
+
+def _msg_text(msg):
+    if not isinstance(msg, dict):
+        return ""
+    for field in ("content", "reasoning_content"):
+        val = msg.get(field)
+        if isinstance(val, list):
+            txt = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in val).strip()
+        elif val is not None:
+            txt = str(val).strip()
+        else:
+            txt = ""
+        if txt:
+            return txt
+    return ""
+
+
+def _post(url, key, payload, timeout, user=None, surrogate=None,
+          surrogate_host=None, reasoning_effort=None):
+    is_nim = _is_nim_url(url)
+    host = urlparse(url or "").netloc.lower()
+    payload = dict(payload)
+    eff = (REASONING_EFFORT if reasoning_effort is None else str(reasoning_effort)).strip().lower()
+    if eff not in _DISABLED_REASONING_VALUES and host not in _NO_REASONING_EFFORT_HOSTS:
+        payload.setdefault("reasoning_effort", eff)
+
+    req = _build_request(url, key, payload, user=user, surrogate=surrogate,
+                         surrogate_host=surrogate_host)
     for attempt in range(2):
         try:
             if is_nim:
-                # Luật cứng 40 req/phút của NIM: throttle client-side ở 30/phút.
                 from ratelimit import LIMITER
                 LIMITER.acquire()
-            raw = urllib.request.urlopen(req, timeout=timeout).read().decode()
+            raw = urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8")
             if raw.strip().startswith("data:"):
-                parts = []
+                content_parts = []
+                reasoning_parts = []
                 for line in raw.splitlines():
                     line = line.strip()
                     if line.startswith("data:"):
@@ -152,19 +188,19 @@ def _post(url, key, payload, timeout, user=None, surrogate=None,
                         try:
                             ch = json.loads(chunk)
                             d = (ch.get("choices") or [{}])[0].get("delta") or {}
-                            parts.append(d.get("content") or d.get("reasoning_content") or "")
+                            if d.get("content"):
+                                content_parts.append(d["content"])
+                            if d.get("reasoning_content"):
+                                reasoning_parts.append(d["reasoning_content"])
                         except Exception:
                             pass
-                return "".join(parts).strip()
+                joined = "".join(content_parts).strip()
+                return joined if joined else "".join(reasoning_parts).strip()
             data = json.loads(raw)
             msg = (data.get("choices") or [{}])[0].get("message") or {}
-            out = msg.get("content") or msg.get("reasoning_content") or ""
-            if isinstance(out, list):
-                out = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in out)
-            return str(out).strip()
+            return _msg_text(msg)
         except urllib.error.HTTPError as e:
             if e.code == 429:
-                # 429 là lỗi HẠ TẦNG: không retry dồn dập, không tính vào app.
                 if is_nim:
                     from ratelimit import LIMITER
                     retry_after = None
@@ -174,25 +210,28 @@ def _post(url, key, payload, timeout, user=None, surrogate=None,
                         pass
                     LIMITER.record_429(retry_after)
                     if attempt == 0:
-                        # Chờ hết cửa sổ rồi thử lại đúng 1 lần ở tốc độ đã
-                        # giảm một nửa. wait_backoff KHÔNG chiếm slot/không
-                        # đếm request — chỉ lần gửi lại mới tính (CI-T4: cũ
-                        # acquire() thêm 1 lần để chờ nên 6 calls đếm thành 8).
                         LIMITER.wait_backoff()
                         LIMITER.note_retry()
                         continue
                 raise RateLimitedError("rate_limited_429")
+            # Tự động fallback nếu endpoint không nhận tham số reasoning_effort
+            if e.code in (400, 422) and "reasoning_effort" in payload:
+                err_body = ""
+                try:
+                    err_body = e.read().decode("utf-8", "replace").lower()
+                except Exception:
+                    err_body = str(e).lower()
+                if any(tok in err_body for tok in ("reasoning", "unknown", "unrecognized", "extra", "invalid", "unsupported")):
+                    if host:
+                        _NO_REASONING_EFFORT_HOSTS.add(host)
+                    payload.pop("reasoning_effort", None)
+                    req = _build_request(url, key, payload, user=user,
+                                         surrogate=surrogate, surrogate_host=surrogate_host)
+                    continue
             if attempt >= 1:
                 raise
             time.sleep(2)
         except Exception as e:
-            # Lỗi transport hạ tầng (NIM đóng kết nối giữa chừng): thử lại
-            # đúng 1 lần với backoff 2s (CI-T8 mục 5). Bằng chứng replay R6:
-            # check P0-3 rớt 2 lần liên tiếp với 'Remote end closed
-            # connection' nhưng gọi lại ngay sau đó thành công 2/3 lần
-            # (found=True) — retry 2s cũ không đủ để qua cơn chập chờn.
-            # Mỗi lần thử lại là 1 request thật (đếm trong requests_used),
-            # không tính là retry-429, không ảnh hưởng điểm app.
             if _is_transport_error(e) and attempt < 1:
                 time.sleep(_TRANSPORT_BACKOFF_S[attempt])
                 continue
@@ -202,40 +241,92 @@ def _post(url, key, payload, timeout, user=None, surrogate=None,
     return ""
 
 
-def _extract_json(text):
-    if not text:
+def _parse_json_candidate(chunk):
+    if not chunk:
         return None
-    m = re.search(r"\{.*\}", text, re.DOTALL)
-    if not m:
-        return None
+    cleaned = re.sub(r",\s*([\]}])", r"\1", chunk.strip())
     try:
-        return json.loads(re.sub(r",\s*([\]}])", r"\1", m.group(0)))
+        obj = json.loads(cleaned)
+        return obj if isinstance(obj, dict) else None
     except Exception:
         return None
 
 
-class VisionClient:
-    """Vision dùng cho xác nhận + xác minh defect. Đếm số call để giữ ngân sách."""
+def _extract_json(text):
+    """Trích JSON dict hợp lệ CUỐI CÙNG — an toàn khi reasoning chứa nhiều `{...}`."""
+    if not text:
+        return None
+    s = str(text).strip()
+    # 1. Ưu tiên các code block ```json ... ``` từ cuối lên
+    fenced = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", s, flags=re.IGNORECASE | re.DOTALL)
+    for block in reversed(fenced):
+        parsed = _parse_json_candidate(block)
+        if parsed is not None:
+            return parsed
+    # 2. Quét mọi vị trí '{' từ CUỐI về ĐẦU bằng raw_decode cân bằng ngoặc
+    dec = json.JSONDecoder()
+    for idx in range(len(s) - 1, -1, -1):
+        if s[idx] != "{":
+            continue
+        substr = s[idx:]
+        try:
+            obj, _end = dec.raw_decode(substr)
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            # Thử dọn trailing comma trên đoạn ngoặc cân bằng
+            depth = 0
+            in_str = False
+            esc = False
+            end_pos = -1
+            for j, ch in enumerate(substr):
+                if in_str:
+                    if esc:
+                        esc = False
+                    elif ch == "\\":
+                        esc = True
+                    elif ch == '"':
+                        in_str = False
+                else:
+                    if ch == '"':
+                        in_str = True
+                    elif ch == "{":
+                        depth += 1
+                    elif ch == "}":
+                        depth -= 1
+                        if depth == 0:
+                            end_pos = j + 1
+                            break
+            if end_pos > 0:
+                parsed = _parse_json_candidate(substr[:end_pos])
+                if parsed is not None:
+                    return parsed
+    return None
 
-    def __init__(self, budget=40):
+
+class VisionClient:
+    """Vision dùng cho xác nhận + xác minh defect + thoát kẹt với 1M Session History."""
+
+    def __init__(self, budget=40, history=None, reasoning_effort=None):
         self.budget = int(budget)
         self.calls_total = 0
         self.calls_by_reason = {}
         self.latencies = []
         self.provider = self._detect_provider()
         self.endpoint_host = self._detect_endpoint_host()
-        # CI-T8 mục 5: fallback provider (dùng khi primary lỗi 503/timeout).
         self.fallback_provider = None
         self.fallback_used = 0
+        self.reasoning_effort = (
+            REASONING_EFFORT if reasoning_effort is None else str(reasoning_effort).strip().lower()
+        )
+        if history is not None:
+            self.history = history
+        elif SessionHistory is not None:
+            self.history = SessionHistory()
+        else:
+            self.history = None
 
     def _detect_endpoint_host(self):
-        """Host thật mà request vision được gửi tới — KHÁC provider khi
-        provider chạy qua URL tương thích NIM (CI-T5: provider OPENAI nhưng
-        request đi tới integrate.api.nvidia.com nên limiter NIM vẫn đếm;
-        report ghi 'NIM requests' là sai nhãn dù số đếm đúng). Dùng để ghi
-        nhãn đúng trong report: 'Vision: OPENAI qua integrate.api.nvidia.com'.
-        NONE -> '' (không có endpoint)."""
-        from urllib.parse import urlparse
         _base = {"NVIDIA_NIM": NVIDIA_NIM_BASE,
                  "OPENAI": OPENAI_BASE,
                  "DEEPSEEK_WEB": DEEPSEEK_BASE,
@@ -252,8 +343,6 @@ class VisionClient:
             return "KILO"
         if OPENAI_KEY and OPENAI_BASE:
             return "OPENAI"
-        # Không có env provider (chạy local) -> NVIDIA NIM qua surrogate của
-        # connector custom.nvidia (đã đăng ký, không cần key mới).
         try:
             sys_path = "/opt/muse/skills/custom-connector-setup/bin"
             if sys_path not in sys.path:
@@ -270,12 +359,6 @@ class VisionClient:
         return max(0, self.budget - self.calls_total)
 
     def nim_stats(self):
-        """Thống kê limiter NIM cho report (requests đã dùng / chạm 429?).
-        requests_used = số request THẬT đã gửi (gửi lại sau 429 cũng tính,
-        vì nó là 1 request thật; chờ backoff thì KHÔNG tính — xem
-        ratelimit.wait_backoff). provider ghi rõ để biết số này thuộc về ai
-        (CI-T3 chạy provider OPENAI qua URL NIM-compatible nên limiter vẫn
-        đếm, nhưng report cũ không ghi provider)."""
         try:
             from ratelimit import LIMITER
             stats = LIMITER.stats()
@@ -283,18 +366,18 @@ class VisionClient:
             stats["endpoint_host"] = self.endpoint_host
             stats["fallback_provider"] = self.fallback_provider
             stats["fallback_used"] = self.fallback_used
+            stats["reasoning_effort"] = self.reasoning_effort
             return stats
         except Exception:
             return {"requests_used": 0, "limit_per_min": 30,
                     "hit_429": False, "hits_429": 0, "provider": self.provider,
                     "endpoint_host": self.endpoint_host,
                     "fallback_provider": self.fallback_provider,
-                    "fallback_used": self.fallback_used}
+                    "fallback_used": self.fallback_used,
+                    "reasoning_effort": self.reasoning_effort}
 
     @staticmethod
     def _provider_configured(name):
-        """Provider có đủ thông tin để gọi không (base + key, hoặc
-        surrogate cho NVIDIA_NIM)? Dùng khi chọn fallback."""
         if name == "DEEPSEEK_WEB":
             return bool(DEEPSEEK_BASE)
         if name == "ANTIGRAVITY":
@@ -315,13 +398,6 @@ class VisionClient:
         return False
 
     def _pick_fallback(self):
-        """Provider dự phòng đầu tiên (theo thứ tự ưu tiên) đã được cấu hình
-        VÀ có endpoint host khác primary — cùng host thì lỗi hạ tầng của
-        primary cũng đánh sập fallback (CI-T7: OPENAI qua
-        integrate.api.nvidia.com, NVIDIA_NIM cùng host nên không làm
-        fallback cho nhau). Trả tên provider hoặc None (CI không có provider
-        thứ 2 thì None — chạy như cũ, không crash)."""
-        from urllib.parse import urlparse
         _hosts = {
             "NVIDIA_NIM": urlparse(NVIDIA_NIM_BASE).netloc.lower(),
             "OPENAI": urlparse(_normalize_url(OPENAI_BASE) or "").netloc.lower(),
@@ -342,37 +418,43 @@ class VisionClient:
 
     def _chat_once(self, provider, msgs, max_tokens, timeout, user="qa_realtime"):
         """Một lần gửi tới đúng 1 provider. Trả raw text (raise khi lỗi)."""
+        eff = self.reasoning_effort
+        if eff == "high":
+            timeout = max(int(timeout), 90)
         if provider == "NVIDIA_NIM":
             return _post(NVIDIA_NIM_BASE, "",
                          {"model": NVIDIA_NIM_MODEL, "temperature": 0.1,
-                          "max_tokens": _max_tokens_for(NVIDIA_NIM_MODEL, max_tokens),
+                          "max_tokens": _max_tokens_for(NVIDIA_NIM_MODEL, max_tokens, eff),
                           "messages": msgs}, timeout, user=user,
                          surrogate="custom.nvidia",
-                         surrogate_host="integrate.api.nvidia.com")
+                         surrogate_host="integrate.api.nvidia.com",
+                         reasoning_effort=eff)
         elif provider == "DEEPSEEK_WEB":
             return _post(_normalize_url(DEEPSEEK_BASE), DEEPSEEK_KEY,
                          {"model": DEEPSEEK_MODEL, "temperature": 0.1,
-                          "max_tokens": _max_tokens_for(DEEPSEEK_MODEL, max_tokens),
-                          "messages": msgs}, timeout, user=user)
+                          "max_tokens": _max_tokens_for(DEEPSEEK_MODEL, max_tokens, eff),
+                          "messages": msgs}, timeout, user=user,
+                         reasoning_effort=eff)
         elif provider == "ANTIGRAVITY":
             return _post(_normalize_url(ANTIGRAVITY_BASE), ANTIGRAVITY_KEY,
                          {"model": ANTIGRAVITY_MODEL, "temperature": 0.1,
-                          "max_tokens": _max_tokens_for(ANTIGRAVITY_MODEL, max_tokens),
-                          "messages": msgs}, timeout)
+                          "max_tokens": _max_tokens_for(ANTIGRAVITY_MODEL, max_tokens, eff),
+                          "messages": msgs}, timeout,
+                         reasoning_effort=eff)
         elif provider == "KILO":
             return _post(KILO_BASE, KILO_KEY,
                          {"model": KILO_MODEL, "temperature": 0.1,
-                          "max_tokens": _max_tokens_for(KILO_MODEL, max_tokens),
-                          "messages": msgs}, timeout)
+                          "max_tokens": _max_tokens_for(KILO_MODEL, max_tokens, eff),
+                          "messages": msgs}, timeout,
+                         reasoning_effort=eff)
         else:
             return _post(_normalize_url(OPENAI_BASE), OPENAI_KEY,
                          {"model": OPENAI_MODEL, "temperature": 0.1,
-                          "max_tokens": _max_tokens_for(OPENAI_MODEL, max_tokens),
-                          "messages": msgs}, timeout, user=user)
+                          "max_tokens": _max_tokens_for(OPENAI_MODEL, max_tokens, eff),
+                          "messages": msgs}, timeout, user=user,
+                         reasoning_effort=eff)
 
     def _attempt(self, provider, msgs, max_tokens, timeout, reason, user="qa_realtime"):
-        """Một lần gửi tới 1 provider, có đếm call + latency riêng (fallback
-        cũng là 1 call thật). Trả (raw, err)."""
         t0 = time.time()
         raw = ""
         err = None
@@ -386,19 +468,22 @@ class VisionClient:
         self.latencies.append(dt)
         return raw, err
 
+    def _build_messages(self, prompt, b64_image=None, context=None):
+        if self.history is not None:
+            return self.history.build_messages(prompt, b64_image=b64_image, context=context)
+        content = [{"type": "text", "text": prompt}]
+        if b64_image:
+            content.append({"type": "image_url",
+                            "image_url": {"url": "data:image/jpeg;base64,%s" % b64_image}})
+        return [{"role": "user", "content": content}]
+
     def _chat(self, prompt, image_bytes, max_tokens, timeout, reason, user="qa_realtime",
-              max_side=960):
+              max_side=960, context=None):
         if not self.available() or self.remaining() <= 0:
             return None, "unavailable_or_budget"
         b64 = _compress_b64(image_bytes, max_side=max_side)
-        content = [{"type": "text", "text": prompt}]
-        if b64:
-            content.append({"type": "image_url",
-                            "image_url": {"url": "data:image/jpeg;base64,%s" % b64}})
-        msgs = [{"role": "user", "content": content}]
+        msgs = self._build_messages(prompt, b64_image=b64, context=context)
         raw, err = self._attempt(self.provider, msgs, max_tokens, timeout, reason, user)
-        # CI-T8 mục 5: primary lỗi (503/timeout/rỗng) -> thử ĐÚNG 1
-        # provider dự phòng khác host (nếu có) rồi mới ghi UNVERIFIED.
         if (err or not raw) and self.remaining() > 0:
             fb = self._pick_fallback()
             if fb:
@@ -409,29 +494,40 @@ class VisionClient:
                     return None, "error:%s (fallback %s)" % ((err or "empty"), fb)
         if err or not raw:
             return None, "error:%s" % (err or "empty")
-        return _extract_json(raw), None
+        parsed = _extract_json(raw)
+        if self.history is not None:
+            self.history.record_vision_turn(reason, prompt, raw, parsed=parsed, meta=context)
+        if parsed is None:
+            return None, "invalid_json"
+        return parsed, None
 
     # -- 3 trường hợp dùng duy nhất ------------------------------------
-    def confirm_target(self, image_bytes, target_desc, timeout=60):
-        """Xác nhận mục tiêu có đang hiển thị không. Trả dict {confirmed, quote} hoặc None."""
+    def confirm_target(self, image_bytes, target_desc, timeout=60, context=None):
+        """Xác nhận mục tiêu có đang hiển thị không. Trả dict {confirmed, quote, confidence} hoặc None."""
         prompt = (
-            "Bạn đang xem ảnh chụp màn hình Android TV 1920x1080 của app KenhLive. "
+            "Bạn đang xem ảnh chụp màn hình của app KenhLive.\n"
             "Mục tiêu cần xác nhận: %s\n"
-            "Chỉ trả JSON: {\"confirmed\": true/false, \"quote\": \"chuỗi chữ bạn NHÌN THẤY "
-            "chứng minh mục tiêu (trích nguyên văn, tối đa 12 từ)\"}. "
-            "Không thấy rõ thì confirmed=false. Không bịa." % target_desc)
-        res, err = self._chat(prompt, image_bytes, max_tokens=600, timeout=timeout,
-                              reason="confirm_target")
+            "Yêu cầu kiểm tra kỹ trước khi trả lời:\n"
+            "1. Đối chiếu ảnh với [NGỮ CẢNH UI HIỆN TẠI] (activity, has_dialog, loading_screen, motion) và lịch sử phiên.\n"
+            "2. Nếu màn hình đang hiện 'Đang tải...', 'Đang tải luồng...', spinner hoặc sai activity/tab -> confirmed=false.\n"
+            "3. Chỉ trả JSON: {\"confirmed\": true/false, \"confidence\": \"high|medium|low\", "
+            "\"quote\": \"chuỗi chữ bạn NHÌN THẤY chứng minh mục tiêu (trích nguyên văn, tối đa 16 từ)\"}.\n"
+            "Không thấy rõ hoặc không chắc chắn thì confirmed=false. Tuyệt đối không bịa." % target_desc)
+        res, err = self._chat(prompt, image_bytes, max_tokens=1000, timeout=timeout,
+                              reason="confirm_target", context=context)
         if res is None:
             return None, err
-        return {"confirmed": bool(res.get("confirmed")),
-                "quote": str(res.get("quote", ""))[:120]}, None
+        confirmed = bool(res.get("confirmed"))
+        confidence = str(res.get("confidence", "medium")).lower()
+        quote = str(res.get("quote", "")).strip()[:160]
+        if confirmed and confidence == "low" and not quote:
+            confirmed = False
+        return {"confirmed": confirmed,
+                "quote": quote[:120],
+                "confidence": confidence}, None
 
-    def check_visual(self, image_bytes, question, timeout=60, crop=None, max_side=None):
-        """Xác minh một defect nghi vấn. Trả dict {found, severity, detail} hoặc None.
-        crop=(x0,y0,x1,y1) theo tọa độ 1920x1080: cắt đúng vùng nghi trước khi
-        hỏi — model tập trung, ít bỏ sót lỗi ở mép/vùng nhỏ. Vùng crop được gửi
-        ở độ phân giải cao hơn (max_side 1280) để lỗi vài px vẫn nhìn thấy."""
+    def check_visual(self, image_bytes, question, timeout=60, crop=None, max_side=None, context=None):
+        """Xác minh một defect nghi vấn. Trả dict {found, severity, detail, quote} hoặc None."""
         if crop:
             try:
                 from PIL import Image
@@ -446,19 +542,19 @@ class VisionClient:
             except Exception:
                 pass
         prompt = (
-            "Bạn đang xem ảnh chụp màn hình Android TV 1920x1080 của app KenhLive. "
+            "Bạn đang xem ảnh chụp màn hình của app KenhLive.\n"
             "Câu hỏi kiểm tra: %s\n"
-            "Trước khi kết luận, HÃY ĐỌC NGUYÊN VĂN tất cả dòng chữ nhìn thấy "
-            "trong ảnh (ghi vào trường quote, mỗi dòng cách nhau bằng ' | '). "
+            "Trước khi kết luận, HÃY ĐỌC NGUYÊN VĂN tất cả dòng chữ nhìn thấy trong ảnh "
+            "(ghi vào trường quote, mỗi dòng cách nhau bằng ' | '). Kiểm tra các lỗi đã báo ở lịch sử phiên để tránh kết luận nhầm.\n"
             "Chỉ trả JSON: {\"found\": true/false, "
             "\"severity\": \"CRITICAL|HIGH|MEDIUM|LOW\", "
-            "\"detail\": \"mô tả đúng vị trí và bằng chứng nhìn thấy (tối đa 25 từ, "
-            "TRÍCH NGUYÊN VĂN dòng chữ bị chồng nếu có)\", "
+            "\"detail\": \"mô tả đúng vị trí và bằng chứng nhìn thấy (tối đa 30 từ, TRÍCH NGUYÊN VĂN dòng chữ lỗi nếu có)\", "
             "\"quote\": \"nguyên văn các dòng chữ nhìn thấy\"}. "
-            "Không chắc chắn thì found=false." % question)
-        res, err = self._chat(prompt, image_bytes, max_tokens=1200, timeout=timeout,
+            "Không chắc chắn hoặc ảnh không đúng loại màn hình cần kiểm thì found=false." % question)
+        res, err = self._chat(prompt, image_bytes, max_tokens=1600, timeout=timeout,
                               reason="check_visual",
-                              max_side=max_side or (1280 if crop else 960))
+                              max_side=max_side or (1280 if crop else 960),
+                              context=context)
         if res is None:
             return None, err
         return {"found": bool(res.get("found")),
@@ -466,18 +562,30 @@ class VisionClient:
                 "detail": str(res.get("detail", ""))[:200],
                 "quote": str(res.get("quote", ""))[:300]}, None
 
-    def stuck_assist(self, image_bytes, target_desc, tried, timeout=60):
-        """Kẹt: hỏi nên bấm gì tiếp. Trả dict {action, param} hoặc None."""
+    def stuck_assist(self, image_bytes, target_desc, tried, timeout=60, context=None):
+        """Kẹt: hỏi nên bấm gì tiếp có đối chiếu toàn bộ lịch sử phiên."""
+        act_ctx = str((context or {}).get("activity") or "")
+        in_player = ("PlayerActivity" in act_ctx) or ("WebPlayerActivity" in act_ctx)
         prompt = (
-            "Bạn đang xem ảnh chụp màn hình Android TV của app KenhLive. "
-            "Người kiểm thử đang kẹt: đã thử %s mà màn hình không đổi. "
-            "Mục tiêu: %s\n"
+            "Bạn đang xem ảnh chụp màn hình app KenhLive.\n"
+            "Người kiểm thử đang kẹt: gần đây đã thử [%s] mà màn hình không đổi.\n"
+            "Mục tiêu mission: %s\n"
+            "Hãy đọc kỹ [KHÔNG GIAN LỊCH SỬ PHIÊN QA] để xem những phím/rule nào đã thử ở các bước trước mà UNCHANGED, từ đó chọn bước KHÁC hợp lý nhất.\n"
+            "%s"
             "Chỉ trả JSON: {\"action\": \"KEY|SWITCH_TAB|BACK\", "
             "\"param\": \"DPAD_DOWN|DPAD_UP|DPAD_LEFT|DPAD_RIGHT|OK|BACK|0|1|2|3|4|5|6\"}. "
-            "Chỉ chọn 1 hành động hợp lý nhất." % (tried, target_desc))
-        res, err = self._chat(prompt, image_bytes, max_tokens=600, timeout=timeout,
-                              reason="stuck_assist")
+            "Chỉ chọn 1 hành động hợp lý nhất." % (
+                tried, target_desc,
+                "CẢNH BÁO: Đang ở trong player — TUYỆT ĐỐI KHÔNG chọn SWITCH_TAB.\n" if in_player else ""
+            ))
+        res, err = self._chat(prompt, image_bytes, max_tokens=1000, timeout=timeout,
+                              reason="stuck_assist", context=context)
         if res is None:
             return None, err
-        return {"action": str(res.get("action", "")),
-                "param": str(res.get("param", ""))}, None
+        act_out = str(res.get("action", "")).strip().upper()
+        param_out = str(res.get("param", "")).strip()
+        # Bảo vệ chống SWITCH_TAB nhầm khi đang ở trong player
+        if in_player and act_out == "SWITCH_TAB":
+            act_out = "KEY"
+            param_out = "BACK"
+        return {"action": act_out, "param": param_out}, None

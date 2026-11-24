@@ -198,7 +198,7 @@ jobs:
             echo "Model AI QA được chọn: $MODEL"
             echo "Kiểm tra chat completion..."
             curl -sS -m 40 -H "Authorization: Bearer $GEMINI_API_KEY" -H "Content-Type: application/json" \
-              -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Tra loi dung mot tu: OK\"}],\"max_tokens\":8}" \
+              -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Tra loi dung mot tu: OK\"}],\"max_tokens\":256}" \
               "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" | head -c 600; echo
           else
             echo "⚠️ Chưa có GEMINI_API_KEY — fallback về Meteor gateway"
@@ -233,7 +233,7 @@ jobs:
             echo "Model AI QA được chọn: $MODEL"
             echo "Kiểm tra chat completion..."
             curl -sS -m 40 -H "Authorization: Bearer $METEOR_API_KEY" -H "Content-Type: application/json" \
-              -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Tra loi dung mot tu: OK\"}],\"max_tokens\":8}" \
+              -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Tra loi dung mot tu: OK\"}],\"max_tokens\":256}" \
               "$METEOR_API_BASE/chat/completions" | head -c 600; echo
           fi
 
@@ -248,6 +248,8 @@ jobs:
           OPENAI_API_BASE: ${{ env.AI_BASE_URL }}
           OPENAI_API_KEY: ${{ env.AI_API_KEY }}
           OPENAI_MODEL: ${{ env.AI_MODEL }}
+          QA_REASONING_EFFORT: "high"
+          QA_CONTEXT_WINDOW: "1000000"
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30

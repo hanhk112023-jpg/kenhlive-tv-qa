@@ -3,7 +3,8 @@ Cham tung screenshot theo rubric UX Android TV + doc logcat tim loi an. Tra ve f
 Duong di model: DeepSeek Web / Antigravity / Kilo (neu co key) -> OpenAI-compatible
 (NVIDIA NIM, model do buoc Preflight AI cua qa-suite.yml chon — mac dinh
 nvidia/nemotron-3.5-super-vl-120b-a12b theo test vision 2026-11-08)."""
-import base64, json, os, re, time, urllib.request
+import base64, json, os, re, time, urllib.error, urllib.request
+from urllib.parse import urlparse
 
 UA   = 'curl/8.5.0'
 
@@ -31,12 +32,17 @@ OPENAI_MODEL = os.environ.get('OPENAI_MODEL', '')
 
 # Reasoning model vision (nemotron-3.5-super-vl, step-5, ...) viet cau tra loi vao
 # reasoning_content va doi max_tokens lon moi tra content: tang ngan sach token cho chung.
-REASONING_MODELS = ("nemotron-3.5-super-vl", "step-5", "nemotron-nano")
+REASONING_EFFORT = os.environ.get("QA_REASONING_EFFORT", "high").strip().lower()
+_NO_REASONING_EFFORT_HOSTS = set()
+REASONING_MODELS = (
+    "nemotron", "step-5", "gemini-2.5", "gemini-3",
+    "deepseek-r1", "o1", "o3", "o4", "qwq", "claude",
+)
 
 def _max_tokens_for(model, default):
     m = (model or "").lower()
-    if any(k in m for k in REASONING_MODELS):
-        return max(default, 5000)
+    if REASONING_EFFORT == "high" or any(k in m for k in REASONING_MODELS):
+        return max(default, 8192)
     return default
 
 def _msgs(prompt, imgs):
@@ -46,6 +52,12 @@ def _msgs(prompt, imgs):
     return [{"role": "user", "content": content}]
 
 def _post(url, key, payload, timeout, user=None):
+    payload = dict(payload)
+    host = urlparse(url or "").netloc.lower()
+    if REASONING_EFFORT not in ("", "off", "none", "false", "0") and host not in _NO_REASONING_EFFORT_HOSTS:
+        payload.setdefault("reasoning_effort", REASONING_EFFORT)
+    if REASONING_EFFORT == "high":
+        timeout = max(int(timeout), 120)
     headers = {"Content-Type": "application/json", "Authorization": "Bearer " + key, "User-Agent": UA}
     if user:
         headers["x-agent-session"] = user
@@ -54,14 +66,35 @@ def _post(url, key, payload, timeout, user=None):
     for attempt in range(3):
         try:
             r = json.loads(urllib.request.urlopen(req, timeout=timeout).read().decode())
+        except urllib.error.HTTPError as e:
+            if e.code in (400, 422) and "reasoning_effort" in payload:
+                try:
+                    err_body = e.read().decode("utf-8", "replace").lower()
+                except Exception:
+                    err_body = str(e).lower()
+                if any(tok in err_body for tok in ("reasoning", "unknown", "unrecognized", "extra", "invalid", "unsupported")):
+                    if host:
+                        _NO_REASONING_EFFORT_HOSTS.add(host)
+                    payload.pop("reasoning_effort", None)
+                    req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers=headers)
+                    continue
+            if attempt == 2: raise
+            time.sleep(2 * (attempt + 1))
+            continue
         except Exception:
             if attempt == 2: raise
             time.sleep(2 * (attempt + 1))
             continue
         choice = (r.get("choices") or [{}])[0]
         msg = choice.get("message") or {}
-        raw = msg.get("content") or msg.get("reasoning_content") or ""
-        return str(raw).strip()
+        for field in ("content", "reasoning_content"):
+            val = msg.get(field)
+            if isinstance(val, list):
+                val = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in val)
+            elif val is not None and not isinstance(val, str):
+                val = str(val)
+            if val and val.strip():
+                return val.strip()
     return ''
 
 def _chat(prompt, imgs=None, max_tokens=1500, temperature=0.1, timeout=120):

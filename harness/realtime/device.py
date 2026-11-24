@@ -50,10 +50,10 @@ TAB_KEYWORDS = [
     # "phim" chung chung bi loai: ten kenh IPTV cung chua "phim" (vd: kenh phim),
     # lam detect nham IPTV thanh Kho Phim (tab 5) roi bo qua SWITCH_TAB dau mission.
     # Chi giu tu khoa dac thu cua man Kho Phim.
-    (5, ["nguonc", "btnheroplay", "apple pill", "phim bộ", "phim lẻ", "tiếp tục xem", "rạp phim tại gia"]),
-    (2, ["iptv", "kênh tv", "channel", "vtv", "htv"]),
+    (5, ["kho phim", "btnphimquicksearch", "nguonc", "btnheroplay", "apple pill", "phim mới", "chiếu rạp", "phim bộ", "phim lẻ", "tiếp tục xem", "rạp phim tại gia"]),
+    (2, ["truyền hình ·", "xem được", "iptv", "kênh tv", "channel", "vtv", "htv"]),
     (3, ["searchinput", "resultlist", "tìm kiếm"]),
-    (0, ["livelist", "cardroot", "socolive", "colatv", "gà vàng", "khán đài", "trực tiếp"]),
+    (0, ["đang trực tiếp ngay", "livelist", "cardroot", "socolive", "colatv", "gà vàng", "khán đài"]),
 ]
 NAV_ID_TO_TAB = {
     # v7.7.9 7-tab (Truc tiep 0, Lich 1, Truyen hinh 2, Tim kiem 3, Cai dat 4, Phim 5, Hub 6).
@@ -304,40 +304,49 @@ class RealtimeDevice:
         except Exception:
             return -1.0
 
+    def _pull_app_db_file(self, rel_db_path):
+        """Pull một file trong `/data/data/<pkg>/databases/` qua run-as."""
+        return subprocess.run(
+            ("%s exec-out run-as %s cat /data/data/%s/databases/%s"
+             % (self.adb, self.pkg, self.pkg, rel_db_path)).split(),
+            capture_output=True, timeout=30).stdout
+
     def webplayer_progress_probe(self):
         """Vị trí phát THẬT của WebPlayerActivity — đọc giá trị mà probe JS
         của app tự đo, KHÔNG qua OCR đồng hồ.
 
-        WebPlayerActivity chạy queryPlaybackPosition mỗi 3s
-        (webPlaybackProbeJs: <video>.currentTime*1000 / JWPlayer.
-        getPosition()*1000 -> pos ms, kèm paused/duration) và khi
-        currentPositionMs > 5s gọi saveCurrentProgress ->
-        WatchHistoryManager.saveProgressAsync ghi
-        watch_history.position_ms vào SQLite kenhlive_cinema.db mỗi lần
-        probe. Harness đọc lại đúng position_ms đó qua `run-as` (QA cài
-        APK debug nên run-as hoạt động) — cùng một con số probe JS đo được.
-
-        Trả dict {pos_ms, duration_ms, slug, episode_slug,
-        last_watched_at} khi đọc được DB — pos_ms=None nếu đọc được nhưng
-        chưa có hàng tiến độ nào (player chưa lưu lần nào). Trả None khi
-        KÊNH ĐỌC LỖI (run-as từ chối / DB chưa tồn tại / parse hỏng sau 2
-        lần thử) — phân biệt 'không đo được' (gate -> UNVERIFIED) với
-        'đo được mà vị trí không tăng' (gate -> FAIL đóng băng)."""
+        Hỗ trợ file SQLite thống nhất `data.db` (WAL mode + sidecar `-wal`/`-shm`)
+        và fallback về `kenhlive_cinema.db` cho các bản APK cũ."""
         import os
         import sqlite3
         import tempfile
 
         def _read():
-            raw = subprocess.run(
-                ("%s exec-out run-as %s cat /data/data/%s/databases/kenhlive_cinema.db"
-                 % (self.adb, self.pkg, self.pkg)).split(),
-                capture_output=True, timeout=30).stdout
-            if len(raw) < 100 or raw[:16] != b"SQLite format 3\x00":
+            db_name = None
+            raw = b""
+            for candidate in ("data.db", "kenhlive_cinema.db"):
+                buf = self._pull_app_db_file(candidate)
+                if len(buf) >= 100 and buf[:16] == b"SQLite format 3\x00":
+                    db_name = candidate
+                    raw = buf
+                    break
+            if not db_name:
                 return "NO_DB"
             fd, tmp = tempfile.mkstemp(suffix=".db")
+            wal_tmp = tmp + "-wal"
+            shm_tmp = tmp + "-shm"
             try:
                 with os.fdopen(fd, "wb") as f:
                     f.write(raw)
+                # Kéo thêm -wal và -shm (app dùng WAL mode nên dữ liệu mới nhất có thể nằm ở -wal)
+                for ext, dst in (("-wal", wal_tmp), ("-shm", shm_tmp)):
+                    try:
+                        side = self._pull_app_db_file(db_name + ext)
+                        if side and len(side) >= 32 and not side.startswith(b"cat:"):
+                            with open(dst, "wb") as sf:
+                                sf.write(side)
+                    except Exception:
+                        pass
                 con = sqlite3.connect(tmp)
                 try:
                     row = con.execute(
@@ -347,10 +356,12 @@ class RealtimeDevice:
                 finally:
                     con.close()
             finally:
-                try:
-                    os.unlink(tmp)
-                except OSError:
-                    pass
+                for p in (tmp, wal_tmp, shm_tmp):
+                    try:
+                        if os.path.exists(p):
+                            os.unlink(p)
+                    except OSError:
+                        pass
             if row is None:
                 return {"pos_ms": None, "duration_ms": None, "slug": None,
                         "episode_slug": None, "last_watched_at": None}
@@ -368,13 +379,11 @@ class RealtimeDevice:
         return None
 
     def dump_ui_state(self):
-        """Đọc cây UI qua uiautomator. Trả dict dùng chung cho gate/detector/driver.
-        Gộp rm + dump + cat vào MỘT lần gọi adb (CI-T2: mỗi observe gọi 3 lần
-        adb riêng cho dump, cộng với dumpsys activity — nút thắt tốc độ)."""
-        xml_text = sh("%s shell 'rm -f /sdcard/uidump.xml; uiautomator dump /sdcard/uidump.xml >/dev/null 2>&1; cat /sdcard/uidump.xml' 2>/dev/null" % self.adb, timeout=20)
+        """Đọc cây UI qua uiautomator (--compressed trước cho nhanh, fallback thường)."""
+        xml_text = sh("%s shell 'rm -f /sdcard/uidump.xml; uiautomator dump --compressed /sdcard/uidump.xml >/dev/null 2>&1; cat /sdcard/uidump.xml' 2>/dev/null" % self.adb, timeout=20)
         if "<hierarchy" not in xml_text:
-            time.sleep(0.25)
-            xml_text = sh("%s shell 'uiautomator dump --compressed /sdcard/uidump.xml >/dev/null 2>&1; cat /sdcard/uidump.xml' 2>/dev/null" % self.adb, timeout=20)
+            time.sleep(0.15)
+            xml_text = sh("%s shell 'uiautomator dump /sdcard/uidump.xml >/dev/null 2>&1; cat /sdcard/uidump.xml' 2>/dev/null" % self.adb, timeout=20)
 
         focused_sig, focused_text, focused_bounds = "NONE", "", None
         focusable_nodes, summary_lines, all_visible_texts = [], [], []
@@ -460,6 +469,8 @@ class RealtimeDevice:
                     return r_id in dialog_id_set or r_id.startswith("panel") \
                         or r_id.startswith("dialog") or r_id == "blvCardRoot"
 
+                _vw, _vh = self.viewport()
+
                 def _walk(elem, in_dialog):
                     nonlocal _dlg_bounds, has_dialog
                     nonlocal focused_sig, focused_text, focused_bounds
@@ -469,20 +480,11 @@ class RealtimeDevice:
                     txt = (a.get("text", "") or a.get("content-desc", "")).strip()
                     r_id = a.get("resource-id", "").split("/")[-1]
                     bounds = a.get("bounds", "")
-                    # Lọc node ngoài viewport (CI-T4, reviewer): RecyclerView
-                    # giữ cả node chưa cuộn tới trong dump — text của chúng
-                    # KHÔNG có trên màn hình nhưng vẫn lọt vào
-                    # all_visible_texts, làm (a) fake-score tố giá trị không
-                    # có trên frame trích dẫn, (b) gate PASS nhờ text chỉ
-                    # tồn tại ở node offscreen (VD 'mới cập nhật' chưa cuộn
-                    # tới). Node không parse được bounds thì giữ lại (không
-                    # chứng minh được là ngoài màn hình).
                     _in_view = True
                     if bounds:
                         _m = re.findall(r"-?\d+", bounds)
                         if len(_m) >= 4:
                             _x1, _y1, _x2, _y2 = map(int, _m[:4])
-                            _vw, _vh = self.viewport()
                             _in_view = _x2 > 0 and _y2 > 0 and _x1 < _vw and _y1 < _vh
                     if a.get("selected") == "true" and r_id:
                         selected_ids.append(r_id)
@@ -531,13 +533,18 @@ class RealtimeDevice:
         }
 
     def detect_tab_index(self, ui_state):
-        """Ưu tiên nav-selected, fallback từ khóa nội dung. None = không xác định."""
+        """Ưu tiên nav-selected, fallback từ khóa nội dung (loại bỏ text của nav_*). None = không xác định."""
         for r_id in (ui_state.get("selected_ids") or []):
             if r_id in NAV_ID_TO_TAB:
                 return NAV_ID_TO_TAB[r_id]
-        visible_ids = " ".join(r for r, _ in (ui_state.get("all_visible_texts") or []))
+        vis = ui_state.get("all_visible_texts") or []
+        visible_ids = " ".join(r for r, _ in vis if r)
+        non_nav_texts = " ".join(
+            t for r, t in vis if t and not (r or "").startswith("nav_")
+        )
         blob = (ui_state.get("ui_summary", "") + " " + ui_state.get("focused_sig", "")
-                + " " + ui_state.get("focused_text", "") + " " + visible_ids).lower()
+                + " " + ui_state.get("focused_text", "") + " " + visible_ids
+                + " " + non_nav_texts).lower()
         for t_idx, kws in TAB_KEYWORDS:
             if any(k in blob for k in kws):
                 return t_idx

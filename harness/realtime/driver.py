@@ -676,7 +676,17 @@ class Driver:
                 self._vision_assist_used = True
                 self._stuck_level = 1
                 tried = ", ".join(self.device.action_history[-4:]) or "chưa bấm gì"
-                res, err = self.vision.stuck_assist(frame_png, m.target_desc, tried)
+                _ctx = {
+                    "mission": m.name,
+                    "activity": act,
+                    "focused_sig": focused_sig,
+                    "focused_text": focused_text,
+                    "has_dialog": bool(ui_state.get("has_dialog")),
+                    "dialog_ids": ui_state.get("dialog_ids") or [],
+                    "loading_screen": bool(ui_state.get("loading_screen")),
+                    "visible_texts": [t for _, t in (ui_state.get("all_visible_texts") or [])[:15]],
+                }
+                res, err = self.vision.stuck_assist(frame_png, m.target_desc, tried, context=_ctx)
                 if res and res.get("action") in ("KEY", "SWITCH_TAB", "BACK") and res.get("param"):
                     self._no_change_streak = 0
                     return Action(res["action"], res["param"], rule="stuck:vision_assist",
@@ -1032,34 +1042,34 @@ class Driver:
             if key in ("DOUBLE_BACK", "BACK_DOUBLE", "BACK2"):
                 d.send_key("BACK")
                 import time as _t
-                _t.sleep(0.25)
+                _t.sleep(0.2)
                 d.send_key("BACK")
-                _t.sleep(1.2)
-                return True, 1.2
+                _t.sleep(0.9)
+                return True, 0.9
             d.send_key(key or "DPAD_DOWN")
             import time as _t
-            _t.sleep(0.7)
+            _t.sleep(0.45)
             self._last_action = "%s %s" % (t, key)
-            return True, 0.7
+            return True, 0.45
         if t == "LONG_PRESS":
             d.send_long_press(p or "OK")
             import time as _t
-            _t.sleep(1.0)
-            return True, 1.0
+            _t.sleep(0.75)
+            return True, 0.75
         if t == "KEYPAD":
             d.send_keypad_digits(str(p or "1"))
             import time as _t
-            _t.sleep(1.0)
-            return True, 1.0
+            _t.sleep(0.8)
+            return True, 0.8
         if t == "SWITCH_TAB":
             try:
                 ok = d.switch_tab(int(p))
             except Exception:
                 return False, 0.0
             import time as _t
-            _t.sleep(0.5)
+            _t.sleep(0.35)
             self._last_action = "%s %s" % (t, p)
-            return (bool(ok) if ok is not None else True), 0.5
+            return (bool(ok) if ok is not None else True), 0.35
         if t == "OPEN_HOME":
             d.open_home()
             import time as _t
@@ -1083,8 +1093,8 @@ class Driver:
         if t == "TEXT":
             d.input_text(p or "uefa")
             import time as _t
-            _t.sleep(0.8)
-            return True, 0.8
+            _t.sleep(0.55)
+            return True, 0.55
         if t == "WAIT":
             try:
                 import time as _t

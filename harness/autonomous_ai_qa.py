@@ -21,7 +21,9 @@ import re
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -86,6 +88,67 @@ OPENAI_BASE = os.environ.get("OPENAI_API_BASE", "")
 OPENAI_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
+QA_REASONING_EFFORT = os.environ.get("QA_REASONING_EFFORT", "high").strip().lower()
+QA_CONTEXT_WINDOW = int(os.environ.get("QA_CONTEXT_WINDOW", "1000000"))
+MAX_SESSION_MESSAGES = int(os.environ.get("QA_MAX_SESSION_MESSAGES", "400"))
+MAX_SESSION_CHARS = int(os.environ.get("QA_HISTORY_MAX_CHARS", "650000"))
+_NO_REASONING_EFFORT_HOSTS = set()
+
+
+def _extract_balanced_json(text):
+    """Trích JSON dict hợp lệ cuối cùng — an toàn khi reasoning chứa nhiều `{...}`."""
+    if not text:
+        return None
+    s = str(text).strip()
+    fenced = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", s, flags=re.IGNORECASE | re.DOTALL)
+    for block in reversed(fenced):
+        try:
+            obj = json.loads(re.sub(r",\s*([\]}])", r"\1", block.strip()))
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            pass
+    dec = json.JSONDecoder()
+    for idx in range(len(s) - 1, -1, -1):
+        if s[idx] != "{":
+            continue
+        substr = s[idx:]
+        try:
+            obj, _ = dec.raw_decode(substr)
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            depth = 0
+            in_str = False
+            esc = False
+            end_pos = -1
+            for j, ch in enumerate(substr):
+                if in_str:
+                    if esc:
+                        esc = False
+                    elif ch == "\\":
+                        esc = True
+                    elif ch == '"':
+                        in_str = False
+                else:
+                    if ch == '"':
+                        in_str = True
+                    elif ch == "{":
+                        depth += 1
+                    elif ch == "}":
+                        depth -= 1
+                        if depth == 0:
+                            end_pos = j + 1
+                            break
+            if end_pos > 0:
+                try:
+                    obj = json.loads(re.sub(r",\s*([\]}])", r"\1", substr[:end_pos]))
+                    if isinstance(obj, dict):
+                        return obj
+                except Exception:
+                    pass
+    return None
+
 
 def sh(cmd, timeout=30):
     try:
@@ -108,6 +171,9 @@ class AIBrain:
         self.session_messages = []
         self.turn_counter = 0
         self.last_action_feedback = ""
+        self.action_ledger = []
+        self.findings_ledger = []
+        self.reasoning_effort = QA_REASONING_EFFORT
 
     def _detect_provider(self):
         # Ưu tiên DeepSeek Web (nếu có base URL từ FreeDeepseekAPI nội bộ) hoặc Antigravity Gateway
@@ -124,16 +190,18 @@ class AIBrain:
         print(f"🧠 [AI Brain] Khởi tạo thành công với engine: {self.provider_active}", flush=True)
 
     def init_session(self, session_id: str):
-        """Khởi tạo bộ nhớ cho một phiên kiểm thử hoàn chỉnh (Session Memory).
+        """Khởi tạo bộ nhớ cho một phiên kiểm thử hoàn chỉnh (1M Session Memory).
         Toàn bộ các bước kiểm thử trong cùng 1 phiên sẽ tích lũy ngữ cảnh vào cùng 1 luồng hội thoại.
         """
         self.session_id = session_id
         self.turn_counter = 0
         self.last_action_feedback = ""
+        self.action_ledger = []
+        self.findings_ledger = []
         self.session_messages = [
             {"role": "system", "content": self._build_system_prompt()}
         ]
-        print(f"🧠 [AI Brain] Đã thiết lập Session Memory cho phiên test: {session_id}", flush=True)
+        print(f"🧠 [AI Brain] Đã thiết lập Session Memory (1M context, reasoning={self.reasoning_effort}) cho phiên test: {session_id}", flush=True)
 
     def record_step_feedback(self, feedback: str):
         """Ghi nhận phản hồi kết quả thực tế sau khi thực hiện hành động vào bộ nhớ phiên."""
@@ -281,13 +349,20 @@ NGUYÊN TẮC BỘ NHỚ PHIÊN & SĂN LỖI SÂU (Deep Bug Hunting & Session Me
 
     def _call_openai_compat(self, url, key, model, messages, max_tokens, timeout, user=None):
         target_url = self._normalize_gateway_url(url)
+        host = urlparse(target_url).netloc.lower()
+        eff = self.reasoning_effort
+        effective_max_tokens = max(int(max_tokens), 8192) if eff == "high" else int(max_tokens)
+        effective_timeout = max(int(timeout), 90) if eff == "high" else int(timeout)
+
         payload = {
             "model": model,
             "messages": messages,
-            "max_tokens": max_tokens,
+            "max_tokens": effective_max_tokens,
             "temperature": 0.1,
             "stream": False
         }
+        if eff not in ("", "off", "none", "false", "0") and host not in _NO_REASONING_EFFORT_HOSTS:
+            payload["reasoning_effort"] = eff
         if user:
             payload["user"] = user
 
@@ -299,20 +374,23 @@ NGUYÊN TẮC BỘ NHỚ PHIÊN & SĂN LỖI SÂU (Deep Bug Hunting & Session Me
         if user:
             headers["x-agent-session"] = user
 
-        data_bytes = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            target_url,
-            data=data_bytes,
-            headers=headers
-        )
+        def _make_req():
+            return urllib.request.Request(
+                target_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers=headers
+            )
+
+        req = _make_req()
 
         for attempt in range(3):
             try:
-                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                with urllib.request.urlopen(req, timeout=effective_timeout) as resp:
                     raw_text = resp.read().decode("utf-8")
                     # Xử lý gateway tự động stream SSE (data: {...}) dù không yêu cầu stream
                     if raw_text.strip().startswith("data:"):
-                        parts = []
+                        content_parts = []
+                        reasoning_parts = []
                         for line in raw_text.splitlines():
                             line = line.strip()
                             if line.startswith("data:"):
@@ -324,23 +402,43 @@ NGUYÊN TẮC BỘ NHỚ PHIÊN & SĂN LỖI SÂU (Deep Bug Hunting & Session Me
                                     choices = chunk.get("choices") or []
                                     if choices:
                                         delta = choices[0].get("delta") or choices[0].get("message") or {}
-                                        t = delta.get("content") or delta.get("reasoning_content") or ""
-                                        if t:
-                                            parts.append(t)
+                                        if delta.get("content"):
+                                            content_parts.append(delta["content"])
+                                        if delta.get("reasoning_content"):
+                                            reasoning_parts.append(delta["reasoning_content"])
                                 except Exception:
                                     pass
-                        return "".join(parts).strip()
+                        joined = "".join(content_parts).strip()
+                        return joined if joined else "".join(reasoning_parts).strip()
                     data = json.loads(raw_text)
                     choices = data.get("choices") or []
                     if not choices:
                         return ""
                     msg = choices[0].get("message") or {}
-                    raw = msg.get("content") or msg.get("reasoning_content") or ""
-                    if isinstance(raw, list):
-                        raw = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in raw)
-                    elif not isinstance(raw, str):
-                        raw = str(raw) if raw is not None else ""
-                    return raw.strip()
+                    for field in ("content", "reasoning_content"):
+                        raw = msg.get(field)
+                        if isinstance(raw, list):
+                            raw = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in raw)
+                        elif raw is not None and not isinstance(raw, str):
+                            raw = str(raw)
+                        if raw and raw.strip():
+                            return raw.strip()
+                    return ""
+            except urllib.error.HTTPError as e:
+                if e.code in (400, 422) and "reasoning_effort" in payload:
+                    try:
+                        err_body = e.read().decode("utf-8", "replace").lower()
+                    except Exception:
+                        err_body = str(e).lower()
+                    if any(tok in err_body for tok in ("reasoning", "unknown", "unrecognized", "extra", "invalid", "unsupported")):
+                        if host:
+                            _NO_REASONING_EFFORT_HOSTS.add(host)
+                        payload.pop("reasoning_effort", None)
+                        req = _make_req()
+                        continue
+                if attempt == 2:
+                    raise
+                time.sleep(1.5 * (attempt + 1))
             except Exception as e:
                 if attempt == 2:
                     raise
@@ -359,15 +457,40 @@ NGUYÊN TẮC BỘ NHỚ PHIÊN & SĂN LỖI SÂU (Deep Bug Hunting & Session Me
         except Exception:
             return base64.b64encode(png_bytes).decode("utf-8")
 
+    def _render_action_ledger(self):
+        if not self.action_ledger and not self.findings_ledger:
+            return "(Chưa có bước trước đó)"
+        lines = []
+        if self.findings_ledger:
+            lines.append("DEFECT ĐÃ GHI NHẬN (%d):" % len(self.findings_ledger))
+            for f in self.findings_ledger:
+                lines.append(f"  - [{f.get('severity')}] {f.get('area')}: {f.get('issue')}")
+        if self.action_ledger:
+            lines.append("NHẬT KÝ HÀNH ĐỘNG ĐÃ THỬ (%d lượt gần nhất/toàn phiên):" % len(self.action_ledger))
+            for item in self.action_ledger:
+                lines.append(
+                    f"  - #{item['turn']} [{item['mission']}] act={item['activity']} | "
+                    f"focus={item['focused_sig']} -> {item['action']}"
+                )
+        return "\n".join(lines)
+
+    def _msg_char_len(self, msg):
+        c = msg.get("content")
+        if isinstance(c, str):
+            return len(c)
+        if isinstance(c, list):
+            return sum(len(p.get("text", "")) for p in c if isinstance(p, dict))
+        return 0
+
     def decide_mission_action(self, mission, state):
-        """AI phân tích trạng thái và ra quyết định hành động tiếp theo trong mạch hội thoại của cả phiên test."""
+        """AI phân tích trạng thái và ra quyết định hành động tiếp theo trong không gian lịch sử 1M context."""
         self.turn_counter += 1
 
         # 1. Đảm bảo session_messages đã được khởi tạo
         if not self.session_messages:
             self.init_session("QA-SESSION-AUTO")
 
-        # 2. Tối ưu bộ nhớ phiên: gỡ bỏ dữ liệu ảnh base64 lớn của các bước cũ để tránh tràn token / bandwidth
+        # 2. Gỡ bỏ dữ liệu ảnh base64 lớn của các bước cũ (giữ 100% văn bản lịch sử)
         for msg in self.session_messages:
             content = msg.get("content")
             if msg.get("role") == "user" and isinstance(content, list):
@@ -380,13 +503,17 @@ NGUYÊN TẮC BỘ NHỚ PHIÊN & SĂN LỖI SÂU (Deep Bug Hunting & Session Me
                             compact_parts.append({"type": "text", "text": "[Ảnh màn hình bước trước đã phân tích]"})
                 msg["content"] = compact_parts
 
-        # 3. Xây dựng tin nhắn User cho bước hiện tại
+        # 3. Xây dựng tin nhắn User cho bước hiện tại kèm Ledger toàn phiên
         feedback_section = f"\nPHẢN HỒI TỪ BƯỚC TRƯỚC:\n{self.last_action_feedback}\n" if self.last_action_feedback else ""
         deep_anomaly_section = f"\nCẢNH BÁO TỪ PROBE TỰ ĐỘNG (DEEP ANOMALY INSPECTOR):\n{state.get('deep_anomalies_text')}\n" if state.get('deep_anomalies_text') else ""
+        ledger_section = self._render_action_ledger()
         step_prompt = f"""[LƯỢT #{self.turn_counter} · NHIỆM VỤ: {mission.name} ({mission.title})]
 - Tiến độ nhiệm vụ: Bước {mission.steps_executed}/{mission.max_steps}
 - Mục tiêu: {mission.description}
 - Tiêu chí đạt: {mission.success_criteria}
+
+KHÔNG GIAN LỊCH SỬ PHIÊN (1M CONTEXT):
+{ledger_section}
 
 TIẾN ĐỘ TOÀN PHIÊN KIỂM THỬ:
 - Các Tab đã kiểm tra: {state.get('tabs_tested', 'Chưa có')}
@@ -417,11 +544,15 @@ Hãy phân tích hình ảnh màn hình hiện tại đính kèm cùng toàn b�
 
         new_user_msg = {"role": "user", "content": user_content}
 
-        # Sliding window nếu số lượng tin nhắn quá dài (> 30 tin nhắn ~ 15 lượt)
-        if len(self.session_messages) > 30:
+        # Tận dụng context 1M: giữ tối đa MAX_SESSION_MESSAGES (400) / MAX_SESSION_CHARS (650k ký tự thuần text)
+        if len(self.session_messages) > MAX_SESSION_MESSAGES or sum(self._msg_char_len(m) for m in self.session_messages) > MAX_SESSION_CHARS:
             sys_msg = self.session_messages[0]
-            # Giữ system message và các tin nhắn gần nhất nhưng PHẢI bắt đầu bằng lượt User (tránh lỗi 400 Gemini API)
-            trimmed = self.session_messages[-16:]
+            trimmed = list(self.session_messages[1:])
+            while (len(trimmed) > 20 and (
+                len(trimmed) + 1 > MAX_SESSION_MESSAGES
+                or sum(self._msg_char_len(m) for m in trimmed) > MAX_SESSION_CHARS
+            )):
+                trimmed.pop(0)
             while trimmed and trimmed[0].get("role") != "user":
                 trimmed = trimmed[1:]
             self.session_messages = [sys_msg] + trimmed
@@ -431,18 +562,21 @@ Hãy phân tích hình ảnh màn hình hiện tại đính kèm cùng toàn b�
 
         if response_text and provider != "LOCAL_REFLEX":
             try:
-                # Sanitize markdown code fences và trailing commas
-                cleaned_text = re.sub(r"^```(?:json)?\s*", "", response_text.strip(), flags=re.IGNORECASE)
-                cleaned_text = re.sub(r"\s*```$", "", cleaned_text.strip())
-                m = re.search(r"\{.*\}", cleaned_text, re.DOTALL)
-                if m:
-                    json_str = m.group(0)
-                    json_str = re.sub(r",\s*([\]}])", r"\1", json_str)
-                    parsed = json.loads(json_str)
+                parsed = _extract_balanced_json(response_text)
+                if parsed is not None:
                     parsed["_provider"] = provider
-                    # Ghi nhận lượt hội thoại này vào bộ nhớ phiên
                     self.session_messages.append(new_user_msg)
                     self.session_messages.append({"role": "assistant", "content": response_text})
+                    act_label = f"{parsed.get('action_type', '')} {parsed.get('action_param', '')}".strip()
+                    self.action_ledger.append({
+                        "turn": self.turn_counter,
+                        "mission": mission.name,
+                        "activity": (state.get("activity") or "").split(".")[-1],
+                        "focused_sig": state.get("focused_sig") or "NONE",
+                        "action": act_label,
+                    })
+                    if isinstance(parsed.get("defect_detected"), dict):
+                        self.findings_ledger.append(parsed["defect_detected"])
                     return parsed
             except Exception as e:
                 print(f"⚠️ [AI Brain] Không parse được JSON từ {provider}: {e}", flush=True)
