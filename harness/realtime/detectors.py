@@ -555,6 +555,16 @@ def detect_row_overflow(ui_state, activity, ctx, frame_ref, t_offset):
     """Header '— N kênh' với N quá lớn trong một hàng (P0-7: TV360 75 kênh)."""
     out = []
     for r_id, txt in ui_state.get("all_visible_texts", []):
+        # Dòng trạng thái tổng hợp kiểu "546 kênh · 59 xem được · 6 loại ·
+        # đã loại 5 kênh..." KHÔNG phải header 1 hàng — chỉ tính header dạng
+        # "Nhóm — N kênh" (P0-7). Trial 3506039: phone bị tố 546/62/60 kênh.
+        low = (txt or "").lower()
+        if any(k in low for k in ("xem được", "đã loại", "đã lọc",
+                                   "đã loai", "loại bỏ")):
+            continue
+        if "—" not in txt and not re.search(
+                r"^\s*[\w\s&.,()/-]{1,40}?\s\d+\s*kênh\s*$", txt):
+            continue
         m = re.search(r"(\d+)\s*kênh", txt)
         if not m:
             continue

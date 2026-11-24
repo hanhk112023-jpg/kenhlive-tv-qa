@@ -960,7 +960,7 @@ def main():
             return True
         def remaining(self):
             return 10
-        def check_visual(self, image_bytes, question, timeout=30, crop=None, max_side=None):
+        def check_visual(self, image_bytes, question, timeout=30, crop=None, max_side=None, context=None):
             self.calls.append(crop)
             if crop == (0, 140, 1920, 850):
                 return {"found": self.hero_found, "severity": "HIGH",
@@ -1020,7 +1020,7 @@ def main():
             return True
         def remaining(self):
             return 10
-        def check_visual(self, image_bytes, question, timeout=30, crop=None, max_side=None):
+        def check_visual(self, image_bytes, question, timeout=30, crop=None, max_side=None, context=None):
             self.calls.append((crop, question, image_bytes))
             return {"found": True, "severity": "HIGH",
                     "detail": "Tiêu đề đè đôi", "quote": "Dòng 1 | Dòng 2"}, None
@@ -2330,7 +2330,7 @@ def main():
     _calls22 = {"primary": 0, "fallback": 0}
 
     def _fake_post22(url, key, payload, timeout, user=None, surrogate=None,
-                     surrogate_host=None):
+                     surrogate_host=None, reasoning_effort=None):
         # _post thật trả CONTENT string (đã parse body) — stub giữ đúng mức.
         if "kilo" in (url or ""):
             _calls22["primary"] += 1
@@ -2358,7 +2358,7 @@ def main():
         _vis22.VisionClient._provider_configured = staticmethod(lambda name: False)
 
         def _fake_post22_raise(url, key, payload, timeout, user=None, surrogate=None,
-                               surrogate_host=None):
+                               surrogate_host=None, reasoning_effort=None):
             raise _urlerr22.HTTPError(url, 503, "Service Unavailable", {}, None)
         _vis22._post = _fake_post22_raise
         try:
@@ -2817,7 +2817,7 @@ def test_ci_t9_player_title_question_asks_duplicate():
             return True
         def remaining(self):
             return 10
-        def check_visual(self, image_bytes, question, timeout=30, crop=None, max_side=None):
+        def check_visual(self, image_bytes, question, timeout=30, crop=None, max_side=None, context=None):
             self.calls.append((crop, question))
             return {"found": True, "severity": "HIGH",
                     "detail": "2 dòng tiêu đề trùng nhau", "quote": "Dòng 1 | Dòng 2"}, None
@@ -3570,7 +3570,7 @@ def test_h4_runner_vision_confirm_current_frame():
             return True
         def remaining(self):
             return 10
-        def confirm_target(self, image_bytes, target_desc, timeout=60):
+        def confirm_target(self, image_bytes, target_desc, timeout=60, context=None):
             self.calls.append(target_desc)
             return {"confirmed": True, "quote": "VTV Cần Thơ đang phát"}, None
 
@@ -4871,7 +4871,7 @@ def test_image_quality_detectors():
             return True
         def remaining(self):
             return 40
-        def check_visual(self, image_bytes, question, timeout=60, crop=None, max_side=None):
+        def check_visual(self, image_bytes, question, timeout=60, crop=None, max_side=None, context=None):
             self.calls.append((crop, question, image_bytes))
             return {"found": True, "severity": "HIGH", "detail": "ảnh sai",
                     "quote": "x"}, None
