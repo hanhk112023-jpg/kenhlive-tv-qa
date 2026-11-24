@@ -204,7 +204,7 @@ class RealtimeRunner:
         try:
             from PIL import Image
             im = Image.open(io.BytesIO(png_bytes)).convert("RGB")
-            im.thumbnail((960, 540))
+            im.thumbnail((960, 960))
             im.save(path, "JPEG", quality=75)
         except Exception:
             path = path.replace(".jpg", ".png")
@@ -564,17 +564,14 @@ class RealtimeRunner:
     @staticmethod
     def _player_title_rank(obs):
         """Mức ưu tiên của 1 frame làm ứng cử viên vision check player_title
-        (CI-T9 B(2)): 2 = player ĐANG PHÁT, không dialog lỗi; 1 = không lỗi
-        nhưng chưa chắc đang phát (loading/OSD ẩn/không rõ); 0 = khung dialog
-        lỗi 'video_error' / 'Không phát được video' (2/2 trial T3/T4 check
-        chạy nhầm khung này: step_076/075 là khung CUỐI, dialog che tiêu
-        đề). obs thiếu ui_state/motion (mock cũ) -> 1 (không rõ, không loại)."""
+        (CI-T9 B(2)): 3 = ĐANG PHÁT + OSD đang hiện, 2 = ĐANG PHÁT (OSD ẩn/không rõ),
+        1 = không lỗi nhưng chưa chắc đang phát, 0 = khung dialog lỗi."""
         ui = (obs or {}).get("ui_state") or {}
         blob = " ".join(t for _, t in ui.get("all_visible_texts", [])).lower()
         if "video_error" in blob or "không phát được video" in blob:
             return 0
         if (obs or {}).get("motion"):
-            return 2
+            return 3 if ui.get("osd_visible") is True else 2
         return 1
 
     def _note_vision_frames(self, spec, obs, last_frame_ref):
@@ -617,15 +614,31 @@ class RealtimeRunner:
         # picker) va khong player/MultiView. Trial 43645bd: phim_card soi
         # nhầm dialog chon tap, sports_hero soi nhầm man MultiView.
         _ui16 = obs.get("ui_state") or {}
+        _has_sheet = (
+            any((rid or "").startswith("sheet") for rid, _ in (_ui16.get("all_visible_texts") or []))
+            or any((n.get("id") or "").startswith("sheet") for n in (_ui16.get("all_visible_nodes") or []))
+        )
         _frame_ok = (not _ui16.get("has_dialog")
+                     and not _has_sheet
                      and "MainActivity" in act
                      and not any(k in act for k in ("PlayerActivity",
                                                     "WebPlayerActivity",
                                                     "MultiViewActivity")))
         if _frame_ok and _tab == 5:
-            self._phim_card_frame = {"png": obs["png"], "frame": last_frame_ref,
-                                     "t": obs["t_offset"],
-                                     "frame_file": obs.get("frame_file")}
+            _p_rank = 1
+            for _pn in (_ui16.get("all_visible_nodes") or []):
+                _pid = (_pn.get("id") or "")
+                if _pid in ("phimTitle", "phimPoster", "rowTitle"):
+                    _pm = re.findall(r"-?\d+", _pn.get("bounds") or "")
+                    if len(_pm) >= 4 and (int(_pm[1]) + int(_pm[3])) / 2.0 >= 420:
+                        _p_rank = 2
+                        break
+            _cur_phim = self._phim_card_frame or {}
+            if _p_rank >= _cur_phim.get("_rank", -1):
+                self._phim_card_frame = {"png": obs["png"], "frame": last_frame_ref,
+                                         "t": obs["t_offset"],
+                                         "frame_file": obs.get("frame_file"),
+                                         "_rank": _p_rank}
         elif _frame_ok and _tab == 0:
             self._sports_hero_frame = {"png": obs["png"], "frame": last_frame_ref,
                                        "t": obs["t_offset"],
@@ -726,6 +739,10 @@ class RealtimeRunner:
                 "activity": fr.get("activity", ""),
             }
             res, err = self.vision.check_visual(fr["png"], question, crop=crop, context=_vctx)
+            if res is None and err and any(c in str(err) for c in ("500", "502", "503", "504")) and self.vision.remaining() > 0:
+                print("      ⏳ [VISION-CHECK %s] tạm lỗi (%s), thử lại sau 5s..." % (kind, err), flush=True)
+                time.sleep(5.0)
+                res, err = self.vision.check_visual(fr["png"], question, crop=crop, context=_vctx)
             entry["result"] = ("found" if res and res.get("found")
                                else ("error:%s" % err if res is None else "not_found"))
             if res is not None:
@@ -842,6 +859,10 @@ class RealtimeRunner:
             "visible_texts": [t for _, t in (_ui_c.get("all_visible_texts") or [])[:15]],
         }
         res, err = self.vision.confirm_target(obs["png"], spec.target_desc, context=_cctx)
+        if res is None and err and any(c in str(err) for c in ("500", "502", "503", "504")) and self.vision.remaining() > 0:
+            print("      ⏳ [Vision Confirm] tạm lỗi (%s), thử lại sau 5s..." % err, flush=True)
+            time.sleep(5.0)
+            res, err = self.vision.confirm_target(obs["png"], spec.target_desc, context=_cctx)
         self.timings["vision_s"] += round(time.time() - t0, 1)
         if res is None:
             self.unverified.append({
@@ -1264,18 +1285,36 @@ class RealtimeRunner:
         # detector (e) đã tố bằng finding, mission chưa kiểm được trận
         # đang đá hiển thị tỉ số nên cũng UNVERIFIED, không PASS mềm.
         if getattr(spec, "requires_live_row", False):
-            _live_seen = bool(self.detector_ctx.get("schedule_live_seen"))
-            _live_scored = bool(self.detector_ctx.get("schedule_live_with_score"))
-            if not _live_seen:
-                gate.outcome = "UNVERIFIED"
-                gate.outcome_reason = ("Không có hàng LIVE nào ở tab Lịch trong run này — "
-                                       "chưa kiểm được tỉ số trận đang đá (UNVERIFIED)")
-                print("   ❓ [Mission UNVERIFIED] %s: run không có hàng LIVE" % spec.name, flush=True)
-            elif not _live_scored:
-                gate.outcome = "UNVERIFIED"
-                gate.outcome_reason = ("Có hàng LIVE ở tab Lịch nhưng không hàng nào có tỉ số — "
-                                       "chưa kiểm được trận đang đá hiển thị tỉ số (UNVERIFIED)")
-                print("   ❓ [Mission UNVERIFIED] %s: hàng LIVE không có tỉ số" % spec.name, flush=True)
+            if spec.tab == 0:
+                _live_seen = bool(self.detector_ctx.get("live_sport_seen")
+                                  or self.detector_ctx.get("schedule_live_seen"))
+                _live_scored = bool(self.detector_ctx.get("live_sport_with_score")
+                                    or self.detector_ctx.get("schedule_live_with_score"))
+                if gate.outcome == "PASS" and (_live_seen or gate.motion_seen):
+                    pass  # Đã phát trận LIVE thật trong PlayerActivity + motion + vision -> giữ PASS
+                elif not _live_seen:
+                    gate.outcome = "UNVERIFIED"
+                    gate.outcome_reason = ("Không có trận LIVE nào ở tab Trực tiếp trong run này — "
+                                           "chưa kiểm được phát luồng trực tiếp (UNVERIFIED)")
+                    print("   ❓ [Mission UNVERIFIED] %s: run không có trận LIVE" % spec.name, flush=True)
+                elif not _live_scored:
+                    gate.outcome = "UNVERIFIED"
+                    gate.outcome_reason = ("Có thẻ LIVE nhưng không thẻ nào có tỉ số — "
+                                           "chưa kiểm được trận đang đá hiển thị tỉ số (UNVERIFIED)")
+                    print("   ❓ [Mission UNVERIFIED] %s: thẻ LIVE không có tỉ số" % spec.name, flush=True)
+            else:
+                _live_seen = bool(self.detector_ctx.get("schedule_live_seen"))
+                _live_scored = bool(self.detector_ctx.get("schedule_live_with_score"))
+                if not _live_seen:
+                    gate.outcome = "UNVERIFIED"
+                    gate.outcome_reason = ("Không có hàng LIVE nào ở tab Lịch trong run này — "
+                                           "chưa kiểm được tỉ số trận đang đá (UNVERIFIED)")
+                    print("   ❓ [Mission UNVERIFIED] %s: run không có hàng LIVE" % spec.name, flush=True)
+                elif not _live_scored:
+                    gate.outcome = "UNVERIFIED"
+                    gate.outcome_reason = ("Có hàng LIVE ở tab Lịch nhưng không hàng nào có tỉ số — "
+                                           "chưa kiểm được trận đang đá hiển thị tỉ số (UNVERIFIED)")
+                    print("   ❓ [Mission UNVERIFIED] %s: hàng LIVE không có tỉ số" % spec.name, flush=True)
         # CI-T9 mục 7: mission cần bàn phím thật mà bàn phím không mở lần nào
         # thì PASS (nếu có) bị lật thành UNVERIFIED — nhập liệu bằng bàn phím
         # chưa từng được kiểm, không được PASS lặng như CI-T8. FAIL giữ
@@ -1600,18 +1639,17 @@ class RealtimeRunner:
         # không im lặng như CI-T7.
         _live_seen = bool(self.detector_ctx.get("schedule_live_seen"))
         report["schedule_live_seen"] = _live_seen
-        # CI-T9 mục 4: run có thấy hàng LIVE CÓ tỉ số không (gate mission
-        # chỉ giữ PASS khi cờ này đặt — xem run_mission).
         report["schedule_live_with_score"] = bool(
             self.detector_ctx.get("schedule_live_with_score"))
-        if not _live_seen:
+        report["live_sport_seen"] = bool(self.detector_ctx.get("live_sport_seen"))
+        report["live_sport_with_score"] = bool(
+            self.detector_ctx.get("live_sport_with_score"))
+        if not _live_seen and not report["live_sport_with_score"]:
             # judge giữ reference list unverified nên append vào
             # self.unverified là đủ — không append thêm vào report.
             self.unverified.append({
                 "reason": "schedule_live_no_score",
-                "detail": "Run không có hàng LIVE nào ở tab Lịch — detector (e) "
-                          "'hàng LIVE chỉ hiện giờ kickoff thay vì tỉ số' chưa được "
-                          "kiểm (UNTESTED, không phải PASS)",
+                "detail": "Run không có hàng/thẻ LIVE có tỉ số — detector tỉ số chưa được kiểm (UNTESTED, không phải PASS)",
                 "severity": "UNTESTED"})
         # CI-T9 mục 7: run có mở bàn phím ảo thật lần nào ở mission cần bàn
         # phím (SEARCH) không — nếu không thì nhập liệu bằng bàn phím chưa

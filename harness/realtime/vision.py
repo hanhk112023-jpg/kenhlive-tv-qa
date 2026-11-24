@@ -118,7 +118,7 @@ def _compress_b64(png_bytes, max_side=960, quality=75):
     try:
         from PIL import Image
         im = Image.open(io.BytesIO(png_bytes)).convert("RGB")
-        im.thumbnail((max_side, max_side * 9 // 16))
+        im.thumbnail((max_side, max_side))
         buf = io.BytesIO()
         im.save(buf, format="JPEG", quality=quality)
         return base64.b64encode(buf.getvalue()).decode()

@@ -176,7 +176,7 @@ jobs:
               echo "sdk.dir=$ANDROID_HOME" > "$P/local.properties"
               OK=0
               for i in 1 2 3; do
-                if (cd "$P" && gradle assembleDebug --no-daemon); then OK=1; break; else echo "gradle attempt $i that bai, cho 30s roi thu lai"; sleep 30; fi
+                if (cd "$P" && gradle assembleDebug --no-daemon --max-workers=2); then OK=1; break; else echo "gradle attempt $i that bai, cho 30s roi thu lai"; sleep 30; fi
               done
               [ "$OK" = "1" ] || { echo "::error::Gradle build that bai sau 3 lan"; exit 1; }
               APK=$(ls $P/app/build/outputs/apk/debug/*-universal-debug.apk 2>/dev/null || ls $P/app/build/outputs/apk/debug/*-debug.apk 2>/dev/null | head -1)
@@ -189,7 +189,7 @@ jobs:
             # services.gradle.org hay timeout/504: thu lai toi 3 lan, moi lan cach 30s
             OK=0
             for i in 1 2 3; do
-              if (cd app && ./gradlew assembleDebug --no-daemon); then OK=1; break; else echo "gradle attempt $i that bai, cho 30s roi thu lai"; sleep 30; fi
+              if (cd app && ./gradlew assembleDebug --no-daemon --max-workers=2); then OK=1; break; else echo "gradle attempt $i that bai, cho 30s roi thu lai"; sleep 30; fi
             done
             [ "$OK" = "1" ] || { echo "::error::Gradle build that bai sau 3 lan"; exit 1; }
             if [ -f app/app/build/outputs/apk/debug/app-universal-debug.apk ]; then

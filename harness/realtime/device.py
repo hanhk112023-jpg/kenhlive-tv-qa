@@ -475,10 +475,19 @@ class RealtimeDevice:
                             max(acc[2], x2), max(acc[3], y2)]
 
                 def _is_dialog_node(r_id):
-                    return r_id in dialog_id_set or r_id.startswith("panel") \
-                        or r_id.startswith("dialog") or r_id == "blvCardRoot"
+                    return (r_id in dialog_id_set or r_id.startswith("panel")
+                            or r_id.startswith("dialog") or r_id.startswith("sheet")
+                            or r_id == "blvCardRoot")
 
                 _vw, _vh = self.viewport()
+                for _top_n in root.iter():
+                    _tb = _top_n.attrib.get("bounds", "")
+                    if _tb:
+                        _tm = re.findall(r"-?\d+", _tb)
+                        if len(_tm) >= 4:
+                            _vw = max(_vw, int(_tm[2]))
+                            _vh = max(_vh, int(_tm[3]))
+                        break
 
                 def _walk(elem, in_dialog):
                     nonlocal _dlg_bounds, has_dialog

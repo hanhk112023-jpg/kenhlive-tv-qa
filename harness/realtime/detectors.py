@@ -962,16 +962,55 @@ def detect_live_vs_no_score(ui_state, activity, ctx, frame_ref, t_offset):
                 frame_ref, t_offset, ui_state.get("focused_sig", ""))]
 
 
-def detect_placeholder_avatar(frame_png, ui_state, ctx, frame_ref, t_offset):
-    """Logo đội / avatar BLV là vòng tròn xám placeholder (pixel, không vision).
+def detect_live_sport_cards(ui_state, activity, ctx):
+    """Ghi nhận thẻ/hero LIVE (tỉ số thật) trên tab Trực tiếp (tab 0) cho Phone & TV."""
+    if "MainActivity" not in (activity or ""):
+        return
+    nodes = ui_state.get("all_visible_nodes") or []
+    if not nodes:
+        return
+    has_sport_id = any(
+        (n.get("id") or "").lower().startswith(("card", "hero"))
+        for n in nodes
+    )
+    if _tab_of(ui_state) != 0 and not has_sport_id:
+        return
+    _score_re = re.compile(r"^\d{1,2}\s+[:\-]\s+\d{1,2}$")
+    _score_id_re = re.compile(r"^\d{1,2}\s*[:\-]\s*\d{1,2}$")
+    _live_re = re.compile(r"\blive\b", re.IGNORECASE)
+    _NAV_Y = 140
+    live_badge_found = False
+    score_found = False
+    for n in nodes:
+        txt = (n.get("text") or "").strip()
+        if not txt:
+            continue
+        m = re.findall(r"-?\d+", n.get("bounds") or "")
+        if len(m) >= 4:
+            cy = (int(m[1]) + int(m[3])) / 2.0
+            if cy < _NAV_Y:
+                continue
+        r_id = (n.get("id") or "").lower()
+        low_txt = txt.lower()
+        if "sắp đá" not in low_txt and (_live_re.search(txt) or "trực tiếp" in low_txt):
+            live_badge_found = True
+        if ("score" in r_id and _score_id_re.match(txt)) or _score_re.match(txt):
+            score_found = True
+    if live_badge_found:
+        ctx["live_sport_seen"] = True
+        if score_found:
+            ctx["live_sport_with_score"] = True
 
-    Đọc bounds từ ui_summary (focusable nodes có id chứa crest/logo/avatar/
-    blv/icon), crop trên frame thật, đo độ lệch pixel. Nền placeholder
-    `bg_team_crest_placeholder` là vòng tròn xám đồng nhất (stddev rất thấp)
-    nên phân biệt được với logo thật có nét/màu. Chỉ tố khi đã thấy cùng 1 id
-    placeholder ở 2 observation liên tiếp — tránh tố lúc ảnh chưa tải xong.
+
+def detect_placeholder_avatar(frame_png, ui_state, ctx, frame_ref, t_offset):
+    """Logo đội / avatar BLV / thẻ Search là vòng tròn xám placeholder (pixel, không vision).
+
+    Đọc bounds từ ui_summary và all_visible_nodes (node có id chứa
+    crest/logo/avatar/blv/icon/sravatar), quy đổi đúng theo viewport thật
+    (TV 1920x1080 hoặc Phone 1080x2400/2400x1080), crop vùng lõi 20%..80%
+    để bỏ viền khung rồi đo độ lệch pixel. Cần 2 observation liên tiếp.
     """
-    if not frame_png or _tab_of(ui_state) not in (0, 1):
+    if not frame_png or _tab_of(ui_state) not in (0, 1, 3):
         return []
     try:
         from PIL import Image, ImageStat
@@ -979,7 +1018,14 @@ def detect_placeholder_avatar(frame_png, ui_state, ctx, frame_ref, t_offset):
     except Exception:
         return []
     W, H = im.size
-    candidates = []
+    vw, vh = ctx.get("viewport", (SCREEN_W, SCREEN_H))
+    if (vw > vh) != (W > H):
+        vw, vh = vh, vw
+    vw = max(1.0, float(vw))
+    vh = max(1.0, float(vh))
+
+    entries = []
+    seen_boxes = set()
     for line in (ui_state.get("ui_summary") or "").splitlines():
         low = line.lower()
         if not any(k in low for k in ("crest", "logo", "avatar", "blv", "icon")):
@@ -987,18 +1033,41 @@ def detect_placeholder_avatar(frame_png, ui_state, ctx, frame_ref, t_offset):
         m = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", line)
         if not m:
             continue
-        x1, y1, x2, y2 = map(int, m.groups())
-        x1 = int(x1 * W / 1920.0); x2 = int(x2 * W / 1920.0)
-        y1 = int(y1 * H / 1080.0); y2 = int(y2 * H / 1080.0)
-        if x2 - x1 < 16 or y2 - y1 < 16 or x1 < 0 or y1 < 0 or x2 > W or y2 > H:
+        rid = line.strip().split("('")[0].replace("[FOCUSED]", "").strip() or "avatar"
+        entries.append((rid, tuple(map(int, m.groups()))))
+    for n in (ui_state.get("all_visible_nodes") or []):
+        rid = (n.get("id") or "").strip()
+        low = rid.lower()
+        if not rid or not any(k in low for k in ("crest", "logo", "avatar", "blv", "icon")):
             continue
+        m = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", n.get("bounds") or "")
+        if not m:
+            continue
+        entries.append((rid, tuple(map(int, m.groups()))))
+
+    candidates = []
+    for rid, (rx1, ry1, rx2, ry2) in entries:
+        box_key = (rid, rx1, ry1, rx2, ry2)
+        if box_key in seen_boxes:
+            continue
+        seen_boxes.add(box_key)
+        x1 = int(rx1 * W / vw); x2 = int(rx2 * W / vw)
+        y1 = int(ry1 * H / vh); y2 = int(ry2 * H / vh)
+        bw, bh = x2 - x1, y2 - y1
+        if bw < 16 or bh < 16 or x1 < 0 or y1 < 0 or x2 > W or y2 > H:
+            continue
+        cx1 = x1 + max(2, int(bw * 0.20))
+        cy1 = y1 + max(2, int(bh * 0.20))
+        cx2 = x2 - max(2, int(bw * 0.20))
+        cy2 = y2 - max(2, int(bh * 0.20))
+        if cx2 <= cx1 + 4 or cy2 <= cy1 + 4:
+            cx1, cy1, cx2, cy2 = x1, y1, x2, y2
         try:
-            st = ImageStat.Stat(im.crop((x1, y1, x2, y2)))
+            st = ImageStat.Stat(im.crop((cx1, cy1, cx2, cy2)))
             mean, sd = st.mean[0], st.stddev[0]
         except Exception:
             continue
-        rid = line.strip().split("('")[0].replace("[FOCUSED]", "").strip() or "avatar"
-        if sd < 7.0 and 45 <= mean <= 165:  # xám đồng nhất = placeholder
+        if sd < 6.5 and 18 <= mean <= 165:  # lõi xám/tối đồng nhất = placeholder rỗng
             candidates.append((rid, mean, sd, (x1, y1, x2, y2)))
 
     hist = ctx.setdefault("placeholder_hist", {})
@@ -1020,6 +1089,52 @@ def detect_placeholder_avatar(frame_png, ui_state, ctx, frame_ref, t_offset):
                        "TeamLogoRegistry; đừng để khung xám đặc thay ảnh",
                        frame_ref, t_offset, rid))
     return out
+
+
+def detect_dialog_clipped_controls(ui_state, activity, ctx, frame_ref, t_offset):
+    """Phát hiện nội dung cuối hộp thoại bị cắt cụt trên màn hình thấp (vd Phone ngang)."""
+    if not ui_state.get("has_dialog"):
+        return []
+    texts = ui_state.get("all_visible_texts") or []
+    low_texts = [(t or "").strip().lower() for _, t in texts if (t or "").strip()]
+    dlg_ids = set(ui_state.get("dialog_ids") or [])
+    is_settings_dlg = (
+        "dialogPlayerSettingsRoot" in dlg_ids
+        or "dialogSettingsScroll" in dlg_ids
+        or any("chất lượng hình" in t for t in low_texts)
+    )
+    if not is_settings_dlg:
+        return []
+
+    clipped_reasons = []
+    if any("tốc độ phát" in t for t in low_texts) and not any(t == "tắt" for t in low_texts):
+        clipped_reasons.append("Mục 'Phụ đề' / chip 'Tắt' bị khuất khỏi hộp thoại")
+
+    db = _parse_bounds(ui_state.get("dialog_bounds"))
+    if db:
+        dx1, dy1, dx2, dy2 = db
+        for n in (ui_state.get("all_visible_nodes") or []):
+            nb = _parse_bounds(n.get("bounds"))
+            if not nb:
+                continue
+            nx1, ny1, nx2, ny2 = nb
+            if nx1 >= dx1 and nx2 <= dx2 and ny1 >= dy1 and ny2 <= dy2:
+                h = ny2 - ny1
+                if ny2 >= dy2 - 28 and 2 <= h <= 13:
+                    clipped_reasons.append("Chữ '%s' bị cắt ngang ở đáy (cao %dpx)" % ((n.get("text") or "")[:24], h))
+                    break
+
+    if not clipped_reasons:
+        return []
+    key = "DLGCLIP:player_settings"
+    if key in ctx.setdefault("reported", set()):
+        return []
+    ctx["reported"].add(key)
+    return [_mk("HIGH", "Bố cục Hộp Thoại",
+                "Nội dung hộp thoại bị cắt cụt ở mép dưới",
+                "; ".join(clipped_reasons),
+                "Bọc nội dung trong ScrollView và thu gọn khoảng cách dọc trên màn hình ngang",
+                frame_ref, t_offset, ui_state.get("focused_sig", ""))]
 
 
 def detect_hero_letterbox(frame_png, ui_state, ctx, frame_ref, t_offset):
@@ -1089,7 +1204,9 @@ def run_all_detectors(frame_png, ui_state, activity, ctx, frame_ref, t_offset, o
     # Image-quality audit (2026-11-22): chạy rẻ trên UI dump + pixel, có
     # cache reported/2-quan-sát để không spamFinding cùng 1 lỗi mỗi bước.
     findings += detect_live_vs_no_score(ui_state, activity, ctx, frame_ref, t_offset)
+    detect_live_sport_cards(ui_state, activity, ctx)
     findings += detect_placeholder_avatar(frame_png, ui_state, ctx, frame_ref, t_offset)
+    findings += detect_dialog_clipped_controls(ui_state, activity, ctx, frame_ref, t_offset)
     findings += detect_hero_letterbox(frame_png, ui_state, ctx, frame_ref, t_offset)
     if _ocr_due(ctx):
         # CI-T5 mục 6: hero band là band OCR đắt nhất — đo local trên frame

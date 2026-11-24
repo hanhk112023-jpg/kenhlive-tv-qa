@@ -29,6 +29,7 @@ sys.path.insert(0, HARNESS_DIR)
 import history as history_mod
 import vision as vision_mod
 import perception as perception_mod
+import detectors as detectors_mod
 import device as device_mod
 import runner as runner_mod
 import ai_judge as ai_judge_mod
@@ -439,6 +440,110 @@ class UpgradeTests(unittest.TestCase):
             self.assertTrue(dev.is_ime_shown())
         with patch.object(device_mod, "sh", return_value="  mInputShown=false\n"):
             self.assertFalse(dev.is_ime_shown())
+
+    # 7. QA v5 Harness upgrades: landscape bounds, sheet* dialog, dialog clipping detector, live sport gate, rank 3 OSD
+    def test_landscape_bounds_and_sheet_dialog_recognition(self):
+        dev = device_mod.RealtimeDevice()
+        dev._viewport = (1080, 2400)  # wm size stays portrait during landscape rotation
+        xml_landscape = (
+            '<hierarchy rotation="1">'
+            '<node bounds="[0,0][2400,1080]" text="">'
+            '<node resource-id="com.kenhlive.tv:id/qualityBtn" text="Cài đặt" bounds="[1650,40][1820,120]" focusable="true" focused="true" />'
+            '<node resource-id="com.kenhlive.tv:id/sheetFilmTitle" text="Mật Án Vigil" bounds="[80,180][980,260]" focusable="false" />'
+            '</node>'
+            '</hierarchy>'
+        )
+        with patch.object(device_mod, "sh", return_value=xml_landscape):
+            st = dev.dump_ui_state()
+        texts = [t for _, t in st["all_visible_texts"]]
+        self.assertIn("Cài đặt", texts)
+        self.assertTrue(st["has_dialog"])
+        self.assertIn("sheetFilmTitle", st["dialog_ids"])
+
+    def test_dialog_clipped_controls_detector(self):
+        # Clipped Phone landscape dialog: "Tốc độ phát" shown, "Tắt" missing, "Phụ đề" sliced to 9px height at bottom
+        ui_clipped = {
+            "has_dialog": True,
+            "dialog_ids": ["dialogPlayerSettingsRoot"],
+            "dialog_bounds": "[100,100][2100,900]",
+            "focused_sig": "chip#[200,200][350,260]",
+            "all_visible_texts": [
+                ("dialogTitle", "Chất lượng hình & âm"),
+                ("lbl", "Tốc độ phát"),
+                ("lbl2", "Phụ đề"),
+            ],
+            "all_visible_nodes": [
+                {"id": "dialogTitle", "text": "Chất lượng hình & âm", "bounds": "[140,130][800,180]"},
+                {"id": "lbl", "text": "Tốc độ phát", "bounds": "[140,700][500,740]"},
+                {"id": "lbl2", "text": "Phụ đề", "bounds": "[140,880][300,889]"},
+            ],
+        }
+        ctx = {"reported": set()}
+        findings = detectors_mod.detect_dialog_clipped_controls(
+            ui_clipped, "com.kenhlive.tv/.PlayerActivity", ctx, "step_053.jpg", 10.0
+        )
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["severity"], "HIGH")
+
+        # Clean dialog with "Tắt" visible and full height -> no finding
+        ui_clean = {
+            "has_dialog": True,
+            "dialog_ids": ["dialogPlayerSettingsRoot"],
+            "dialog_bounds": "[100,60][2100,960]",
+            "focused_sig": "chip#[200,200][350,260]",
+            "all_visible_texts": [
+                ("dialogTitle", "Chất lượng hình & âm"),
+                ("lbl", "Tốc độ phát"),
+                ("lbl2", "Phụ đề"),
+                ("chipSub", "Tắt"),
+            ],
+            "all_visible_nodes": [
+                {"id": "lbl2", "text": "Phụ đề", "bounds": "[140,760][300,800]"},
+                {"id": "chipSub", "text": "Tắt", "bounds": "[140,810][260,880]"},
+            ],
+        }
+        self.assertEqual(
+            detectors_mod.detect_dialog_clipped_controls(
+                ui_clean, "com.kenhlive.tv/.PlayerActivity", {"reported": set()}, "step_053.jpg", 10.0
+            ),
+            [],
+        )
+
+    def test_live_sport_cards_and_player_title_rank(self):
+        # detect_live_sport_cards sets flags on scored live cards on tab 0, ignores nav_live & SAP DA
+        ctx_live = {"reported": set()}
+        ui_sport = {
+            "selected_ids": ["nav_live"],
+            "all_visible_nodes": [
+                {"id": "nav_live", "text": "TRỰC TIẾP", "bounds": "[100,20][300,100]"},
+                {"id": "heroBadge", "text": "TRỰC TIẾP", "bounds": "[60,200][220,240]"},
+                {"id": "heroScore", "text": "0 : 1", "bounds": "[460,280][560,340]"},
+            ],
+            "all_visible_texts": [("nav_live", "TRỰC TIẾP"), ("heroBadge", "TRỰC TIẾP"), ("heroScore", "0 : 1")],
+        }
+        detectors_mod.detect_live_sport_cards(ui_sport, "com.kenhlive.tv/.MainActivity", ctx_live)
+        self.assertTrue(ctx_live.get("live_sport_seen"))
+        self.assertTrue(ctx_live.get("live_sport_with_score"))
+
+        ctx_upcoming = {"reported": set()}
+        ui_up = {
+            "selected_ids": ["nav_home"],
+            "all_visible_nodes": [
+                {"id": "nav_live", "text": "TRỰC TIẾP", "bounds": "[700,0][900,112]"},
+                {"id": "cardBadge", "text": "SẮP ĐÁ", "bounds": "[120,410][200,440]"},
+            ],
+            "all_visible_texts": [("nav_live", "TRỰC TIẾP"), ("cardBadge", "SẮP ĐÁ")],
+        }
+        detectors_mod.detect_live_sport_cards(ui_up, "com.kenhlive.tv/.MainActivity", ctx_upcoming)
+        self.assertFalse(ctx_upcoming.get("live_sport_seen", False))
+
+        # _player_title_rank: OSD visible (3) > OSD hidden (2) > fallback motion None (2) > no motion (1) > error (0)
+        rank = runner_mod.RealtimeRunner._player_title_rank
+        self.assertEqual(rank({"motion": True, "ui_state": {"osd_visible": True, "all_visible_texts": []}}), 3)
+        self.assertEqual(rank({"motion": True, "ui_state": {"osd_visible": False, "all_visible_texts": []}}), 2)
+        self.assertEqual(rank({"motion": True, "ui_state": {"all_visible_texts": []}}), 2)
+        self.assertEqual(rank({"motion": False, "ui_state": {"all_visible_texts": []}}), 1)
+        self.assertEqual(rank({"motion": True, "ui_state": {"all_visible_texts": [("e", "video_error")]}}), 0)
 
 
 if __name__ == "__main__":
