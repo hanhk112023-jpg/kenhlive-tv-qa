@@ -351,6 +351,22 @@ class RealtimeRunner:
         _singles = [t for _, t in ui_state.get("all_visible_texts", [])
                     if len((t or "").strip()) == 1 and (t or "").strip().isalpha()]
         ui_state["keyboard_open"] = len(_singles) >= 8
+        # Bàn phím hệ thống (Gboard TV / Android IME) không hiện node trong uiautomator dump:
+        # chỉ kiểm tra dumpsys input_method khi đang ở bối cảnh tìm kiếm / nhập liệu để tiết kiệm I/O.
+        _fsig_l = (ui_state.get("focused_sig") or "").lower()
+        _ftxt_l = (ui_state.get("focused_text") or "").lower()
+        _check_ime = (
+            "search" in mission_name.lower()
+            or "search" in _fsig_l
+            or "tìm" in _ftxt_l
+            or "edt" in _fsig_l
+        )
+        if not ui_state["keyboard_open"] and _check_ime:
+            try:
+                if self.device.is_ime_shown():
+                    ui_state["keyboard_open"] = True
+            except Exception:
+                pass
         # CI-T8 mục 6: bàn phím ảo kiểm bằng ẢNH mỗi bước (dump mù với bàn
         # phím in-app KenhLive — STRESS CI-T7 gõ phím mà dump không đổi nên
         # detector "kẹt" nổ oan). ~50ms/bước; kết quả vào ui_state để

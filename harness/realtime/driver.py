@@ -88,6 +88,7 @@ class Driver:
         self._long_press_tried = False  # đã long-press yêu thích 1 lần chưa (CI-T5 mục 10)
         self._keyboard_open_tries = 0  # CI-T9 mục 7: số lần OK mở bàn phím (tối đa 2)
         self._keyboard_typed = False  # CI-T9 mục 7: đã gõ từ khóa khi bàn phím mở chưa
+        self._keyboard_submitted = False  # Đã gửi ENTER sau khi gõ từ khóa chưa
         self._seek_idx = 0  # H3: đếm bước quét tìm text mục tiêu (goto_texts)
         # Wave 6: đếm số lần SWITCH_TAB liên tiếp tới cùng tab đích mà tab không đổi
         self._switch_tab_target = None
@@ -216,23 +217,18 @@ class Driver:
 
     def _focused_card_status(self, ui_state):
         """Trạng thái thẻ trận đang focus: 'live' | 'upcoming' | None.
-        CI-T5 mục 3 (CI-T4 PLAYER_STREAMING FAIL A-B-A-B): driver mở thẻ
-        [SẮP ĐÁ] ĐTQ Việt Nam 19:00 (chưa đá) -> player 'Đang tải luồng...'
-        vô hạn -> tự thoát -> mở lại -> dao động. Chỉ mở thẻ LIVE.
-        CI-T6 mục 5: luật này mở rộng cho MỌI mission mở player/dialog
-        (kể cả ROOM_PICKER — CI-T5 step_013/014 vẫn mở thẻ INTERF [SẮP ĐÁ]
-        vì _focused_card_status trả None: focus là blvCardRoot nhưng badge
-        không gắn được — id node text trong dump khác id view đang focus,
-        hoặc badge nằm ngoài cửa sổ ±6 node). Fallback mới, theo thứ tự:
-        (1) bounds: badge giao nhau / tâm nằm trong bounds focus mở rộng
-        40px; (2) cửa sổ ±10 node quanh node focus, tìm theo id rồi theo
-        focused_text; (3) text của chính view đang focus. 'LIVE' khớp theo
-        từ nguyên (\\blive\\b) để 'socolive' không bị nhận nhầm."""
+        Ngoài 'sắp đá', nhận diện thêm 'lên sóng lúc', 'sắp diễn ra', badge bị
+        cắt '\\bsắp\\b' và thẻ chỉ có giờ kickoff HH:MM (không có 'live'/'trực tiếp')."""
         cands = self._focused_card_texts(ui_state)
-        if any("sắp đá" in t for t in cands):
+        if any(
+            ("sắp đá" in t or "sắp diễn ra" in t or "lên sóng lúc" in t or re.search(r"\bsắp\b", t))
+            for t in cands
+        ):
             return "upcoming"
         if any(re.search(r"\blive\b", t) or "trực tiếp" in t for t in cands):
             return "live"
+        if any(re.search(r"\b\d{1,2}:\d{2}\b", t) for t in cands):
+            return "upcoming"
         return None
 
     def _now_gmt7(self):
@@ -737,33 +733,48 @@ class Driver:
                     return Action("SWITCH_TAB", str(m.tab), rule="goto_tab",
                                   thought="Đang ở tab %s, mission cần tab %s" % (cur_tab, m.tab))
 
-        # -- 0b2. Mission cần bàn phím thật (CI-T9 mục 7, SEARCH): CI-T8 bàn
-        # phím không mở lần nào ở cả 95 bước vì driver chưa từng bấm OK trên
-        # ô tìm kiếm — focus tới searchInput (step_079 T4) rồi bỏ đi xuống
-        # hàng xu hướng. Luật này: focus đang ở ô nhập -> bấm OK mở bàn phím
-        # in-app (tối đa 2 lần); ô nhập hiện trong dump mà chưa focus -> đi
-        # tới nó; bàn phím đã mở -> gõ từ khóa qua adb input (TEXT). Bàn phím
-        # không mở thì runner đánh UNVERIFIED ở cuối mission (không PASS lặng).
+        # -- 0b2. Chống kẹt Gboard TV (gõ qqqq...) + mission cần bàn phím thật.
+        _kb_open_now = bool(ui_state.get("keyboard_open")
+                            or ui_state.get("keyboard_open_image"))
+        _ft_clean = (focused_text or "").strip()
+        if "PlayerActivity" not in act and "WebPlayerActivity" not in act:
+            # Nếu lỡ nhập lặp 1 ký tự >= 3 lần (vd Gboard TV spam 'qqqqq...') -> đóng bàn phím ngay.
+            if len(_ft_clean) >= 3 and len(set(_ft_clean)) == 1 and _ft_clean.isalpha():
+                return Action("KEY", "BACK", rule="keyboard:anti_repeat",
+                              thought="Phát hiện lặp ký tự '%s' từ bàn phím ảo — BACK đóng bàn phím" % _ft_clean[:12])
+            # Bàn phím bật lạc trong mission KHÔNG cần bàn phím -> đóng ngay, cấm bấm OK spam 'q'.
+            if _kb_open_now and not m.needs_keyboard:
+                return Action("KEY", "BACK", rule="keyboard:dismiss_stray",
+                              thought="Bàn phím đang mở ngoài mission tìm kiếm — BACK đóng bàn phím")
+
         if m.needs_keyboard and "PlayerActivity" not in act \
                 and "WebPlayerActivity" not in act:
-            _kb_open = bool(ui_state.get("keyboard_open")
-                            or ui_state.get("keyboard_open_image"))
-            if _kb_open:
+            _fid = (focused_sig.split("#")[0] or "").lower()
+            _on_search_box = ("search" in _fid or "tìm" in focused_text or "nhập" in focused_text or "edt" in _fid)
+            if _kb_open_now:
                 if not self._keyboard_typed:
                     self._keyboard_typed = True
                     return Action("TEXT", "uefa", rule="keyboard:type",
                                   thought="Bàn phím đã mở — gõ từ khóa 'uefa' qua adb input")
+                if not self._keyboard_submitted:
+                    self._keyboard_submitted = True
+                    return Action("KEY", "ENTER", rule="keyboard:submit",
+                                  thought="Đã gõ từ khóa — nhấn ENTER gửi tìm kiếm và ẩn bàn phím")
             elif self._keyboard_open_tries < 2:
-                _fid = (focused_sig.split("#")[0] or "").lower()
-                if "search" in _fid or "tìm" in focused_text or "nhập" in focused_text:
+                if _on_search_box:
                     self._keyboard_open_tries += 1
                     return Action("KEY", "OK", rule="keyboard:open",
                                   thought="Bấm OK trên ô tìm kiếm để mở bàn phím thật")
                 _goto_kb = self._goto_view_action(
-                    ui_state, ["searchInput", "edtSearch", "etSearch"])
+                    ui_state, ["searchInput", "searchPhimInput", "searchChannelInput",
+                               "edtSearch", "etSearch", "etSearchQuery", "searchEdit"])
                 if _goto_kb is not None:
                     _goto_kb.rule = "keyboard:goto_input"
                     return _goto_kb
+            elif _on_search_box and not self._keyboard_typed:
+                self._keyboard_typed = True
+                return Action("TEXT", "uefa", rule="keyboard:type_fallback",
+                              thought="Ô tìm kiếm đang focus — gõ trực tiếp 'uefa' để tránh đứng yên")
 
         # -- 0d. Thẻ đang focus là trận CHƯA ĐÁ thì không mở player/dialog từ
         # nó: tìm thẻ LIVE khác (CI-T5 mục 3). CI-T6 mục 5: mở rộng sang MỌI

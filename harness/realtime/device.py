@@ -378,6 +378,15 @@ class RealtimeDevice:
                 continue
         return None
 
+    def is_ime_shown(self):
+        """Kiểm tra bàn phím hệ thống (Gboard TV / Android IME) có đang mở thật không."""
+        out = sh(
+            "%s shell \"dumpsys input_method 2>/dev/null | grep -E 'mInputShown=true|mShowRequested=true'\" 2>/dev/null"
+            % self.adb,
+            timeout=5,
+        )
+        return ("mInputShown=true" in out) or ("mShowRequested=true" in out)
+
     def dump_ui_state(self):
         """Đọc cây UI qua uiautomator (--compressed trước cho nhanh, fallback thường)."""
         xml_text = sh("%s shell 'rm -f /sdcard/uidump.xml; uiautomator dump --compressed /sdcard/uidump.xml >/dev/null 2>&1; cat /sdcard/uidump.xml' 2>/dev/null" % self.adb, timeout=20)

@@ -33,6 +33,7 @@ import device as device_mod
 import runner as runner_mod
 import ai_judge as ai_judge_mod
 import autonomous_ai_qa as auto_qa_mod
+import driver as driver_mod
 from missions import get_missions
 
 
@@ -384,6 +385,60 @@ class UpgradeTests(unittest.TestCase):
         # 1 sys + 25*2 + 2 new = 53 messages retained (> 30!)
         self.assertEqual(len(brain.session_messages), 53)
         self.assertEqual(len(brain.action_ledger), 1)
+
+    # 6. Regression fixes from video analysis (Gboard TV qqq spam, Phone Search stall, Upcoming 00:45 card)
+    def test_driver_keyboard_guards_and_upcoming_kickoff_detection(self):
+        from gate import EvidenceGate
+        specs = {s.name: s for s in get_missions()}
+        dev = device_mod.RealtimeDevice()
+
+        # Stray Gboard in non-keyboard mission -> dismiss via BACK (never spam OK)
+        m_cold = specs["MISSION_COLD_START"]
+        drv_stray = driver_mod.Driver(dev, EvidenceGate(m_cold), m_cold)
+        act_stray = drv_stray.next_action({
+            "focused_sig": "searchPhimInput#[0,0][200,80]",
+            "focused_text": "Tìm phim",
+            "has_dialog": False,
+            "keyboard_open": True,
+            "all_visible_texts": [("searchPhimInput", "Tìm phim")],
+        }, "com.kenhlive.tv/.MainActivity", None, 0.0)
+        self.assertEqual(act_stray.type, "KEY")
+        self.assertEqual(act_stray.param, "BACK")
+        self.assertEqual(act_stray.rule, "keyboard:dismiss_stray")
+
+        # Repeated 'qqqqq' in search box -> anti_repeat BACK
+        m_search = specs["MISSION_SEARCH_AND_SETTINGS_FEEDBACK"]
+        drv_rep = driver_mod.Driver(dev, EvidenceGate(m_search), m_search)
+        act_rep = drv_rep.next_action({
+            "focused_sig": "searchInput#[0,0][200,80]",
+            "focused_text": "qqqqqqqqq",
+            "has_dialog": False,
+            "keyboard_open": True,
+            "all_visible_texts": [("searchInput", "qqqqqqqqq")],
+        }, "com.kenhlive.tv/.MainActivity", None, 0.0)
+        self.assertEqual(act_rep.rule, "keyboard:anti_repeat")
+        self.assertEqual(act_rep.param, "BACK")
+
+        # Card with 'Lên sóng lúc 00:45' (Gà Vàng 33) without LIVE badge -> skipped as upcoming
+        m_stream = specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"]
+        drv_up = driver_mod.Driver(dev, EvidenceGate(m_stream), m_stream)
+        status_up = drv_up._focused_card_status({
+            "focused_sig": "cardRoot#[100,200][500,500]",
+            "focused_text": "FK Bodo/Glimt vs LASK Linz",
+            "focused_bounds": "[100,200][500,500]",
+            "all_visible_texts": [("cardRoot", "FK Bodo/Glimt"), ("cardTimeBadge", "00:45"), ("cardBlv", "Lên sóng lúc 00:45")],
+            "all_visible_nodes": [
+                {"id": "cardRoot", "text": "FK Bodo/Glimt", "bounds": "[100,200][500,500]"},
+                {"id": "cardBlv", "text": "Lên sóng lúc 00:45", "bounds": "[110,450][450,480]"},
+            ],
+        })
+        self.assertEqual(status_up, "upcoming")
+
+        # is_ime_shown() parses dumpsys input_method mInputShown=true
+        with patch.object(device_mod, "sh", return_value="  mInputShown=true mIsInputViewShown=true\n"):
+            self.assertTrue(dev.is_ime_shown())
+        with patch.object(device_mod, "sh", return_value="  mInputShown=false\n"):
+            self.assertFalse(dev.is_ime_shown())
 
 
 if __name__ == "__main__":
