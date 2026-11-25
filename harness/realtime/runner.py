@@ -243,7 +243,22 @@ class RealtimeRunner:
         def _sync_sig(us, act):
             return (act, us.get("focused_sig"), bool(us.get("has_dialog")))
 
-        if _sync_sig(ui_state2, activity2) != _sync_sig(ui_state, activity):
+        def _png_orient_mismatch(png_bytes, us):
+            xvp = us.get("xml_viewport")
+            if not png_bytes or not xvp or len(xvp) < 2 or not xvp[0] or not xvp[1]:
+                return False
+            try:
+                import io as _io
+                from PIL import Image as _Image
+                _iw, _ih = _Image.open(_io.BytesIO(png_bytes)).size
+                if not _iw or not _ih or _iw == _ih or xvp[0] == xvp[1]:
+                    return False
+                return (_iw > _ih) != (xvp[0] > xvp[1])
+            except Exception:
+                return False
+
+        if _sync_sig(ui_state2, activity2) != _sync_sig(ui_state, activity) \
+                or _png_orient_mismatch(png, ui_state2):
             # Trạng thái đổi ngay quanh lúc chụp — chụp lại + dump lại 1 lần.
             self._sync_retries = getattr(self, "_sync_retries", 0) + 1
             print("      🔄 [Observe] dump/chụp lệch (%s -> %s) — chụp lại + dump lại"

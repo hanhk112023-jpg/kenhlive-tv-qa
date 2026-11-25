@@ -76,7 +76,7 @@ ALL_MISSIONS = [
         max_steps=10, min_steps=4,
         required_activity="PlayerActivity",
         needs_motion=True, needs_vision=True,
-        target_desc="trình phát PlayerActivity đang phát video bóng đá thật của một trận đang đá (LIVE/TRỰC TIẾP)",
+        target_desc="trình phát PlayerActivity đang phát video thể thao trực tiếp thật (bóng đá, bóng rổ…) của một trận đang diễn ra (LIVE/TRỰC TIẾP)",
         tab=0, needs_scroll_top=True, requires_live_row=True,
     ),
     MissionSpec(

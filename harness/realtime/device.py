@@ -446,6 +446,7 @@ class RealtimeDevice:
                          "panelGuestIcon", "panelGuestName", "panelBlvTitle",
                          "panelBlvList", "panelSameTimeTitle",
                          "panelSameTimeList", "panelPlay")
+        _xml_vw, _xml_vh = self.viewport()
         if "<hierarchy" in xml_text:
             try:
                 start = xml_text.find("<hierarchy")
@@ -479,15 +480,21 @@ class RealtimeDevice:
                             or r_id.startswith("dialog") or r_id.startswith("sheet")
                             or r_id == "blvCardRoot")
 
-                _vw, _vh = self.viewport()
+                if root.attrib.get("rotation") in ("1", "3"):
+                    _xml_vw, _xml_vh = _xml_vh, _xml_vw
                 for _top_n in root.iter():
                     _tb = _top_n.attrib.get("bounds", "")
                     if _tb:
                         _tm = re.findall(r"-?\d+", _tb)
                         if len(_tm) >= 4:
-                            _vw = max(_vw, int(_tm[2]))
-                            _vh = max(_vh, int(_tm[3]))
+                            _tx2, _ty2 = int(_tm[2]), int(_tm[3])
+                            if _tx2 > _xml_vw and _ty2 <= _xml_vw and _tx2 >= 480 and _ty2 >= 480:
+                                _xml_vw, _xml_vh = _tx2, _ty2
+                            else:
+                                _xml_vw = max(_xml_vw, _tx2)
+                                _xml_vh = max(_xml_vh, _ty2)
                         break
+                _vw, _vh = _xml_vw, _xml_vh
 
                 def _walk(elem, in_dialog):
                     nonlocal _dlg_bounds, has_dialog
@@ -547,6 +554,7 @@ class RealtimeDevice:
             "dialog_ids": dialog_ids,
             "dialog_bounds": dialog_bounds,
             "selected_ids": selected_ids,
+            "xml_viewport": (_xml_vw, _xml_vh),
             "ui_summary": "\n".join(summary_lines[:25]) or "(Không tìm thấy focusable view)",
         }
 

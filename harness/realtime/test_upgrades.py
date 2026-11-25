@@ -661,6 +661,46 @@ class UpgradeTests(unittest.TestCase):
         a_open2 = drv.next_action(ui_row1, "com.kenhlive.tv/.MainActivity", None, 7.0)
         self.assertEqual((a_open2.rule, a_open2.param), ("open_player", "OK"))
 
+    def test_v7_multisport_target_desc_and_xml_viewport_focus_leak_guard(self):
+        from PIL import Image
+        specs = {s.name: s for s in get_missions()}
+        td = specs["MISSION_PLAYER_STREAMING_AND_CONTROLS"].target_desc.lower()
+        self.assertIn("thể thao", td)
+        self.assertIn("bóng rổ", td)
+
+        # dump_ui_state on rotated Phone must return xml_viewport=(2400, 1080)
+        dev = device_mod.RealtimeDevice()
+        dev._viewport = (1080, 2400)
+        xml_land = (
+            '<hierarchy rotation="1">'
+            '<node bounds="[0,0][2400,1080]" text="">'
+            '<node resource-id="com.kenhlive.tv:id/qualityBtn" text="Cài đặt" '
+            'bounds="[1604,118][1787,218]" focusable="true" focused="true" />'
+            '</node></hierarchy>'
+        )
+        with patch.object(device_mod, "sh", return_value=xml_land):
+            st = dev.dump_ui_state()
+        self.assertEqual(st.get("xml_viewport"), (2400, 1080))
+
+        # Stale portrait png (1080x2400) + landscape xml_viewport (2400x1080) -> NOT false offscreen
+        buf = io.BytesIO()
+        Image.new("RGB", (1080, 2400), (0, 0, 0)).save(buf, "PNG")
+        stale_portrait_png = buf.getvalue()
+        ctx = {"viewport": (1080, 2400), "reported": set()}
+        self.assertEqual(
+            detectors_mod.detect_offscreen_or_zero_focus(
+                st, "com.kenhlive.tv/.PlayerActivity", ctx, "step_016.jpg", 10.0, frame_png=stale_portrait_png
+            ),
+            [],
+        )
+        # Genuinely offscreen coordinate vs xml_viewport (2400, 1080) STILL triggers HIGH
+        st_bad = dict(st, focused_sig="ghost#[2500,118][2600,218]", focused_bounds="[2500,118][2600,218]")
+        bad_findings = detectors_mod.detect_offscreen_or_zero_focus(
+            st_bad, "com.kenhlive.tv/.PlayerActivity", ctx, "step_017.jpg", 12.0, frame_png=stale_portrait_png
+        )
+        self.assertEqual(len(bad_findings), 1)
+        self.assertEqual(bad_findings[0]["severity"], "HIGH")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

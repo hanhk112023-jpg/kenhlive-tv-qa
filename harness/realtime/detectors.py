@@ -307,18 +307,22 @@ def detect_offscreen_or_zero_focus(ui_state, activity, ctx, frame_ref, t_offset,
         return []
     x1, y1, x2, y2 = map(int, m[:4])
     w, h = x2 - x1, y2 - y1
-    vw, vh = ctx.get("viewport", (SCREEN_W, SCREEN_H))
-    # `wm size` reports the unrotated size; uiautomator bounds follow the
-    # rotated surface. Compare with the captured frame orientation and swap.
-    if frame_png:
-        try:
-            import io as _io
-            from PIL import Image as _Image
-            _iw, _ih = _Image.open(_io.BytesIO(frame_png)).size
-            if _iw and _ih and ((vw > vh) != (_iw > _ih)):
-                vw, vh = vh, vw
-        except Exception:
-            pass
+    xml_vp = ui_state.get("xml_viewport")
+    if xml_vp and len(xml_vp) == 2 and xml_vp[0] > 0 and xml_vp[1] > 0:
+        vw, vh = int(xml_vp[0]), int(xml_vp[1])
+    else:
+        vw, vh = ctx.get("viewport", (SCREEN_W, SCREEN_H))
+        # `wm size` reports the unrotated size; uiautomator bounds follow the
+        # rotated surface. Compare with the captured frame orientation and swap.
+        if frame_png:
+            try:
+                import io as _io
+                from PIL import Image as _Image
+                _iw, _ih = _Image.open(_io.BytesIO(frame_png)).size
+                if _iw and _ih and ((vw > vh) != (_iw > _ih)):
+                    vw, vh = vh, vw
+            except Exception:
+                pass
     if x2 <= 0 or y2 <= 0 or x1 >= vw or y1 >= vh:
         key = "OFFSCREEN:%s" % sig
         if key in ctx.setdefault("reported", set()):
