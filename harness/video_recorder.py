@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-KenhLive Video Recorder — Quay toàn bộ video màn hình Android TV emulator bằng adb screenrecord.
+KenhLive Video Recorder — Quay toàn bộ video màn hình Android TV / Phone emulator bằng adb screenrecord.
 Hỗ trợ quay dài liên tục (vượt qua giới hạn 3 phút của Android) bằng cách chia chunk và ghép bằng ffmpeg.
-Tự động sinh video streamable (+faststart), nén tối ưu dung lượng (<50MB) và video tua nhanh Timelapse 10x.
+Tự động nhận diện kích thước dọc (Phone 720x1600) hoặc ngang (TV 1280x720), xuất duy nhất 1 video
+streamable (+faststart) mượt 30fps, tối ưu dung lượng cho Telegram (<25MB).
 """
 
 import glob
 import json
 import os
+import re
 import subprocess
 import threading
 import time
@@ -64,7 +66,7 @@ class VideoRecorder:
         self.remote_chunks = []
         self.local_chunks = []
         self.final_mp4 = os.path.join(self.out_dir, "full_qa_tour.mp4")
-        self.timelapse_mp4 = os.path.join(self.out_dir, "qa_timelapse.mp4")
+        self.timelapse_mp4 = None
         self.is_recording = False
         self._keep_chunks_on_failure = False
         # Hệ số tốc độ tour cuối (1.0 = không tăng tốc). Judge CẦN con số này
@@ -96,9 +98,44 @@ class VideoRecorder:
         # stop_and_save() để judge cắt reel đúng vị trí thật.
         self._chunk_times = []  # [{index, remote, wall_start, wall_end}]
         self._chunk_map = None  # [{qa_start_s, qa_end_s, raw_start_s, raw_end_s, dur_s}]
+        self.rec_width, self.rec_height = self._detect_record_size()
+
+    def _detect_record_size(self) -> tuple[int, int]:
+        """Tự động nhận diện kích thước quay dọc cho Phone (720x1600) và ngang cho TV (1280x720)."""
+        qa_device = os.environ.get("QA_DEVICE", "").strip().lower()
+        if qa_device == "phone":
+            return (720, 1600)
+        try:
+            res = subprocess.run(
+                f"{self.adb} shell wm size",
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if getattr(res, "returncode", 0) == 0 and res.stdout:
+                out = res.stdout
+                m = (
+                    re.search(r"Override\s+size:\s*(\d+)\s*x\s*(\d+)", out, re.IGNORECASE)
+                    or re.search(r"Physical\s+size:\s*(\d+)\s*x\s*(\d+)", out, re.IGNORECASE)
+                    or re.search(r"(\d+)\s*x\s*(\d+)", out)
+                )
+                if m:
+                    w, h = int(m.group(1)), int(m.group(2))
+                    if w > 0 and h > 0 and h > w:
+                        if abs((w / float(h)) - (1080.0 / 2400.0)) <= 0.05:
+                            return (720, 1600)
+                        target_w = 720
+                        target_h = max(720, int(round((target_w * h / float(w)) / 16.0)) * 16)
+                        return (target_w, target_h)
+        except Exception:
+            pass
+        return (1280, 720)
 
     def start(self):
-        print(f"📹 [VIDEO RECORDER] Bắt đầu quay toàn bộ quá trình test Android TV 1080p...", flush=True)
+        self.rec_width, self.rec_height = self._detect_record_size()
+        orient = "dọc (Phone)" if self.rec_height > self.rec_width else "ngang (TV)"
+        print(f"📹 [VIDEO RECORDER] Bắt đầu quay toàn bộ quá trình test ({orient} {self.rec_width}x{self.rec_height})...", flush=True)
         # Xóa các file quay cũ còn sót trên thiết bị
         subprocess.run(f"{self.adb} shell rm -f /sdcard/qa_rec_*.mp4", shell=True, capture_output=True)
         self.stop_event.clear()
@@ -124,6 +161,17 @@ class VideoRecorder:
         idx = 0
         t0 = time.time()
         fast_fail_streak = 0
+        is_portrait = self.rec_height > self.rec_width
+        if is_portrait:
+            if (self.rec_width, self.rec_height) == (720, 1600):
+                size_ladder = [(720, 1600), (540, 1200), None]
+            else:
+                fb_w = max(320, int(round((self.rec_width * 0.75) / 16.0)) * 16)
+                fb_h = max(320, int(round((self.rec_height * 0.75) / 16.0)) * 16)
+                size_ladder = [(self.rec_width, self.rec_height), (fb_w, fb_h), None]
+        else:
+            size_ladder = [(self.rec_width, self.rec_height)]
+        size_idx = 0
         while not self.stop_event.is_set() and (time.time() - t0 < self.max_total_seconds):
             idx += 1
             remote_path = f"/sdcard/qa_rec_{idx:02d}.mp4"
@@ -134,8 +182,10 @@ class VideoRecorder:
             _t_entry = {"index": idx, "remote": remote_path,
                         "wall_start": self._current_started_at, "wall_end": None}
             self._chunk_times.append(_t_entry)
-            # adb screenrecord trên emulator Android TV: 1280x720 2.5Mbps (tránh tràn buffer phần mềm OMX err=-10005)
-            cmd = f"{self.adb} shell screenrecord --time-limit 175 --bit-rate 2500000 --size 1280x720 {remote_path}"
+            cur_size = size_ladder[size_idx]
+            size_arg = f" --size {cur_size[0]}x{cur_size[1]}" if cur_size else ""
+            # adb screenrecord trên emulator: 2.5Mbps (tránh tràn buffer phần mềm OMX err=-10005)
+            cmd = f"{self.adb} shell screenrecord --time-limit 175 --bit-rate 2500000{size_arg} {remote_path}"
             t_chunk0 = time.time()
             p = subprocess.Popen(cmd, shell=True)
             while p.poll() is None:
@@ -184,14 +234,32 @@ class VideoRecorder:
             # screenrecord thoát tự nhiên (hết hạn 175s): ghi mốc kết thúc.
             if _t_entry["wall_end"] is None:
                 _t_entry["wall_end"] = time.time()
+            chunk_elapsed = time.time() - t_chunk0
+            remote_sz = self._device_file_size(remote_path)
+            small_file = (remote_sz is not None and remote_sz <= 2000)
+            # Chống lỗi OMX trên Phone: nếu chunk chết nhanh (< 4.0s) hoặc kích thước <= 2000B,
+            # tự động hạ bậc kích thước quay theo thứ tự (720x1600 -> 540x1200 -> bỏ --size).
+            if (chunk_elapsed < 4.0 or small_file) and is_portrait and size_idx < len(size_ladder) - 1:
+                failed_size = size_ladder[size_idx]
+                size_idx += 1
+                next_size = size_ladder[size_idx]
+                failed_desc = f"{failed_size[0]}x{failed_size[1]}" if failed_size else "gốc"
+                next_desc = f"{next_size[0]}x{next_size[1]}" if next_size else "gốc thiết bị (bỏ --size)"
+                print(
+                    f"⚠️ [VIDEO RECORDER] Chunk {idx} ({failed_desc}) chết nhanh "
+                    f"({chunk_elapsed:.1f}s, size={remote_sz}) — fallback kích thước quay sang {next_desc}.",
+                    flush=True,
+                )
+                self.stop_event.wait(1.0)
+                continue
             # KL8 fix loop 2 (F67c): screenrecord chết ngay (vd /sdcard đầy,
             # "already recording") thì vòng lặp cũ quay tít tạo chunk rỗng và
             # spam adb suốt phiên. Chờ 5s rồi mới thử chunk sau.
-            if time.time() - t_chunk0 < 5.0:
+            if chunk_elapsed < 5.0 or small_file:
                 fast_fail_streak += 1
                 if fast_fail_streak == 1 or fast_fail_streak % 5 == 0:
                     print(f"⚠️ [VIDEO RECORDER] screenrecord chết nhanh (chunk {idx}, streak {fast_fail_streak}) — chờ 5s trước chunk sau.", flush=True)
-                time.sleep(5.0)
+                self.stop_event.wait(5.0)
             else:
                 fast_fail_streak = 0
 
@@ -348,7 +416,7 @@ class VideoRecorder:
         res2 = subprocess.run(
             ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
              "-fflags", "+genpts", "-i", concat_list,
-             "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
              "-pix_fmt", "yuv420p", "-movflags", "+faststart", out_path],
             capture_output=True, text=True)
         if res2.returncode != 0:
@@ -489,6 +557,7 @@ class VideoRecorder:
             if got and (not want or got >= want):
                 subprocess.run(f"{self.adb} shell rm -f {remote}", shell=True, capture_output=True)
 
+        tw, th = self.rec_width, self.rec_height
         if not self.local_chunks:
             duration_sec = 0.0
             print("⚠️ [VIDEO RECORDER] Không kéo được chunk video từ thiết bị, kích hoạt cơ chế ghép video từ ảnh chụp màn hình (Screenshot Stitching)...", flush=True)
@@ -500,8 +569,15 @@ class VideoRecorder:
                     for s in shot_files:
                         f.write(f"file '{s}'\nduration 1.8\n")
                     f.write(f"file '{shot_files[-1]}'\n")
-                cmd_img = f"ffmpeg -y -f concat -safe 0 -i {img_list} -vf 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2' -c:v libx264 -preset veryfast -r 25 -pix_fmt yuv420p -movflags +faststart {self.final_mp4}"
-                subprocess.run(cmd_img, shell=True, capture_output=True)
+                res_img = subprocess.run(
+                    ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
+                     "-i", img_list,
+                     "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2",
+                     "-c:v", "libx264", "-preset", "veryfast", "-r", "25",
+                     "-pix_fmt", "yuv420p", "-movflags", "+faststart", self.final_mp4],
+                    capture_output=True, text=True)
+                if res_img.returncode != 0:
+                    print(f"⚠️ [VIDEO RECORDER] Screenshot stitching loi (rc={res_img.returncode}): {(res_img.stderr or '')[-300:]}", flush=True)
             if not os.path.exists(self.final_mp4) or os.path.getsize(self.final_mp4) < 2000:
                 return None
             raw_full = self.final_mp4
@@ -568,7 +644,7 @@ class VideoRecorder:
                 valid = [(self.local_chunks[0], 0.0, _remote_by_local.get(self.local_chunks[0], 1))]
                 self._keep_chunks_on_failure = True
 
-            # Chuẩn hóa từng chunk riêng (CFR 30fps, cùng 1280x720) — chunk
+            # Chuẩn hóa từng chunk riêng (CFR 30fps, đúng tỉ lệ tw x th) — chunk
             # nào re-encode lỗi thì bỏ chunk đó, không phá cả lần ghép.
             self._norm_chunks = []
             self._norm_valid = []  # CI-T8 mục 2: valid entry tương ứng từng norm chunk
@@ -576,8 +652,8 @@ class VideoRecorder:
                 out = os.path.join(self.out_dir, f"norm_{i + 1:02d}.mp4")
                 res_norm = subprocess.run(
                     ["ffmpeg", "-y", "-v", "error", "-fflags", "+genpts", "-i", c,
-                     "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,fps=30",
-                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
+                     "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=decrease,pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2,fps=30",
+                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
                      "-pix_fmt", "yuv420p", out],
                     capture_output=True, text=True)
                 if res_norm.returncode != 0 or not os.path.exists(out) or os.path.getsize(out) < 2000:
@@ -607,34 +683,46 @@ class VideoRecorder:
             raw_size = os.path.getsize(raw_full) if os.path.exists(raw_full) else 0
             print(f"🎬 [VIDEO] File raw hoàn chỉnh: {raw_size//(1024*1024)}MB, thời lượng: {duration_sec:.1f}s", flush=True)
 
-            # Nếu thời lượng dài (> 10 phút do thời gian chờ AI suy nghĩ), tự động tăng tốc 6x
-            # để video toàn cảnh trọn vẹn từ đầu đến cuối chỉ dài 5-8 phút, xem được toàn bộ các thao tác và < 40MB
-            if duration_sec > 600.0 or raw_size > 45 * 1024 * 1024:
-                speed_factor = max(4.0, min(8.0, duration_sec / 360.0))
+            # Tối ưu thời lượng & chất lượng cho Telegram: khi > 180s hoặc > 35MB,
+            # tăng tốc 2.5x-6.0x (mục tiêu ~2.5-3.5 phút, mượt 30fps, CRF 24 nét chữ, < 25MB).
+            if duration_sec > 180.0 or raw_size > 35 * 1024 * 1024:
+                speed_factor = max(2.5, min(6.0, duration_sec / 180.0))
                 self._speed_factor = speed_factor
                 self._recorded_seconds = duration_sec
                 pts_factor = 1.0 / speed_factor
-                print(f"🎬 [VIDEO] Tối ưu hóa thời lượng tour ({duration_sec:.0f}s -> {duration_sec*pts_factor:.0f}s, speed {speed_factor:.1f}x) để xem trọn vẹn mọi thao tác trên Telegram...", flush=True)
-                cmd_opt = f"ffmpeg -y -i {raw_full} -filter:v 'setpts={pts_factor:.4f}*PTS' -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -movflags +faststart {self.final_mp4}"
-                res_opt = subprocess.run(cmd_opt, shell=True, capture_output=True, text=True)
+                print(f"🎬 [VIDEO] Tối ưu hóa thời lượng tour ({duration_sec:.0f}s -> {duration_sec*pts_factor:.0f}s, speed {speed_factor:.1f}x) để xem mượt trên Telegram...", flush=True)
+                res_opt = subprocess.run(
+                    ["ffmpeg", "-y", "-v", "error", "-i", raw_full,
+                     "-filter:v", f"setpts={pts_factor:.4f}*PTS,fps=30",
+                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
+                     "-pix_fmt", "yuv420p", "-movflags", "+faststart", self.final_mp4],
+                    capture_output=True, text=True)
                 if res_opt.returncode != 0:
                     print(f"⚠️ [VIDEO RECORDER] Tang toc loi (rc={res_opt.returncode}): {(res_opt.stderr or '')[-300:]}", flush=True)
             else:
+                self._speed_factor = 1.0
+                self._recorded_seconds = duration_sec
                 # Stream-copy nhanh kèm di chuyển moov atom lên đầu (+faststart) để xem online không cần đợi tải hết
-                cmd_fast = f"ffmpeg -y -i {raw_full} -c copy -movflags +faststart {self.final_mp4}"
-                res_fast = subprocess.run(cmd_fast, shell=True, capture_output=True, text=True)
+                res_fast = subprocess.run(
+                    ["ffmpeg", "-y", "-v", "error", "-i", raw_full,
+                     "-c", "copy", "-movflags", "+faststart", self.final_mp4],
+                    capture_output=True, text=True)
                 if not os.path.exists(self.final_mp4) or os.path.getsize(self.final_mp4) < 2000:
                     if res_fast.returncode != 0:
                         print(f"⚠️ [VIDEO RECORDER] Stream-copy that bai (rc={res_fast.returncode}): {(res_fast.stderr or '')[-300:]}", flush=True)
                     # Nếu -c copy gặp lỗi bitstream, fallback re-encode veryfast
-                    cmd_reencode = f"ffmpeg -y -i {raw_full} -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -movflags +faststart {self.final_mp4}"
-                    res_re = subprocess.run(cmd_reencode, shell=True, capture_output=True, text=True)
+                    res_re = subprocess.run(
+                        ["ffmpeg", "-y", "-v", "error", "-i", raw_full,
+                         "-c:v", "libx264", "-preset", "veryfast", "-crf", "24",
+                         "-pix_fmt", "yuv420p", "-movflags", "+faststart", self.final_mp4],
+                        capture_output=True, text=True)
                     if res_re.returncode != 0:
                         print(f"⚠️ [VIDEO RECORDER] Re-encode fallback loi (rc={res_re.returncode}): {(res_re.stderr or '')[-300:]}", flush=True)
 
-            if not os.path.exists(self.final_mp4):
+            if not os.path.exists(self.final_mp4) or os.path.getsize(self.final_mp4) < 2000:
                 if os.path.exists(raw_full):
-                    os.rename(raw_full, self.final_mp4)
+                    os.replace(raw_full, self.final_mp4)
+                    self._speed_factor = 1.0
 
         # CI-T8 mục 2: dựng chunk_map (QA_t -> raw tour_t) từ các norm chunk
         # còn sống, theo đúng thứ tự tour — PHẢI làm trước bước dọn file
@@ -645,16 +733,6 @@ class VideoRecorder:
         if self._chunk_map:
             print(f"🎬 [VIDEO] Chunk map: {len(self._chunk_map)} chunk, "
                   f"tour thô {self._chunk_map[-1]['raw_end_s']:.1f}s.", flush=True)
-
-        # Tạo bản tua nhanh 10x Timelapse Preview (chuẩn android-tv-qa)
-        if os.path.exists(self.final_mp4) and os.path.getsize(self.final_mp4) > 2000:
-            print(f"⚡ [VIDEO] Đang tạo video tua nhanh 10x Timelapse Preview...", flush=True)
-            cmd_timelapse = f"ffmpeg -y -i {self.final_mp4} -filter:v 'setpts=0.1*PTS' -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p -movflags +faststart {self.timelapse_mp4}"
-            res_tl = subprocess.run(cmd_timelapse, shell=True, capture_output=True, text=True)
-            if res_tl.returncode != 0:
-                # KL8 fix loop 2 (F67c): run 42963719447 timelapse=None mà
-                # không có dòng log nào — lỗi ffmpeg phải thấy được.
-                print(f"⚠️ [VIDEO RECORDER] Timelapse loi (rc={res_tl.returncode}): {(res_tl.stderr or '')[-300:]}", flush=True)
 
         # Dọn dẹp các chunk tạm (GIU LAI neu ghep loi de khong mat hinh anh goc)
         _probe_tmp = os.path.join(self.out_dir, "_moov_probe.mp4")
@@ -679,9 +757,6 @@ class VideoRecorder:
                 except Exception: pass
 
         final_sz = os.path.getsize(self.final_mp4) if os.path.exists(self.final_mp4) else 0
-        tl_sz = os.path.getsize(self.timelapse_mp4) if os.path.exists(self.timelapse_mp4) else 0
-        if tl_sz < 1000:
-            print("⚠️ [VIDEO RECORDER] Timelapse rong/that bai, kiem tra log ffmpeg.", flush=True)
         # KL8 fix loop 2 (F67c): báo độ phủ — video "full tour" phải cover
         # gần trọn phiên; run 42963719447 chỉ có 169s/5121s mà report không
         # hề ghi gì (chỉ có timelapse=None lặng lẽ).
@@ -691,11 +766,11 @@ class VideoRecorder:
         partial = bool(expected > 0 and raw_duration_sec < 0.9 * expected)
         if partial:
             print(f"⚠️ [VIDEO RECORDER] Video tour CHUA DU: {raw_duration_sec:.0f}s ghi duoc / {expected:.0f}s chay ({len(getattr(self, '_norm_chunks', []))} chunk chuan hoa).", flush=True)
-        print(f"🎬 [VIDEO TOUR HOÀN TẤT] File: {self.final_mp4} ({final_sz//1024} KB) | Timelapse: {self.timelapse_mp4} ({tl_sz//1024} KB)", flush=True)
+        print(f"🎬 [VIDEO TOUR HOÀN TẤT] File: {self.final_mp4} ({final_sz//1024} KB) [{tw}x{th}]", flush=True)
 
         return {
             "full_tour": self.final_mp4,
-            "timelapse": self.timelapse_mp4 if tl_sz > 1000 else None,
+            "timelapse": None,
             "recorded_seconds": round(raw_duration_sec, 1),
             # Hệ số tốc độ của full_tour (1.0 = không tăng tốc): judge CẦN
             # chia video_t cho hệ số này khi cắt defect reel (CI-T4: reel cắt
