@@ -46,13 +46,16 @@ KEY_MAP = {
 
 # Từ khóa fallback xác định tab khi nav-selected không có trong dump.
 TAB_KEYWORDS = [
+    # Đặt resource-id đặc trưng của tab Tìm kiếm (3) lên trước vì SearchFragment cũng
+    # gợi ý kênh VTV/HTV khiến từ khóa chung bên dưới nhận nhầm thành IPTV (2).
+    (3, ["searchinput", "searchleftpane", "tvsearchempty", "resultlist"]),
     # v7.7.9 7-tab (Truc tiep 0, Lich 1, Truyen hinh 2, Tim kiem 3, Cai dat 4, Phim 5, Hub 6).
     # "phim" chung chung bi loai: ten kenh IPTV cung chua "phim" (vd: kenh phim),
     # lam detect nham IPTV thanh Kho Phim (tab 5) roi bo qua SWITCH_TAB dau mission.
     # Chi giu tu khoa dac thu cua man Kho Phim.
     (5, ["kho phim", "btnphimquicksearch", "nguonc", "btnheroplay", "apple pill", "phim mới", "chiếu rạp", "phim bộ", "phim lẻ", "tiếp tục xem", "rạp phim tại gia"]),
     (2, ["truyền hình ·", "xem được", "iptv", "kênh tv", "channel", "vtv", "htv"]),
-    (3, ["searchinput", "resultlist", "tìm kiếm"]),
+    (3, ["tìm kiếm"]),
     (0, ["đang trực tiếp ngay", "livelist", "cardroot", "socolive", "colatv", "gà vàng", "khán đài"]),
 ]
 NAV_ID_TO_TAB = {

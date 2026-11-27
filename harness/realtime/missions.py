@@ -210,27 +210,6 @@ ALL_MISSIONS = [
         target_desc="dialog Cài đặt trình phát đang mở trên PlayerActivity mặt VOD",
     ),
     MissionSpec(
-        "MISSION_MULTIVIEW_DIRECTED",
-        "MultiView Có Định Hướng: 2/4 Ô Trận Cùng Lúc",
-        "Deep-link explicit mở thẳng MultiViewActivity (tour trial 9 thiếu màn "
-        "này). KHÔNG có đường D-pad: chuỗi nav 'Đa màn hình' chỉ tồn tại dạng "
-        "string chết (không dùng ở MainActivity/layout), LiveFragment.openMultiView "
-        "không có caller nào, đường vào duy nhất còn lại là panel TÙY CHỌN trong "
-        "PlayerActivity (sportOptMulti) mà driver không mở được — nên dùng "
-        "directed launch như 2 mission WebPlayer/VOD. MultiView tự nạp trận live "
-        "thật (SocoliveRepository.fetchLiveRooms); run không có trận live nào thì "
-        "màn hình hiện trạng thái trống trung thực ('Hiện chưa có trận đấu nào đang "
-        "trực tiếp' + nút Thử lại) — mission vẫn PASS vì mục tiêu là màn hình "
-        "MultiView, không phải trận live: KHÔNG ép motion để không FAIL oan trạng "
-        "thái trống đúng. Bằng chứng: activity + tiêu đề 'Đa màn hình' + vision.",
-        max_steps=8, min_steps=4,
-        required_activity="MultiViewActivity",
-        required_texts=["đa màn hình"],
-        needs_vision=True,
-        directed_launch="LAUNCH_MULTIVIEW",
-        target_desc="màn hình Đa màn hình với 2 hoặc 4 ô trận đấu đang phát, hoặc trạng thái trống trung thực khi không có trận trực tiếp",
-    ),
-    MissionSpec(
         "MISSION_SEARCH_AND_SETTINGS_FEEDBACK",
         "Tìm Kiếm (bàn phím ảo + gõ từ khóa)",
         "Tab Tìm kiếm: mở bàn phím ảo thật (OK trên ô tìm kiếm rồi gõ "

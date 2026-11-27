@@ -4070,54 +4070,14 @@ def test_h5_player_entry_frame_saved():
 
 
 def test_tour_multiview_mission():
-    """MultiView directed (v4 4-tab): 2 mission Cài đặt (Storage dialog,
-    Feedback Telegram QR) đã bỏ cùng tab Cài đặt — chỉ còn MultiView.
-    - MULTIVIEW_DIRECTED: launch thẳng MultiViewActivity (không có đường
-      D-pad: nav 'Đa màn hình' là string chết, LiveFragment.openMultiView
-      không có caller); trạng thái trống trung thực vẫn đủ tín hiệu rẻ
-      (không ép motion) — chỉ còn chờ vision-confirm."""
-    from driver import Driver
-    from gate import EvidenceGate
+    """Kiểm tra mission suite sau khi gỡ bỏ MultiView (còn 14 mission) và tab Search."""
     from missions import get_missions
     _specs = {s.name: s for s in get_missions()}
-    assert len(_specs) == 15, \
-        "v4 4-tab: 15 mission (8 renumber + 7 mission Schedule/Settings/Hub đã bỏ) (được %d)" % len(_specs)
+    assert len(_specs) == 14, \
+        "4-tab + bỏ MultiView: 14 mission (được %d)" % len(_specs)
     _quick = {s.name for s in get_missions(quick=True)}
-    assert len(_quick) == 4 and "MISSION_MULTIVIEW_DIRECTED" not in _quick, \
-        "MultiView chỉ chạy full-run, không lọt vào quick (4 mission)"
-
-    # --- MultiView: directed launch thẳng activity, trạng thái trống vẫn đủ tín hiệu rẻ.
-    _mv = _specs["MISSION_MULTIVIEW_DIRECTED"]
-    assert _mv.directed_launch == "LAUNCH_MULTIVIEW"
-    assert _mv.required_activity == "MultiViewActivity"
-    assert _mv.required_texts == ["đa màn hình"]
-    assert _mv.needs_vision is True and _mv.needs_motion is False
-    assert _mv.tab is None, "mission directed không reset tab"
-
-    class _MvDevice(FakeDevice):
-        def launch_multiview(self):
-            self._activity = "com.kenhlive.tv/.MultiViewActivity"
-            self._note("LAUNCH_MULTIVIEW")
-
-    _r = runner_mod.RealtimeRunner(out_dir="/tmp/qa_mock_mv", serial=None,
-                                   vision_budget=0, no_vision=True)
-    _r.device = _MvDevice()
-    _gmv2 = EvidenceGate(_mv)
-    assert _r._run_directed_launch(_mv, _gmv2) is True, \
-        "directed launch phải tới được MultiViewActivity"
-    assert "com.kenhlive.tv/.MultiViewActivity" in _gmv2.activities_seen
-    assert "LAUNCH_MULTIVIEW" in _r.device.action_history
-    # Trạng thái trống trung thực (không trận live): activity + tiêu đề đủ,
-    # chỉ còn chờ vision-confirm — không FAIL oan vì thiếu motion.
-    _gmv = EvidenceGate(_mv)
-    for _t in (10.0, 20.0, 30.0, 40.0):
-        _gmv.observe("com.kenhlive.tv/.MultiViewActivity",
-                     ["Đa màn hình", "Hiện chưa có trận đấu nào đang trực tiếp",
-                      "Thử lại", "Quay lại"], [], False, False, _t)
-    _vmv, _rmv, _ = _gmv.evaluate("step_004.jpg")
-    print("multiview: trạng thái trống x4 ->", _vmv, "|", _rmv)
-    assert _vmv == "VISION_PENDING", \
-        "trạng thái trống vẫn đủ tín hiệu rẻ, chỉ chờ vision (được %s)" % _vmv
+    assert len(_quick) == 4 and "MISSION_MULTIVIEW_DIRECTED" not in _specs, \
+        "MultiView đã bỏ khỏi app nên không còn trong MISSIONS"
     print("TOUR_MULTIVIEW_OK")
 
 
