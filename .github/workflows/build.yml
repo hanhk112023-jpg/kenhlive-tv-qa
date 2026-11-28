@@ -8,9 +8,9 @@ on:
         required: false
         default: 'main'
       build_release:
-        description: 'Build them APK release (ky bang key dev tam — keystore that chi co o repo kenhlive-tv)'
+        description: 'Build APK release ky bang app/keystore/kenhlive.jks'
         type: boolean
-        default: false
+        default: true
   push:
     branches: [main]
 
@@ -61,8 +61,8 @@ jobs:
           if-no-files-found: error
 
   build-release:
-    name: Build Android APK (release, dev-signed)
-    if: ${{ inputs.build_release }}
+    name: Build Android APK (release, kenhlive.jks)
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_release }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -92,14 +92,14 @@ jobs:
           COMMITTED=""
           for f in app/app/keystore/*.jks; do if [ -f "$f" ]; then COMMITTED="$f"; fi; done
           if [ -f "$ALIASFILE" ]; then IFS= read -r ALIAS < "$ALIASFILE" || true; else ALIAS="${KS_ALIAS:-release}"; fi
-          if [ -n "$KS_B64" ]; then
-            echo "Dung keystore trong secret."
-            echo "$KS_B64" | base64 -d > fromsecret.jks
-            PASS="***"; WORKFILE="fromsecret.jks"; SRC=secret
-          elif [ -n "$COMMITTED" ] && [ -f "$PASSFILE" ]; then
-            echo "Dung keystore da commit trong repo private (ky on dinh)."
+          if [ -n "$COMMITTED" ] && [ -f "$PASSFILE" ]; then
+            echo "Dung keystore da commit trong repo private (app/keystore/kenhlive.jks)."
             IFS= read -r PASS < "$PASSFILE" || true
             WORKFILE="$COMMITTED"; SRC=committed
+          elif [ -n "$KS_B64" ]; then
+            echo "Dung keystore trong secret."
+            echo "$KS_B64" | base64 -d > fromsecret.jks
+            PASS="${KS_PASS:-}"; WORKFILE="fromsecret.jks"; SRC=secret
           else
             echo "Tao keystore moi..."
             PASS="***"
